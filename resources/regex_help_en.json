@@ -258,5 +258,25 @@
     "matches": "urgent task",
     "replace_with": "",
     "replacement_result": ""
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Remove blank lines",
+    "pattern": "^[ \\t]*\\n",
+    "description": "Finds lines that contain only spaces or tabs, then removes the line.",
+    "example_text": "Line 1\\n\\nLine 2",
+    "matches": "The empty middle line",
+    "replace_with": "",
+    "replacement_result": "Line 1\\nLine 2"
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Convert tabs to four spaces",
+    "pattern": "\\t",
+    "description": "Finds tab characters so indentation can be made consistent.",
+    "example_text": "\\tIndented",
+    "matches": "The tab before Indented",
+    "replace_with": "    ",
+    "replacement_result": "    Indented"
   }
 ]

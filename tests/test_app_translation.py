@@ -33,3 +33,5 @@ def test_japanese_translation_uses_readable_labels() -> None:
 
     assert translator.text("menu.search") == "検索(&S)"
     assert translator.text("find.regex") == "正規表現として検索する"
+    assert translator.text("action.open_with_encoding") == "文字コードを指定して開く(&N)"
+    assert translator.text("action.reload") == "読み直し(&R)"

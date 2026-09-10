@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMenu,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -23,6 +25,7 @@ class FindReplaceDialog(QDialog):
     find_requested = Signal(str, SearchOptions)
     replace_requested = Signal(str, str, SearchOptions)
     replace_all_requested = Signal(str, str, SearchOptions)
+    preview_requested = Signal(str, str, SearchOptions)
     regex_help_requested = Signal()
 
     def __init__(self, translator: Translator, parent: QWidget | None = None) -> None:
@@ -45,6 +48,8 @@ class FindReplaceDialog(QDialog):
         self.replace_button = QPushButton("Replace", self)
         self.replace_all_button = QPushButton("Replace All", self)
         self.insert_regex_button = QPushButton("Insert Regex", self)
+        self.recipe_button = QPushButton("Recipes", self)
+        self.preview_button = QPushButton("Preview", self)
         self.regex_help_button = QPushButton("Regex Help", self)
         self.close_button = QPushButton("Close", self)
         self.error_label = QLabel(self)
@@ -53,9 +58,16 @@ class FindReplaceDialog(QDialog):
         self.warning_label = QLabel(self)
         self.warning_label.setStyleSheet("color: #8a5a00;")
         self.warning_label.setWordWrap(True)
+        self.preview_summary_label = QLabel(self)
+        self.preview_table = QTableWidget(0, 3, self)
+        self.preview_table.setMinimumHeight(180)
+        self.preview_table.setAlternatingRowColors(True)
+        self.preview_table.verticalHeader().setVisible(False)
+        self.preview_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
         self._create_layout()
         self._create_regex_insert_menu()
+        self._create_recipe_menu()
         self._connect_signals()
         self.apply_language()
 
@@ -73,6 +85,30 @@ class FindReplaceDialog(QDialog):
         self.find_text_edit.insert(text)
         self.find_text_edit.setFocus()
 
+    def set_search_recipe(self, search_text: str, replace_text: str) -> None:
+        self.find_text_edit.setText(search_text)
+        self.replace_text_edit.setText(replace_text)
+        self.regular_expression_check_box.setChecked(True)
+        self.find_text_edit.setFocus()
+        self.find_text_edit.selectAll()
+
+    def set_preview_rows(
+        self,
+        rows: list[tuple[int, str, str]],
+        summary: str,
+    ) -> None:
+        self.preview_summary_label.setText(summary)
+        self.preview_table.setRowCount(len(rows))
+        for row_index, (line_number, before_text, after_text) in enumerate(rows):
+            values = (str(line_number), before_text, after_text)
+            for column_index, value in enumerate(values):
+                self.preview_table.setItem(
+                    row_index,
+                    column_index,
+                    QTableWidgetItem(value),
+                )
+        self.preview_table.resizeColumnsToContents()
+
     def apply_language(self) -> None:
         self.setWindowTitle(self.translator.text("find.title"))
         self.find_text_label.setText(self.translator.text("find.find_text"))
@@ -85,9 +121,19 @@ class FindReplaceDialog(QDialog):
         self.replace_button.setText(self.translator.text("find.replace"))
         self.replace_all_button.setText(self.translator.text("find.replace_all"))
         self.insert_regex_button.setText(self.translator.text("find.insert_regex"))
+        self.recipe_button.setText(self.translator.text("find.regex_recipes"))
+        self.preview_button.setText(self.translator.text("find.preview"))
         self.regex_help_button.setText(self.translator.text("find.regex_help"))
         self.close_button.setText(self.translator.text("find.close"))
+        self.preview_table.setHorizontalHeaderLabels(
+            [
+                self.translator.text("find.preview.line"),
+                self.translator.text("find.preview.before"),
+                self.translator.text("find.preview.after"),
+            ]
+        )
         self._create_regex_insert_menu()
+        self._create_recipe_menu()
         self._update_regex_lint()
 
     def _create_layout(self) -> None:
@@ -104,16 +150,20 @@ class FindReplaceDialog(QDialog):
         button_layout = QGridLayout()
         button_layout.addWidget(self.find_button, 0, 0)
         button_layout.addWidget(self.replace_button, 0, 1)
-        button_layout.addWidget(self.replace_all_button, 1, 0)
+        button_layout.addWidget(self.replace_all_button, 0, 2)
+        button_layout.addWidget(self.preview_button, 1, 0)
         button_layout.addWidget(self.insert_regex_button, 1, 1)
+        button_layout.addWidget(self.recipe_button, 1, 2)
         button_layout.addWidget(self.regex_help_button, 2, 0)
-        button_layout.addWidget(self.close_button, 2, 1)
+        button_layout.addWidget(self.close_button, 2, 2)
 
         root_layout = QVBoxLayout()
         root_layout.addLayout(form_layout)
         root_layout.addLayout(button_layout)
         root_layout.addWidget(self.warning_label)
         root_layout.addWidget(self.error_label)
+        root_layout.addWidget(self.preview_summary_label)
+        root_layout.addWidget(self.preview_table)
         self.setLayout(root_layout)
 
     def _create_regex_insert_menu(self) -> None:
@@ -140,11 +190,36 @@ class FindReplaceDialog(QDialog):
             regex_menu.addAction(action)
         self.insert_regex_button.setMenu(regex_menu)
 
+    def _create_recipe_menu(self) -> None:
+        recipe_menu = QMenu(self)
+        recipes = [
+            ("regex.recipe.collapse_blank_lines", r"\n{3,}", "\n\n"),
+            ("regex.recipe.trim_trailing_space", r"[ \t]+$", ""),
+            ("regex.recipe.remove_blank_lines", r"^[ \t]*\n", ""),
+            ("regex.recipe.tabs_to_spaces", r"\t", "    "),
+            ("regex.recipe.date_yyyy_mm_dd_to_slash", r"(\d{4})-(\d{2})-(\d{2})", r"\1/\2/\3"),
+            ("regex.recipe.numbered_to_bullets", r"^\d+\.\s+", "- "),
+        ]
+        for label_key, search_text, replace_text in recipes:
+            label = self.translator.text(label_key)
+            action = QAction(label, self)
+            action.triggered.connect(
+                lambda checked=False,
+                search_value=search_text,
+                replace_value=replace_text: self.set_search_recipe(
+                    search_value,
+                    replace_value,
+                )
+            )
+            recipe_menu.addAction(action)
+        self.recipe_button.setMenu(recipe_menu)
+
     def _connect_signals(self) -> None:
         self.find_button.clicked.connect(self._emit_find_requested)
         self.find_text_edit.returnPressed.connect(self._emit_find_requested)
         self.replace_button.clicked.connect(self._emit_replace_requested)
         self.replace_all_button.clicked.connect(self._emit_replace_all_requested)
+        self.preview_button.clicked.connect(self._emit_preview_requested)
         self.regex_help_button.clicked.connect(self.regex_help_requested.emit)
         self.close_button.clicked.connect(self.close)
         self.find_text_edit.textChanged.connect(self._update_regex_lint)
@@ -195,6 +270,13 @@ class FindReplaceDialog(QDialog):
 
     def _emit_replace_all_requested(self) -> None:
         self.replace_all_requested.emit(
+            self.find_text_edit.text(),
+            self.replace_text_edit.text(),
+            self._search_options(),
+        )
+
+    def _emit_preview_requested(self) -> None:
+        self.preview_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
             self._search_options(),

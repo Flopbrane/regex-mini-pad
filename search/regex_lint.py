@@ -37,6 +37,7 @@ class RegexLint:
 
         self._warn_about_empty_matches(pattern, messages)
         self._warn_about_broad_patterns(pattern_text, messages)
+        self._warn_about_common_confusions(pattern_text, messages)
 
         if check_replacement:
             self._check_replacement(pattern, replacement_text, messages)
@@ -93,6 +94,33 @@ class RegexLint:
                 )
             )
 
+    def _warn_about_common_confusions(
+        self,
+        pattern_text: str,
+        messages: list[RegexLintMessage],
+    ) -> None:
+        if self._has_unescaped_dot(pattern_text):
+            messages.append(
+                RegexLintMessage(
+                    "warning",
+                    "regex_lint.unescaped_dot",
+                )
+            )
+        if "\\n" in pattern_text:
+            messages.append(
+                RegexLintMessage(
+                    "warning",
+                    "regex_lint.backslash_n",
+                )
+            )
+        if pattern_text.endswith("\\"):
+            messages.append(
+                RegexLintMessage(
+                    "warning",
+                    "regex_lint.trailing_escape",
+                )
+            )
+
     def _check_replacement(
         self,
         pattern: Pattern[str],
@@ -109,3 +137,30 @@ class RegexLint:
                     {"error": str(error)},
                 )
             )
+        if pattern.groups == 0 and re.search(r"\\[1-9]", replacement_text):
+            messages.append(
+                RegexLintMessage(
+                    "warning",
+                    "regex_lint.backref_without_group",
+                )
+            )
+
+    def _has_unescaped_dot(self, pattern_text: str) -> bool:
+        escaped = False
+        in_character_class = False
+        for character in pattern_text:
+            if escaped:
+                escaped = False
+                continue
+            if character == "\\":
+                escaped = True
+                continue
+            if character == "[":
+                in_character_class = True
+                continue
+            if character == "]":
+                in_character_class = False
+                continue
+            if character == "." and not in_character_class:
+                return True
+        return False

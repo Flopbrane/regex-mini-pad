@@ -25,3 +25,15 @@ def test_lint_reports_invalid_replacement_reference() -> None:
     )
 
     assert any(message.severity == "error" for message in messages)
+
+
+def test_lint_warns_about_unescaped_dot() -> None:
+    messages = RegexLint().lint("example.com")
+
+    assert any(message.message_key == "regex_lint.unescaped_dot" for message in messages)
+
+
+def test_lint_warns_about_backslash_n() -> None:
+    messages = RegexLint().lint(r"\n{3,}")
+
+    assert any(message.message_key == "regex_lint.backslash_n" for message in messages)

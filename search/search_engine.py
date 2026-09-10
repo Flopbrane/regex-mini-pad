@@ -100,6 +100,20 @@ class SearchEngine:
             count,
         )
 
+    def preview_replacement(
+        self,
+        match_text: str,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions | None = None,
+    ) -> ReplaceResult:
+        if not search_text:
+            return ReplaceResult(match_text, 0)
+
+        pattern = self._compile_pattern(search_text, options or SearchOptions())
+        replaced_text, count = pattern.subn(replace_text, match_text, count=1)
+        return ReplaceResult(replaced_text, count)
+
     def _compile_pattern(
         self,
         search_text: str,
@@ -109,7 +123,9 @@ class SearchEngine:
         if options.whole_word:
             pattern_text = rf"\b(?:{pattern_text})\b"
 
-        flags = 0 if options.case_sensitive else re.IGNORECASE
+        flags = re.MULTILINE if options.regular_expression else 0
+        if not options.case_sensitive:
+            flags |= re.IGNORECASE
         return re.compile(pattern_text, flags)
 
     def _first_non_empty_match(

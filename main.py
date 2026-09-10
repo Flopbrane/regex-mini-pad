@@ -7,11 +7,15 @@ from re import error as RegexError
 from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QFileDialog,
+    QHBoxLayout,
+    QLabel,
     QMainWindow,
     QMenu,
     QMessageBox,
     QStatusBar,
+    QVBoxLayout,
 )
 
 from dialogs.find_replace_dialog import FindReplaceDialog
@@ -21,6 +25,17 @@ from fileio.file_manager import FileManager
 from localization.translator import Translator
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import SettingsManager
+
+ENCODING_OPTIONS = {
+    "UTF-8": "utf-8",
+    "UTF-8 with BOM": "utf-8-sig",
+    "CP932 / Shift_JIS": "cp932",
+    "Shift_JIS": "shift_jis",
+    "EUC-JP": "euc_jp",
+    "UTF-16": "utf-16",
+    "UTF-16 LE": "utf-16-le",
+    "UTF-16 BE": "utf-16-be",
+}
 
 
 class MainWindow(QMainWindow):
@@ -33,6 +48,7 @@ class MainWindow(QMainWindow):
         self.file_manager = FileManager()
         self.search_engine = SearchEngine()
         self.current_save_file_path: Path | None = None
+        self.current_encoding = "utf-8"
         self.find_replace_dialog: FindReplaceDialog | None = None
         self.regex_help_dialog: RegexHelpDialog | None = None
         self.search_scope: tuple[int, int] | None = None
@@ -68,6 +84,30 @@ class MainWindow(QMainWindow):
         self.open_action = QAction("&Open...", self)
         self.open_action.setShortcut("Ctrl+O")
         self.open_action.triggered.connect(self.open_file)
+
+        self.open_with_encoding_menu = QMenu(self)
+        self.open_encoding_actions: dict[str, QAction] = {}
+        for label, encoding in ENCODING_OPTIONS.items():
+            action = QAction(label, self)
+            action.triggered.connect(
+                lambda checked=False, value=encoding: self.open_file(value)
+            )
+            self.open_encoding_actions[encoding] = action
+            self.open_with_encoding_menu.addAction(action)
+
+        self.reload_action = QAction(self)
+        self.reload_action.setShortcut("Ctrl+R")
+        self.reload_action.triggered.connect(self.reload_file)
+
+        self.reload_with_encoding_menu = QMenu(self)
+        self.reload_encoding_actions: dict[str, QAction] = {}
+        for label, encoding in ENCODING_OPTIONS.items():
+            action = QAction(label, self)
+            action.triggered.connect(
+                lambda checked=False, value=encoding: self.reload_file(value)
+            )
+            self.reload_encoding_actions[encoding] = action
+            self.reload_with_encoding_menu.addAction(action)
 
         self.save_action = QAction("&Save", self)
         self.save_action.setShortcut("Ctrl+S")
@@ -124,6 +164,9 @@ class MainWindow(QMainWindow):
         self.file_menu = QMenu(self)
         self.file_menu.addAction(self.new_action)
         self.file_menu.addAction(self.open_action)
+        self.file_menu.addMenu(self.open_with_encoding_menu)
+        self.file_menu.addAction(self.reload_action)
+        self.file_menu.addMenu(self.reload_with_encoding_menu)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.save_action)
         self.file_menu.addAction(self.save_as_action)
@@ -190,6 +233,13 @@ class MainWindow(QMainWindow):
 
         self.new_action.setText(self.translator.text("action.new"))
         self.open_action.setText(self.translator.text("action.open"))
+        self.open_with_encoding_menu.setTitle(
+            self.translator.text("action.open_with_encoding")
+        )
+        self.reload_action.setText(self.translator.text("action.reload"))
+        self.reload_with_encoding_menu.setTitle(
+            self.translator.text("action.reload_with_encoding")
+        )
         self.save_action.setText(self.translator.text("action.save"))
         self.save_as_action.setText(self.translator.text("action.save_as"))
         self.exit_action.setText(self.translator.text("action.exit"))
@@ -256,7 +306,7 @@ class MainWindow(QMainWindow):
         self.current_save_file_path = None
         self._update_window_title()
 
-    def open_file(self) -> None:
+    def open_file(self, encoding: str | None = None) -> None:
         if not self._confirm_discard_changes():
             return
 
@@ -268,9 +318,10 @@ class MainWindow(QMainWindow):
             return
 
         load_file_path = Path(selected_path)
+        selected_encoding = encoding or "utf-8"
         try:
-            load_data = self.file_manager.load_text(load_file_path)
-        except OSError as error:
+            load_data = self.file_manager.load_text(load_file_path, selected_encoding)
+        except (OSError, UnicodeError) as error:
             QMessageBox.critical(
                 self,
                 self.translator.text("dialog.open_failed.title"),
@@ -282,7 +333,41 @@ class MainWindow(QMainWindow):
         self.editor.moveCursor(QTextCursor.MoveOperation.Start)
         self.editor.document().setModified(False)
         self.current_save_file_path = load_file_path
+        self.current_encoding = selected_encoding
         self._update_window_title()
+        self._set_encoding_status()
+
+    def reload_file(self, encoding: str | None = None) -> None:
+        if self.current_save_file_path is None:
+            self._set_search_error(self.translator.text("dialog.reload_no_file"))
+            return
+        if not self._confirm_discard_changes():
+            return
+
+        selected_encoding = encoding or self.current_encoding
+        try:
+            load_data = self.file_manager.load_text(
+                self.current_save_file_path,
+                selected_encoding,
+            )
+        except (OSError, UnicodeError) as error:
+            QMessageBox.critical(
+                self,
+                self.translator.text("dialog.reload_failed.title"),
+                self.translator.text(
+                    "dialog.encoding_failed",
+                    encoding=selected_encoding,
+                    error=error,
+                ),
+            )
+            return
+
+        self.current_encoding = selected_encoding
+        self.editor.setPlainText(load_data)
+        self.editor.moveCursor(QTextCursor.MoveOperation.Start)
+        self.editor.document().setModified(False)
+        self._update_window_title()
+        self._set_encoding_status()
 
     def save_file(self) -> None:
         if self.current_save_file_path is None:
@@ -291,18 +376,52 @@ class MainWindow(QMainWindow):
         self._save_to_path(self.current_save_file_path)
 
     def save_file_as(self) -> None:
-        selected_path, _ = QFileDialog.getSaveFileName(
-            self,
-            self.translator.text("dialog.save_as.title"),
-        )
-        if not selected_path:
+        selected_save_file_path, selected_encoding = self._get_save_file_path()
+        if selected_save_file_path is None:
             return
-        self._save_to_path(Path(selected_path))
+        self.current_encoding = selected_encoding
+        self._save_to_path(selected_save_file_path)
+
+    def _get_save_file_path(self) -> tuple[Path | None, str]:
+        dialog = QFileDialog(self, self.translator.text("dialog.save_as.title"))
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+        dialog.selectFile(
+            self.current_save_file_path.name if self.current_save_file_path else ""
+        )
+
+        encoding_combo_box = QComboBox(dialog)
+        for label, encoding in ENCODING_OPTIONS.items():
+            encoding_combo_box.addItem(label, encoding)
+        current_encoding_index = encoding_combo_box.findData(self.current_encoding)
+        if current_encoding_index >= 0:
+            encoding_combo_box.setCurrentIndex(current_encoding_index)
+
+        encoding_layout = QHBoxLayout()
+        encoding_layout.addWidget(QLabel(self.translator.text("dialog.save_encoding")))
+        encoding_layout.addWidget(encoding_combo_box)
+
+        dialog_layout = dialog.layout()
+        if isinstance(dialog_layout, QVBoxLayout):
+            dialog_layout.addLayout(encoding_layout)
+        elif dialog_layout is not None:
+            dialog_layout.addWidget(QLabel(self.translator.text("dialog.save_encoding")))
+            dialog_layout.addWidget(encoding_combo_box)
+
+        if dialog.exec() != QFileDialog.DialogCode.Accepted:
+            return None, self.current_encoding
+
+        selected_files = dialog.selectedFiles()
+        if not selected_files:
+            return None, self.current_encoding
+
+        return Path(selected_files[0]), str(encoding_combo_box.currentData())
 
     def _save_to_path(self, save_file_path: Path) -> None:
         save_data = self.editor.toPlainText()
         try:
-            self.file_manager.save_text(save_file_path, save_data)
+            self.file_manager.save_text(save_file_path, save_data, self.current_encoding)
         except OSError as error:
             QMessageBox.critical(
                 self,
@@ -321,6 +440,7 @@ class MainWindow(QMainWindow):
             self.find_replace_dialog.find_requested.connect(self.find_next)
             self.find_replace_dialog.replace_requested.connect(self.replace_current)
             self.find_replace_dialog.replace_all_requested.connect(self.replace_all)
+            self.find_replace_dialog.preview_requested.connect(self.preview_matches)
             self.find_replace_dialog.regex_help_requested.connect(self.show_regex_help_dialog)
 
         selected_text = self.editor.textCursor().selectedText()
@@ -474,6 +594,53 @@ class MainWindow(QMainWindow):
             self.translator.text("search.replaced_many", count=result.count)
         )
 
+    def preview_matches(
+        self,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> None:
+        if self.find_replace_dialog is None:
+            return
+        if not search_text:
+            self._set_search_error(self.translator.text("search.empty"))
+            return
+
+        scope_text, scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self._set_search_error(self.translator.text("search.select_before_find"))
+            return
+
+        source_text = scope_text if scope_text is not None else self.editor.toPlainText()
+        try:
+            matches = self.search_engine.find_all(source_text, search_text, options)
+            rows = self._preview_rows(
+                source_text,
+                matches,
+                search_text,
+                replace_text,
+                options,
+                scope_offset,
+            )
+        except RegexError as error:
+            self._set_search_error(self.translator.text("search.invalid_regex", error=error))
+            return
+
+        shown_count = len(rows)
+        if not matches:
+            summary = self.translator.text("search.preview.no_matches")
+        elif shown_count < len(matches):
+            summary = self.translator.text(
+                "search.preview.limited",
+                shown=shown_count,
+                total=len(matches),
+            )
+        else:
+            summary = self.translator.text("search.preview.matches", count=len(matches))
+
+        self.find_replace_dialog.set_preview_rows(rows, summary)
+        self._set_search_status(summary)
+
     def show_regex_help_dialog(self) -> None:
         if self.regex_help_dialog is None:
             regex_help_paths = {
@@ -515,6 +682,70 @@ class MainWindow(QMainWindow):
             return None, 0
         return source_text[scope_start:scope_end], scope_start
 
+    def _preview_rows(
+        self,
+        source_text: str,
+        matches: list[SearchMatch],
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+        scope_offset: int,
+    ) -> list[tuple[int, str, str]]:
+        rows: list[tuple[int, str, str]] = []
+        for match in matches[:200]:
+            absolute_start = scope_offset + match.start
+            line_number = self.editor.toPlainText().count("\n", 0, absolute_start) + 1
+            before_text = self._line_context(source_text, match)
+            preview_result = self.search_engine.preview_replacement(
+                match.text,
+                search_text,
+                replace_text,
+                options,
+            )
+            after_text = self._replacement_context(
+                source_text,
+                match,
+                preview_result.text if preview_result.count else match.text,
+            )
+            rows.append(
+                (
+                    line_number,
+                    before_text,
+                    after_text,
+                )
+            )
+        return rows
+
+    def _line_context(self, source_text: str, match: SearchMatch) -> str:
+        line_start = source_text.rfind("\n", 0, match.start) + 1
+        line_end = source_text.find("\n", match.end)
+        if line_end == -1:
+            line_end = len(source_text)
+        prefix = source_text[line_start : match.start]
+        suffix = source_text[match.end : line_end]
+        context_text = f"{prefix}{match.text}{suffix}"
+        return self._visible_preview_text(context_text)
+
+    def _replacement_context(
+        self,
+        source_text: str,
+        match: SearchMatch,
+        replacement_text: str,
+    ) -> str:
+        line_start = source_text.rfind("\n", 0, match.start) + 1
+        line_end = source_text.find("\n", match.end)
+        if line_end == -1:
+            line_end = len(source_text)
+        prefix = source_text[line_start : match.start]
+        suffix = source_text[match.end : line_end]
+        return self._visible_preview_text(f"{prefix}{replacement_text}{suffix}")
+
+    def _visible_preview_text(self, text: str) -> str:
+        visible_text = text.replace("\t", "\\t").replace("\n", "\\n")
+        if len(visible_text) > 140:
+            return f"{visible_text[:137]}..."
+        return visible_text
+
     def _replace_document_text(self, text: str) -> None:
         cursor = self.editor.textCursor()
         cursor.beginEditBlock()
@@ -543,6 +774,11 @@ class MainWindow(QMainWindow):
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.clear_error()
         self.statusBar().showMessage(message)
+
+    def _set_encoding_status(self) -> None:
+        self.statusBar().showMessage(
+            self.translator.text("status.encoding", encoding=self.current_encoding)
+        )
 
 
 def main() -> int:

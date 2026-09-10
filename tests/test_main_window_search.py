@@ -102,6 +102,55 @@ def test_find_next_can_target_selected_text_only(app: QApplication) -> None:
     assert window.editor.textCursor().selectionStart() == 14
 
 
+def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("first\nsecond  \nthird")
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+
+    window.preview_matches(
+        r"[ \t]+$",
+        "",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert window.find_replace_dialog.preview_table.rowCount() == 1
+    line_item = window.find_replace_dialog.preview_table.item(0, 0)
+    before_item = window.find_replace_dialog.preview_table.item(0, 1)
+    after_item = window.find_replace_dialog.preview_table.item(0, 2)
+    assert line_item is not None
+    assert before_item is not None
+    assert after_item is not None
+    assert line_item.text() == "2"
+    assert before_item.text() == "second  "
+    assert after_item.text() == "second"
+
+
+def test_preview_matches_uses_selected_text_only(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("outside  \ninside  \noutside  ")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(10)
+    cursor.setPosition(19, QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+    window.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+
+    window.preview_matches(
+        r"[ \t]+$",
+        "",
+        SearchOptions(regular_expression=True, selected_only=True),
+    )
+
+    assert window.find_replace_dialog.preview_table.rowCount() == 1
+    line_item = window.find_replace_dialog.preview_table.item(0, 0)
+    assert line_item is not None
+    assert line_item.text() == "2"
+
+
 def test_main_window_can_switch_display_language(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -116,3 +165,16 @@ def test_main_window_can_switch_display_language(app: QApplication) -> None:
         assert window.find_action.text() == "検索 / 置換(&F)..."
     finally:
         Path("settings.json").unlink(missing_ok=True)
+
+
+def test_reload_file_can_use_cp932_encoding(app: QApplication, tmp_path) -> None:
+    _ = app
+    load_file_path = tmp_path / "sample_cp932.txt"
+    load_file_path.write_text("日本語の文章です。", encoding="cp932")
+    window = MainWindow()
+    window.current_save_file_path = load_file_path
+
+    window.reload_file("cp932")
+
+    assert window.editor.toPlainText() == "日本語の文章です。"
+    assert window.current_encoding == "cp932"

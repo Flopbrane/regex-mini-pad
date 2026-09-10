@@ -90,6 +90,34 @@ def test_replace_all_supports_literal_search_text() -> None:
     assert result.count == 1
 
 
+def test_regex_line_end_matches_each_line() -> None:
+    engine = SearchEngine()
+
+    result = engine.replace_all(
+        "first  \nsecond\t\nthird",
+        r"[ \t]+$",
+        "",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert result.text == "first\nsecond\nthird"
+    assert result.count == 2
+
+
+def test_preview_replacement_returns_single_match_result() -> None:
+    engine = SearchEngine()
+
+    result = engine.preview_replacement(
+        "2026-09-11",
+        r"(\d{4})-(\d{2})-(\d{2})",
+        r"\1/\2/\3",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert result.text == "2026/09/11"
+    assert result.count == 1
+
+
 def test_invalid_replacement_reference_is_reported() -> None:
     engine = SearchEngine()
 

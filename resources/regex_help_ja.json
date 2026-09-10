@@ -258,5 +258,25 @@
     "matches": "urgent task",
     "replace_with": "",
     "replacement_result": ""
+  },
+  {
+    "category": "実用例",
+    "label": "空行を削除",
+    "pattern": "^[ \\t]*\\n",
+    "description": "スペースやタブだけの行を探して、その行ごと削除します。",
+    "example_text": "1行目\\n\\n2行目",
+    "matches": "間にある空行",
+    "replace_with": "",
+    "replacement_result": "1行目\\n2行目"
+  },
+  {
+    "category": "実用例",
+    "label": "タブを半角スペース4個に変換",
+    "pattern": "\\t",
+    "description": "タブ文字を探して、インデントの見え方を揃えます。",
+    "example_text": "\\t字下げ",
+    "matches": "字下げ の前にあるタブ",
+    "replace_with": "    ",
+    "replacement_result": "    字下げ"
   }
 ]
