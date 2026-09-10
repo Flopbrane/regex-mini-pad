@@ -35,7 +35,8 @@ class MainWindow(QMainWindow):
         self._restore_settings()
 
         self.editor.textChanged.connect(self._update_status_bar)
-        self.editor.modificationChanged.connect(self._update_window_title)
+        self.editor.cursorPositionChanged.connect(self._update_status_bar)
+        self.editor.document().modificationChanged.connect(self._update_window_title)
         self._update_status_bar()
         self._update_window_title()
 

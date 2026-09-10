@@ -14,9 +14,9 @@ env/
 .mypy_cache/
 .coverage
 htmlcov/
-
 *.yaml
 .pylintrc
+pyrightconfig.json
 # Build outputs
 build/
 dist/
@@ -30,6 +30,10 @@ sample.txt
 *output.txt
 *output.md
 回帰テスト用サンプル.md
+
+# Local settings
+settings.json
+
 # Logs
 *.log
 *.ps1
