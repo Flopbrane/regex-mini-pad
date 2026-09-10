@@ -18,6 +18,29 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from localization.translator import Translator
+
+HELP_HEADERS = {
+    "EN_Ver.": [
+        "Category",
+        "Use",
+        "Pattern",
+        "Plain meaning",
+        "Example text",
+        "Matches",
+        "Replace with / Result",
+    ],
+    "JP_Ver.": [
+        "種類",
+        "用途",
+        "パターン",
+        "平文での意味",
+        "例文",
+        "対象になる部分",
+        "置換文字 / 結果",
+    ],
+}
+
 
 @dataclass(frozen=True)
 class RegexHelpItem:
@@ -37,10 +60,11 @@ class RegexHelpDialog(QDialog):
     def __init__(
         self,
         regex_help_path: Path | dict[str, Path],
+        translator: Translator,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Regular Expression Help")
+        self.translator = translator
         self.resize(980, 520)
         self.regex_help_paths = self._normalize_help_paths(regex_help_path)
 
@@ -50,7 +74,6 @@ class RegexHelpDialog(QDialog):
 
         self.table = QTableWidget(self)
         self.table.setColumnCount(7)
-        self._set_headers()
         for column in (0, 1, 2):
             self.table.horizontalHeader().setSectionResizeMode(
                 column,
@@ -70,12 +93,13 @@ class RegexHelpDialog(QDialog):
             self,
         )
         self.insert_button = button_box.addButton(
-            "Insert Pattern",
+            self.translator.text("regex_help.insert"),
             QDialogButtonBox.ButtonRole.ActionRole,
         )
 
+        self.language_label = QLabel(self)
         language_layout = QHBoxLayout()
-        language_layout.addWidget(QLabel("Help language", self))
+        language_layout.addWidget(self.language_label)
         language_layout.addWidget(self.language_combo_box)
         language_layout.addStretch()
 
@@ -90,6 +114,7 @@ class RegexHelpDialog(QDialog):
         button_box.rejected.connect(self.close)
         self.table.itemDoubleClicked.connect(self._emit_item_pattern)
         self.language_combo_box.currentTextChanged.connect(self._load_current_language)
+        self.apply_language()
 
     def _normalize_help_paths(
         self,
@@ -100,27 +125,17 @@ class RegexHelpDialog(QDialog):
         return regex_help_path
 
     def _set_headers(self) -> None:
-        if self.language_combo_box.currentText() == "JP_Ver.":
-            headers = [
-                "種類",
-                "用途",
-                "パターン",
-                "平文での意味",
-                "例文",
-                "対象になる部分",
-                "置換文字 / 結果",
-            ]
-        else:
-            headers = [
-                "Category",
-                "Use",
-                "Pattern",
-                "Plain meaning",
-                "Example text",
-                "Matches",
-                "Replace with / Result",
-            ]
+        headers = HELP_HEADERS.get(
+            self.language_combo_box.currentText(),
+            HELP_HEADERS["EN_Ver."],
+        )
         self.table.setHorizontalHeaderLabels(headers)
+
+    def apply_language(self) -> None:
+        self.setWindowTitle(self.translator.text("regex_help.title"))
+        self.language_label.setText(self.translator.text("regex_help.language"))
+        self.insert_button.setText(self.translator.text("regex_help.insert"))
+        self._set_headers()
 
     def _load_current_language(self) -> None:
         self._set_headers()

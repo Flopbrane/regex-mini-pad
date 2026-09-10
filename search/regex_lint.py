@@ -8,7 +8,15 @@ from re import Pattern
 @dataclass(frozen=True)
 class RegexLintMessage:
     severity: str
-    message: str
+    message_key: str
+    values: dict[str, str] | None = None
+
+    @property
+    def message(self) -> str:
+        if self.values:
+            values = ", ".join(self.values.values())
+            return f"{self.message_key}: {values}"
+        return self.message_key
 
 
 class RegexLint:
@@ -21,7 +29,7 @@ class RegexLint:
     ) -> list[RegexLintMessage]:
         messages: list[RegexLintMessage] = []
         if not pattern_text:
-            return [RegexLintMessage("warning", "Search pattern is empty.")]
+            return [RegexLintMessage("warning", "regex_lint.empty")]
 
         pattern = self._compile_pattern(pattern_text, messages)
         if pattern is None:
@@ -44,7 +52,11 @@ class RegexLint:
             return re.compile(pattern_text)
         except re.error as error:
             messages.append(
-                RegexLintMessage("error", f"Invalid regular expression: {error}")
+                RegexLintMessage(
+                    "error",
+                    "regex_lint.invalid_regex",
+                    {"error": str(error)},
+                )
             )
             return None
 
@@ -57,7 +69,7 @@ class RegexLint:
             messages.append(
                 RegexLintMessage(
                     "warning",
-                    "This pattern can match empty text. Empty matches are skipped.",
+                    "regex_lint.empty_match",
                 )
             )
 
@@ -70,14 +82,14 @@ class RegexLint:
             messages.append(
                 RegexLintMessage(
                     "warning",
-                    "This pattern can match very broad ranges of text.",
+                    "regex_lint.broad",
                 )
             )
         if pattern_text.startswith(".*") and len(pattern_text) > 2:
             messages.append(
                 RegexLintMessage(
                     "warning",
-                    "A leading .* can make searches slower and less precise.",
+                    "regex_lint.leading_dot_star",
                 )
             )
 
@@ -91,5 +103,9 @@ class RegexLint:
             pattern.sub(replacement_text, "", count=1)
         except re.error as error:
             messages.append(
-                RegexLintMessage("error", f"Invalid replacement text: {error}")
+                RegexLintMessage(
+                    "error",
+                    "regex_lint.invalid_replacement",
+                    {"error": str(error)},
+                )
             )

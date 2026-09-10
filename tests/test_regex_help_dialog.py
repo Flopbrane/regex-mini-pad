@@ -10,6 +10,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from dialogs.regex_help_dialog import RegexHelpDialog
+from localization.translator import Translator
 
 
 @pytest.fixture(scope="session")
@@ -23,7 +24,8 @@ def app() -> QApplication:
 
 def test_regex_help_loads_examples(app: QApplication) -> None:
     _ = app
-    dialog = RegexHelpDialog(Path("resources/regex_help_en.json"))
+    translator = Translator(Path("resources"), "en")
+    dialog = RegexHelpDialog(Path("resources/regex_help_en.json"), translator)
 
     assert dialog.table.rowCount() >= 20
     assert dialog.table.columnCount() == 7
@@ -33,11 +35,13 @@ def test_regex_help_loads_examples(app: QApplication) -> None:
 
 def test_regex_help_can_switch_between_english_and_japanese(app: QApplication) -> None:
     _ = app
+    translator = Translator(Path("resources"), "ja")
     dialog = RegexHelpDialog(
         {
             "EN_Ver.": Path("resources/regex_help_en.json"),
             "JP_Ver.": Path("resources/regex_help_ja.json"),
-        }
+        },
+        translator,
     )
 
     assert dialog.language_combo_box.currentText() == "EN_Ver."
@@ -52,9 +56,28 @@ def test_regex_help_can_switch_between_english_and_japanese(app: QApplication) -
     assert category_item.text() == "位置"
 
 
+def test_help_headers_follow_help_language_not_app_language(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = RegexHelpDialog(
+        {
+            "EN_Ver.": Path("resources/regex_help_en.json"),
+            "JP_Ver.": Path("resources/regex_help_ja.json"),
+        },
+        translator,
+    )
+
+    dialog.language_combo_box.setCurrentText("JP_Ver.")
+
+    header_item = dialog.table.horizontalHeaderItem(0)
+    assert header_item is not None
+    assert header_item.text() == "種類"
+
+
 def test_regex_help_emits_selected_pattern(app: QApplication) -> None:
     _ = app
-    dialog = RegexHelpDialog(Path("resources/regex_help_en.json"))
+    translator = Translator(Path("resources"), "en")
+    dialog = RegexHelpDialog(Path("resources/regex_help_en.json"), translator)
     emitted_patterns: list[str] = []
     dialog.pattern_insert_requested.connect(emitted_patterns.append)
     dialog.table.selectRow(0)

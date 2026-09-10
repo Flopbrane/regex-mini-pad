@@ -14,7 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from search.regex_lint import RegexLint
+from localization.translator import Translator
+from search.regex_lint import RegexLint, RegexLintMessage
 from search.search_engine import SearchOptions
 
 
@@ -24,14 +25,16 @@ class FindReplaceDialog(QDialog):
     replace_all_requested = Signal(str, str, SearchOptions)
     regex_help_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, translator: Translator, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Find / Replace")
+        self.translator = translator
         self.setModal(False)
         self.regex_lint = RegexLint()
 
         self.find_text_edit = QLineEdit(self)
         self.replace_text_edit = QLineEdit(self)
+        self.find_text_label = QLabel(self)
+        self.replace_text_label = QLabel(self)
 
         self.case_sensitive_check_box = QCheckBox("Case-sensitive", self)
         self.regular_expression_check_box = QCheckBox("Regular expression", self)
@@ -54,6 +57,7 @@ class FindReplaceDialog(QDialog):
         self._create_layout()
         self._create_regex_insert_menu()
         self._connect_signals()
+        self.apply_language()
 
     def set_find_text(self, text: str) -> None:
         self.find_text_edit.setText(text)
@@ -69,11 +73,28 @@ class FindReplaceDialog(QDialog):
         self.find_text_edit.insert(text)
         self.find_text_edit.setFocus()
 
+    def apply_language(self) -> None:
+        self.setWindowTitle(self.translator.text("find.title"))
+        self.find_text_label.setText(self.translator.text("find.find_text"))
+        self.replace_text_label.setText(self.translator.text("find.replace_text"))
+        self.case_sensitive_check_box.setText(self.translator.text("find.case_sensitive"))
+        self.regular_expression_check_box.setText(self.translator.text("find.regex"))
+        self.whole_word_check_box.setText(self.translator.text("find.whole_word"))
+        self.selected_only_check_box.setText(self.translator.text("find.selected_only"))
+        self.find_button.setText(self.translator.text("find.find"))
+        self.replace_button.setText(self.translator.text("find.replace"))
+        self.replace_all_button.setText(self.translator.text("find.replace_all"))
+        self.insert_regex_button.setText(self.translator.text("find.insert_regex"))
+        self.regex_help_button.setText(self.translator.text("find.regex_help"))
+        self.close_button.setText(self.translator.text("find.close"))
+        self._create_regex_insert_menu()
+        self._update_regex_lint()
+
     def _create_layout(self) -> None:
         form_layout = QGridLayout()
-        form_layout.addWidget(QLabel("Find text", self), 0, 0)
+        form_layout.addWidget(self.find_text_label, 0, 0)
         form_layout.addWidget(self.find_text_edit, 0, 1)
-        form_layout.addWidget(QLabel("Replace text", self), 1, 0)
+        form_layout.addWidget(self.replace_text_label, 1, 0)
         form_layout.addWidget(self.replace_text_edit, 1, 1)
         form_layout.addWidget(self.case_sensitive_check_box, 2, 1)
         form_layout.addWidget(self.regular_expression_check_box, 3, 1)
@@ -98,21 +119,24 @@ class FindReplaceDialog(QDialog):
     def _create_regex_insert_menu(self) -> None:
         regex_menu = QMenu(self)
         snippets = {
-            "Digit": r"\d",
-            "Word character": r"\w",
-            "Whitespace": r"\s",
-            "Any character": ".",
-            "Start of line": "^",
-            "End of line": "$",
-            "One or more": "+",
-            "Zero or more": "*",
-            "Optional": "?",
-            "Capture group": r"()",
-            "Character class": r"[]",
+            "regex.snippet.digit": r"\d",
+            "regex.snippet.word": r"\w",
+            "regex.snippet.whitespace": r"\s",
+            "regex.snippet.any": ".",
+            "regex.snippet.start": "^",
+            "regex.snippet.end": "$",
+            "regex.snippet.one_or_more": "+",
+            "regex.snippet.zero_or_more": "*",
+            "regex.snippet.optional": "?",
+            "regex.snippet.capture": r"()",
+            "regex.snippet.class": r"[]",
         }
-        for label, pattern in snippets.items():
+        for label_key, pattern in snippets.items():
+            label = self.translator.text(label_key)
             action = QAction(f"{label}    {pattern}", self)
-            action.triggered.connect(lambda checked=False, value=pattern: self.insert_find_text(value))
+            action.triggered.connect(
+                lambda checked=False, value=pattern: self.insert_find_text(value)
+            )
             regex_menu.addAction(action)
         self.insert_regex_button.setMenu(regex_menu)
 
@@ -145,16 +169,19 @@ class FindReplaceDialog(QDialog):
             self.replace_text_edit.text(),
             check_replacement=True,
         )
-        errors = [message.message for message in messages if message.severity == "error"]
+        errors = [message for message in messages if message.severity == "error"]
         warnings = [
-            message.message for message in messages if message.severity == "warning"
+            message for message in messages if message.severity == "warning"
         ]
         if errors:
-            self.warning_label.setText(errors[0])
+            self.warning_label.setText(self._lint_message_text(errors[0]))
         elif warnings:
-            self.warning_label.setText(warnings[0])
+            self.warning_label.setText(self._lint_message_text(warnings[0]))
         else:
             self.warning_label.clear()
+
+    def _lint_message_text(self, message: RegexLintMessage) -> str:
+        return self.translator.text(message.message_key, **(message.values or {}))
 
     def _emit_find_requested(self) -> None:
         self.find_requested.emit(self.find_text_edit.text(), self._search_options())

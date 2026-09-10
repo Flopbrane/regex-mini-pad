@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -99,3 +100,19 @@ def test_find_next_can_target_selected_text_only(app: QApplication) -> None:
 
     assert window.editor.textCursor().selectedText() == "target"
     assert window.editor.textCursor().selectionStart() == 14
+
+
+def test_main_window_can_switch_display_language(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+
+    try:
+        window.set_language("en")
+        assert window.search_menu.title() == "&Search"
+        assert window.find_action.text() == "&Find / Replace..."
+
+        window.set_language("ja")
+        assert window.search_menu.title() == "検索(&S)"
+        assert window.find_action.text() == "検索 / 置換(&F)..."
+    finally:
+        Path("settings.json").unlink(missing_ok=True)

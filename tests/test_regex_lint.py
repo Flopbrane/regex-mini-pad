@@ -8,13 +8,13 @@ def test_lint_reports_invalid_regex() -> None:
 
     assert messages
     assert messages[0].severity == "error"
-    assert "Invalid regular expression" in messages[0].message
+    assert messages[0].message_key == "regex_lint.invalid_regex"
 
 
 def test_lint_warns_about_empty_matches() -> None:
     messages = RegexLint().lint(r"\d*")
 
-    assert any("empty text" in message.message for message in messages)
+    assert any(message.message_key == "regex_lint.empty_match" for message in messages)
 
 
 def test_lint_reports_invalid_replacement_reference() -> None:
