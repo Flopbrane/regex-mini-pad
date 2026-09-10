@@ -9,6 +9,7 @@ from typing import Any
 @dataclass(frozen=True)
 class EditorSettings:
     word_wrap_enabled: bool = False
+    line_numbers_enabled: bool = True
     window_width: int = 900
     window_height: int = 650
 
@@ -30,6 +31,7 @@ class SettingsManager:
 
         return EditorSettings(
             word_wrap_enabled=bool(load_data.get("word_wrap_enabled", False)),
+            line_numbers_enabled=bool(load_data.get("line_numbers_enabled", True)),
             window_width=int(load_data.get("window_width", 900)),
             window_height=int(load_data.get("window_height", 650)),
         )
@@ -38,11 +40,13 @@ class SettingsManager:
         self,
         *,
         word_wrap_enabled: bool,
+        line_numbers_enabled: bool,
         window_width: int,
         window_height: int,
     ) -> None:
         save_data = {
             "word_wrap_enabled": word_wrap_enabled,
+            "line_numbers_enabled": line_numbers_enabled,
             "window_width": window_width,
             "window_height": window_height,
         }

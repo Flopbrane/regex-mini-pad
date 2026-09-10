@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from re import error as RegexError
 
 from PySide6.QtGui import QAction, QCloseEvent, QTextCursor
 from PySide6.QtWidgets import (
@@ -12,8 +13,11 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
+from dialogs.find_replace_dialog import FindReplaceDialog
+from dialogs.regex_help_dialog import RegexHelpDialog
 from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
+from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import SettingsManager
 
 
@@ -22,7 +26,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.settings_manager = SettingsManager(Path(__file__).with_name("settings.json"))
         self.file_manager = FileManager()
+        self.search_engine = SearchEngine()
         self.current_save_file_path: Path | None = None
+        self.find_replace_dialog: FindReplaceDialog | None = None
+        self.regex_help_dialog: RegexHelpDialog | None = None
+        self.search_scope: tuple[int, int] | None = None
 
         self.editor = TextEditor()
         self.setCentralWidget(self.editor)
@@ -80,9 +88,17 @@ class MainWindow(QMainWindow):
         self.select_all_action.setShortcut("Ctrl+A")
         self.select_all_action.triggered.connect(self.editor.selectAll)
 
+        self.find_action = QAction("&Find / Replace...", self)
+        self.find_action.setShortcut("Ctrl+F")
+        self.find_action.triggered.connect(self.show_find_replace_dialog)
+
         self.word_wrap_action = QAction("&Word Wrap", self)
         self.word_wrap_action.setCheckable(True)
         self.word_wrap_action.toggled.connect(self.editor.set_word_wrap_enabled)
+
+        self.line_numbers_action = QAction("&Line Numbers", self)
+        self.line_numbers_action.setCheckable(True)
+        self.line_numbers_action.toggled.connect(self.editor.set_line_numbers_enabled)
 
     def _create_menus(self) -> None:
         menu_bar = self.menuBar()
@@ -102,7 +118,11 @@ class MainWindow(QMainWindow):
         edit_menu.addSeparator()
         edit_menu.addAction(self.select_all_action)
 
+        search_menu = menu_bar.addMenu("&Search")
+        search_menu.addAction(self.find_action)
+
         view_menu = menu_bar.addMenu("&View")
+        view_menu.addAction(self.line_numbers_action)
         view_menu.addAction(self.word_wrap_action)
 
     def _create_status_bar(self) -> None:
@@ -110,6 +130,8 @@ class MainWindow(QMainWindow):
 
     def _restore_settings(self) -> None:
         settings = self.settings_manager.load()
+        self.line_numbers_action.setChecked(settings.line_numbers_enabled)
+        self.editor.set_line_numbers_enabled(settings.line_numbers_enabled)
         self.word_wrap_action.setChecked(settings.word_wrap_enabled)
         self.editor.set_word_wrap_enabled(settings.word_wrap_enabled)
         if settings.window_width > 0 and settings.window_height > 0:
@@ -118,6 +140,7 @@ class MainWindow(QMainWindow):
     def _save_settings(self) -> None:
         self.settings_manager.save(
             word_wrap_enabled=self.word_wrap_action.isChecked(),
+            line_numbers_enabled=self.line_numbers_action.isChecked(),
             window_width=self.width(),
             window_height=self.height(),
         )
@@ -202,6 +225,230 @@ class MainWindow(QMainWindow):
         self.current_save_file_path = save_file_path
         self.editor.document().setModified(False)
         self._update_window_title()
+
+    def show_find_replace_dialog(self) -> None:
+        if self.find_replace_dialog is None:
+            self.find_replace_dialog = FindReplaceDialog(self)
+            self.find_replace_dialog.find_requested.connect(self.find_next)
+            self.find_replace_dialog.replace_requested.connect(self.replace_current)
+            self.find_replace_dialog.replace_all_requested.connect(self.replace_all)
+            self.find_replace_dialog.regex_help_requested.connect(self.show_regex_help_dialog)
+
+        selected_text = self.editor.textCursor().selectedText()
+        if selected_text:
+            cursor = self.editor.textCursor()
+            self.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+            self.find_replace_dialog.set_find_text(selected_text.replace("\u2029", "\n"))
+        else:
+            self.search_scope = None
+        self.find_replace_dialog.clear_error()
+        self.find_replace_dialog.show()
+        self.find_replace_dialog.raise_()
+        self.find_replace_dialog.activateWindow()
+
+    def find_next(self, search_text: str, options: SearchOptions) -> None:
+        if not search_text:
+            self._set_search_error("Enter text to find.")
+            return
+
+        cursor = self.editor.textCursor()
+        scope_text, scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self._set_search_error("Select text before searching only selected text.")
+            return
+
+        source_text = scope_text if scope_text is not None else self.editor.toPlainText()
+        start_position = cursor.selectionEnd() if cursor.hasSelection() else cursor.position()
+        start_position = min(max(start_position - scope_offset, 0), len(source_text))
+
+        try:
+            match = self.search_engine.find_next(
+                source_text,
+                search_text,
+                start_position,
+                options,
+            )
+        except RegexError as error:
+            self._set_search_error(f"Invalid regular expression: {error}")
+            return
+
+        if match is None:
+            self._set_search_error("No matches found.")
+            return
+
+        self._select_match(
+            SearchMatch(
+                match.start + scope_offset,
+                match.end + scope_offset,
+                match.text,
+            )
+        )
+        self._set_search_status("Match found.")
+
+    def replace_current(
+        self,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> None:
+        if not search_text:
+            self._set_search_error("Enter text to find.")
+            return
+
+        cursor = self.editor.textCursor()
+        source_text = self.editor.toPlainText()
+        selected_match = SearchMatch(
+            cursor.selectionStart(),
+            cursor.selectionEnd(),
+            cursor.selectedText().replace("\u2029", "\n"),
+        )
+
+        try:
+            current_selection_matches = self.search_engine.find_all(
+                selected_match.text,
+                search_text,
+                options,
+            )
+            if (
+                not cursor.hasSelection()
+                or len(current_selection_matches) != 1
+                or current_selection_matches[0].start != 0
+                or current_selection_matches[0].end != len(selected_match.text)
+            ):
+                self.find_next(search_text, options)
+                return
+
+            result = self.search_engine.replace_match(
+                source_text,
+                selected_match,
+                replace_text,
+                search_text,
+                options,
+            )
+        except RegexError as error:
+            self._set_search_error(f"Invalid regular expression: {error}")
+            return
+
+        if result.count == 0:
+            self._set_search_error("No current match to replace.")
+            return
+
+        self._replace_document_text(result.text)
+        replaced_end = selected_match.start + len(result.text) - (
+            len(source_text) - selected_match.end
+        )
+        self._set_cursor_position(replaced_end)
+        self._set_search_status("Replaced 1 match.")
+
+    def replace_all(
+        self,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> None:
+        if not search_text:
+            self._set_search_error("Enter text to find.")
+            return
+
+        scope_text, _scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self._set_search_error("Select text before replacing only selected text.")
+            return
+
+        source_text = self.editor.toPlainText()
+        target_text = scope_text if scope_text is not None else source_text
+
+        try:
+            result = self.search_engine.replace_all(
+                target_text,
+                search_text,
+                replace_text,
+                options,
+            )
+        except RegexError as error:
+            self._set_search_error(f"Invalid regular expression: {error}")
+            return
+
+        if result.count == 0:
+            self._set_search_error("No matches replaced.")
+            return
+
+        if scope_text is not None and self.search_scope is not None:
+            scope_start, scope_end = self.search_scope
+            result_text = source_text[:scope_start] + result.text + source_text[scope_end:]
+            self.search_scope = (scope_start, scope_start + len(result.text))
+        else:
+            result_text = result.text
+
+        self._replace_document_text(result_text)
+        self._set_search_status(f"Replaced {result.count} match(es).")
+
+    def show_regex_help_dialog(self) -> None:
+        if self.regex_help_dialog is None:
+            resources_path = Path(__file__).parent / "resources"
+            regex_help_paths = {
+                "EN_Ver.": resources_path / "regex_help_en.json",
+                "JP_Ver.": resources_path / "regex_help_ja.json",
+            }
+            self.regex_help_dialog = RegexHelpDialog(regex_help_paths, self)
+            self.regex_help_dialog.pattern_insert_requested.connect(
+                self._insert_regex_pattern
+            )
+
+        self.regex_help_dialog.show()
+        self.regex_help_dialog.raise_()
+        self.regex_help_dialog.activateWindow()
+
+    def _insert_regex_pattern(self, pattern: str) -> None:
+        if self.find_replace_dialog is None:
+            self.show_find_replace_dialog()
+        if self.find_replace_dialog is not None:
+            self.find_replace_dialog.insert_find_text(pattern)
+
+    def _search_scope_text(self, options: SearchOptions) -> tuple[str | None, int]:
+        if not options.selected_only:
+            return None, 0
+
+        if self.search_scope is None:
+            cursor = self.editor.textCursor()
+            if not cursor.hasSelection():
+                return None, 0
+            self.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+
+        scope_start, scope_end = self.search_scope
+        source_text = self.editor.toPlainText()
+        if scope_start >= scope_end or scope_end > len(source_text):
+            return None, 0
+        return source_text[scope_start:scope_end], scope_start
+
+    def _replace_document_text(self, text: str) -> None:
+        cursor = self.editor.textCursor()
+        cursor.beginEditBlock()
+        cursor.select(QTextCursor.SelectionType.Document)
+        cursor.insertText(text)
+        cursor.endEditBlock()
+
+    def _select_match(self, match: SearchMatch) -> None:
+        cursor = self.editor.textCursor()
+        cursor.setPosition(match.start)
+        cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def _set_cursor_position(self, position: int) -> None:
+        cursor = self.editor.textCursor()
+        cursor.setPosition(min(max(position, 0), len(self.editor.toPlainText())))
+        self.editor.setTextCursor(cursor)
+
+    def _set_search_error(self, message: str) -> None:
+        if self.find_replace_dialog is not None:
+            self.find_replace_dialog.set_error(message)
+        self.statusBar().showMessage(message)
+
+    def _set_search_status(self, message: str) -> None:
+        if self.find_replace_dialog is not None:
+            self.find_replace_dialog.clear_error()
+        self.statusBar().showMessage(message)
 
 
 def main() -> int:

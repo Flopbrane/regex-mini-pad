@@ -63,7 +63,8 @@ mini_editor_project/
 ├─ settings/
 │  └─ settings_manager.py
 ├─ resources/
-│  └─ regex_help.json
+│  ├─ regex_help_en.json
+│  └─ regex_help_ja.json
 └─ tests/
 
 Do not place all functionality in `main.py`.

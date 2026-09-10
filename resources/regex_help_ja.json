@@ -1,0 +1,262 @@
+[
+  {
+    "category": "位置",
+    "label": "行の先頭",
+    "pattern": "^",
+    "description": "行の一番はじめの位置に一致します。文字そのものではなく、位置を探します。",
+    "example_text": "TODO 用紙を買う",
+    "matches": "TODO の前の位置",
+    "replace_with": "DONE ",
+    "replacement_result": "DONE TODO 用紙を買う"
+  },
+  {
+    "category": "位置",
+    "label": "行の末尾",
+    "pattern": "$",
+    "description": "行の一番最後の位置に一致します。末尾へ文字を足したい時に使えます。",
+    "example_text": "report",
+    "matches": "report の後ろの位置",
+    "replace_with": ".txt",
+    "replacement_result": "report.txt"
+  },
+  {
+    "category": "文字",
+    "label": "数字",
+    "pattern": "\\d",
+    "description": "数字1文字に一致します。",
+    "example_text": "会議室 A12",
+    "matches": "1, 2",
+    "replace_with": "#",
+    "replacement_result": "会議室 A##"
+  },
+  {
+    "category": "文字",
+    "label": "数字以外",
+    "pattern": "\\D",
+    "description": "数字ではない1文字に一致します。",
+    "example_text": "A12",
+    "matches": "A",
+    "replace_with": "",
+    "replacement_result": "12"
+  },
+  {
+    "category": "文字",
+    "label": "単語に使う文字",
+    "pattern": "\\w",
+    "description": "英数字またはアンダースコア1文字に一致します。",
+    "example_text": "user_id!",
+    "matches": "u, s, e, r, _, i, d",
+    "replace_with": "",
+    "replacement_result": "!"
+  },
+  {
+    "category": "文字",
+    "label": "単語に使わない文字",
+    "pattern": "\\W",
+    "description": "英数字でもアンダースコアでもない1文字に一致します。",
+    "example_text": "user_id!",
+    "matches": "!",
+    "replace_with": "",
+    "replacement_result": "user_id"
+  },
+  {
+    "category": "空白",
+    "label": "空白文字",
+    "pattern": "\\s",
+    "description": "半角スペース、タブ、改行などの空白1文字に一致します。",
+    "example_text": "A B",
+    "matches": "A と B の間のスペース",
+    "replace_with": "_",
+    "replacement_result": "A_B"
+  },
+  {
+    "category": "空白",
+    "label": "空白以外",
+    "pattern": "\\S",
+    "description": "空白ではない1文字に一致します。",
+    "example_text": "A B",
+    "matches": "A, B",
+    "replace_with": "#",
+    "replacement_result": "# #"
+  },
+  {
+    "category": "文字",
+    "label": "任意の1文字",
+    "pattern": ".",
+    "description": "改行以外の任意の1文字に一致します。",
+    "example_text": "abc",
+    "matches": "a, b, c",
+    "replace_with": "*",
+    "replacement_result": "***"
+  },
+  {
+    "category": "繰り返し",
+    "label": "0回以上",
+    "pattern": "*",
+    "description": "直前の文字やグループを0回以上繰り返します。",
+    "example_text": "abbb ac",
+    "matches": "abbb, a",
+    "replace_with": "",
+    "replacement_result": " c"
+  },
+  {
+    "category": "繰り返し",
+    "label": "1回以上",
+    "pattern": "+",
+    "description": "直前の文字やグループを1回以上繰り返します。",
+    "example_text": "abbb ac",
+    "matches": "abbb",
+    "replace_with": "",
+    "replacement_result": " ac"
+  },
+  {
+    "category": "繰り返し",
+    "label": "あってもなくても良い",
+    "pattern": "?",
+    "description": "直前の文字やグループが0回または1回ある場合に一致します。",
+    "example_text": "color colour",
+    "matches": "colou?r で color, colour",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "繰り返し",
+    "label": "指定回数",
+    "pattern": "{3}",
+    "description": "直前の文字やグループを指定した回数だけ繰り返します。",
+    "example_text": "ID: 1234",
+    "matches": "\\d{3} で 123",
+    "replace_with": "###",
+    "replacement_result": "ID: ###4"
+  },
+  {
+    "category": "繰り返し",
+    "label": "回数の範囲",
+    "pattern": "{2,5}",
+    "description": "直前の文字やグループを指定した回数の範囲で繰り返します。",
+    "example_text": "ID: 12 123456",
+    "matches": "\\d{2,5} で 12, 12345",
+    "replace_with": "NUM",
+    "replacement_result": "ID: NUM NUM6"
+  },
+  {
+    "category": "グループ",
+    "label": "取り出して使う",
+    "pattern": "()",
+    "description": "一致した一部をグループとして取り出し、置換文字で再利用できます。",
+    "example_text": "2026-09-10",
+    "matches": "(\\d{4})-(\\d{2})-(\\d{2}) で年月日を分ける",
+    "replace_with": "\\2/\\3/\\1",
+    "replacement_result": "09/10/2026"
+  },
+  {
+    "category": "グループ",
+    "label": "どちらか",
+    "pattern": "|",
+    "description": "左側または右側のどちらかに一致します。",
+    "example_text": "cat dog bird",
+    "matches": "cat|dog で cat, dog",
+    "replace_with": "pet",
+    "replacement_result": "pet pet bird"
+  },
+  {
+    "category": "集合",
+    "label": "文字の候補",
+    "pattern": "[]",
+    "description": "角括弧の中に書いた文字のどれか1文字に一致します。",
+    "example_text": "gray grey",
+    "matches": "gr[ae]y で gray, grey",
+    "replace_with": "color",
+    "replacement_result": "color color"
+  },
+  {
+    "category": "集合",
+    "label": "候補以外の文字",
+    "pattern": "[^]",
+    "description": "角括弧の中に書いた文字以外の1文字に一致します。",
+    "example_text": "abc123",
+    "matches": "[^0-9] で a, b, c",
+    "replace_with": "",
+    "replacement_result": "123"
+  },
+  {
+    "category": "境界",
+    "label": "単語の境目",
+    "pattern": "\\b",
+    "description": "単語の端に一致します。cat と catalog を区別したい時に便利です。",
+    "example_text": "cat catalog cat",
+    "matches": "\\bcat\\b で先頭と末尾の cat",
+    "replace_with": "dog",
+    "replacement_result": "dog catalog dog"
+  },
+  {
+    "category": "置換",
+    "label": "1番目のグループを使う",
+    "pattern": "\\1",
+    "description": "置換文字の中で、1番目の括弧に一致した内容を使います。",
+    "example_text": "Smith, John",
+    "matches": "(\\w+), (\\w+) で Smith と John",
+    "replace_with": "\\2 \\1",
+    "replacement_result": "John Smith"
+  },
+  {
+    "category": "置換",
+    "label": "2番目のグループを使う",
+    "pattern": "\\2",
+    "description": "置換文字の中で、2番目の括弧に一致した内容を使います。",
+    "example_text": "Smith, John",
+    "matches": "(\\w+), (\\w+) で Smith と John",
+    "replace_with": "\\2 \\1",
+    "replacement_result": "John Smith"
+  },
+  {
+    "category": "実用例",
+    "label": "空行を詰める",
+    "pattern": "\\n{3,}",
+    "description": "改行が3つ以上続く場所を探して、空きすぎた行間を整えます。",
+    "example_text": "1行目\\n\\n\\n2行目",
+    "matches": "3つ続いた改行",
+    "replace_with": "\\n\\n",
+    "replacement_result": "1行目\\n\\n2行目"
+  },
+  {
+    "category": "実用例",
+    "label": "行末の空白を消す",
+    "pattern": "[ \\t]+$",
+    "description": "各行の最後にある余分なスペースやタブを探します。",
+    "example_text": "メモ   ",
+    "matches": "メモ の後ろのスペース",
+    "replace_with": "",
+    "replacement_result": "メモ"
+  },
+  {
+    "category": "実用例",
+    "label": "日付の順番を入れ替える",
+    "pattern": "(\\d{4})-(\\d{2})-(\\d{2})",
+    "description": "2026-09-10 のような日付を、年・月・日に分けて入れ替えます。",
+    "example_text": "2026-09-10",
+    "matches": "2026-09-10",
+    "replace_with": "\\2/\\3/\\1",
+    "replacement_result": "09/10/2026"
+  },
+  {
+    "category": "実用例",
+    "label": "番号付きリストを箇条書きへ",
+    "pattern": "^\\d+\\.\\s+",
+    "description": "行頭の 1. や 23. のような番号を探します。",
+    "example_text": "1. メール確認",
+    "matches": "1. ",
+    "replace_with": "- ",
+    "replacement_result": "- メール確認"
+  },
+  {
+    "category": "実用例",
+    "label": "特定の語を含む行を探す",
+    "pattern": "^.*urgent.*$",
+    "description": "指定した語を含む行全体を探します。urgent の部分を探したい語に変えます。",
+    "example_text": "通常\\nurgent task\\n完了",
+    "matches": "urgent task",
+    "replace_with": "",
+    "replacement_result": ""
+  }
+]

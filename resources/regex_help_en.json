@@ -1,0 +1,262 @@
+[
+  {
+    "category": "Anchor",
+    "label": "Start of line",
+    "pattern": "^",
+    "description": "Matches a position at the beginning of a line.",
+    "example_text": "TODO buy paper",
+    "matches": "The position before TODO",
+    "replace_with": "DONE ",
+    "replacement_result": "DONE TODO buy paper"
+  },
+  {
+    "category": "Anchor",
+    "label": "End of line",
+    "pattern": "$",
+    "description": "Matches a position at the end of a line.",
+    "example_text": "report",
+    "matches": "The position after report",
+    "replace_with": ".txt",
+    "replacement_result": "report.txt"
+  },
+  {
+    "category": "Character",
+    "label": "Digit",
+    "pattern": "\\d",
+    "description": "Matches one number character.",
+    "example_text": "Room A12",
+    "matches": "1, 2",
+    "replace_with": "#",
+    "replacement_result": "Room A##"
+  },
+  {
+    "category": "Character",
+    "label": "Non-digit",
+    "pattern": "\\D",
+    "description": "Matches one character that is not a number.",
+    "example_text": "A12",
+    "matches": "A",
+    "replace_with": "",
+    "replacement_result": "12"
+  },
+  {
+    "category": "Character",
+    "label": "Word character",
+    "pattern": "\\w",
+    "description": "Matches one letter, number, or underscore.",
+    "example_text": "user_id!",
+    "matches": "u, s, e, r, _, i, d",
+    "replace_with": "",
+    "replacement_result": "!"
+  },
+  {
+    "category": "Character",
+    "label": "Non-word character",
+    "pattern": "\\W",
+    "description": "Matches one character that is not a letter, number, or underscore.",
+    "example_text": "user_id!",
+    "matches": "!",
+    "replace_with": "",
+    "replacement_result": "user_id"
+  },
+  {
+    "category": "Character",
+    "label": "Whitespace",
+    "pattern": "\\s",
+    "description": "Matches one space, tab, or newline.",
+    "example_text": "A B",
+    "matches": "The space between A and B",
+    "replace_with": "_",
+    "replacement_result": "A_B"
+  },
+  {
+    "category": "Character",
+    "label": "Non-whitespace",
+    "pattern": "\\S",
+    "description": "Matches one character that is not a space, tab, or newline.",
+    "example_text": "A B",
+    "matches": "A, B",
+    "replace_with": "#",
+    "replacement_result": "# #"
+  },
+  {
+    "category": "Character",
+    "label": "Any character",
+    "pattern": ".",
+    "description": "Matches any one character except a newline.",
+    "example_text": "abc",
+    "matches": "a, b, c",
+    "replace_with": "*",
+    "replacement_result": "***"
+  },
+  {
+    "category": "Repeat",
+    "label": "Zero or more",
+    "pattern": "*",
+    "description": "Repeats the previous item zero or more times.",
+    "example_text": "abbb ac",
+    "matches": "abbb, a",
+    "replace_with": "",
+    "replacement_result": " c"
+  },
+  {
+    "category": "Repeat",
+    "label": "One or more",
+    "pattern": "+",
+    "description": "Repeats the previous item one or more times.",
+    "example_text": "abbb ac",
+    "matches": "abbb",
+    "replace_with": "",
+    "replacement_result": " ac"
+  },
+  {
+    "category": "Repeat",
+    "label": "Optional",
+    "pattern": "?",
+    "description": "Repeats the previous item zero or one time.",
+    "example_text": "color colour",
+    "matches": "color, colour with colou?r",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Repeat",
+    "label": "Exact count",
+    "pattern": "{3}",
+    "description": "Repeats the previous item exactly three times.",
+    "example_text": "ID: 1234",
+    "matches": "123 with \\d{3}",
+    "replace_with": "###",
+    "replacement_result": "ID: ###4"
+  },
+  {
+    "category": "Repeat",
+    "label": "Count range",
+    "pattern": "{2,5}",
+    "description": "Repeats the previous item from two to five times.",
+    "example_text": "ID: 12 123456",
+    "matches": "12, 12345 with \\d{2,5}",
+    "replace_with": "NUM",
+    "replacement_result": "ID: NUM NUM6"
+  },
+  {
+    "category": "Group",
+    "label": "Capture group",
+    "pattern": "()",
+    "description": "Groups part of a match so replacement text can reuse it.",
+    "example_text": "2026-09-10",
+    "matches": "2026-09-10 with (\\d{4})-(\\d{2})-(\\d{2})",
+    "replace_with": "\\2/\\3/\\1",
+    "replacement_result": "09/10/2026"
+  },
+  {
+    "category": "Group",
+    "label": "Either/or",
+    "pattern": "|",
+    "description": "Matches the expression on the left or the right.",
+    "example_text": "cat dog bird",
+    "matches": "cat, dog with cat|dog",
+    "replace_with": "pet",
+    "replacement_result": "pet pet bird"
+  },
+  {
+    "category": "Set",
+    "label": "Character class",
+    "pattern": "[]",
+    "description": "Matches one character listed inside the brackets.",
+    "example_text": "gray grey",
+    "matches": "gray, grey with gr[ae]y",
+    "replace_with": "color",
+    "replacement_result": "color color"
+  },
+  {
+    "category": "Set",
+    "label": "Negated class",
+    "pattern": "[^]",
+    "description": "Matches one character not listed inside the brackets.",
+    "example_text": "abc123",
+    "matches": "a, b, c with [^0-9]",
+    "replace_with": "",
+    "replacement_result": "123"
+  },
+  {
+    "category": "Boundary",
+    "label": "Word boundary",
+    "pattern": "\\b",
+    "description": "Matches the edge of a word.",
+    "example_text": "cat catalog cat",
+    "matches": "cat at the beginning and end with \\bcat\\b",
+    "replace_with": "dog",
+    "replacement_result": "dog catalog dog"
+  },
+  {
+    "category": "Replacement",
+    "label": "Replacement group 1",
+    "pattern": "\\1",
+    "description": "Uses the first capture group in replacement text.",
+    "example_text": "Smith, John",
+    "matches": "Smith, John with (\\w+), (\\w+)",
+    "replace_with": "\\2 \\1",
+    "replacement_result": "John Smith"
+  },
+  {
+    "category": "Replacement",
+    "label": "Replacement group 2",
+    "pattern": "\\2",
+    "description": "Uses the second capture group in replacement text.",
+    "example_text": "Smith, John",
+    "matches": "Smith, John with (\\w+), (\\w+)",
+    "replace_with": "\\2 \\1",
+    "replacement_result": "John Smith"
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Collapse blank lines",
+    "pattern": "\\n{3,}",
+    "description": "Finds three or more newlines and makes large vertical gaps smaller.",
+    "example_text": "Line 1\\n\\n\\nLine 2",
+    "matches": "The three newline characters",
+    "replace_with": "\\n\\n",
+    "replacement_result": "Line 1\\n\\nLine 2"
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Trim line-end spaces",
+    "pattern": "[ \\t]+$",
+    "description": "Finds extra spaces or tabs at the end of each line.",
+    "example_text": "memo   ",
+    "matches": "The spaces after memo",
+    "replace_with": "",
+    "replacement_result": "memo"
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Swap date order",
+    "pattern": "(\\d{4})-(\\d{2})-(\\d{2})",
+    "description": "Finds dates like 2026-09-10 and captures year, month, and day.",
+    "example_text": "2026-09-10",
+    "matches": "2026-09-10",
+    "replace_with": "\\2/\\3/\\1",
+    "replacement_result": "09/10/2026"
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Numbered list to bullets",
+    "pattern": "^\\d+\\.\\s+",
+    "description": "Finds numbering at the beginning of a line.",
+    "example_text": "1. Check mail",
+    "matches": "1. ",
+    "replace_with": "- ",
+    "replacement_result": "- Check mail"
+  },
+  {
+    "category": "Useful recipe",
+    "label": "Find lines containing text",
+    "pattern": "^.*urgent.*$",
+    "description": "Finds whole lines that contain a specific word.",
+    "example_text": "normal\\nurgent task\\ndone",
+    "matches": "urgent task",
+    "replace_with": "",
+    "replacement_result": ""
+  }
+]
