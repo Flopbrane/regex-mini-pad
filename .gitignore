@@ -1,0 +1,46 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test / coverage
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+*.yaml
+.pylintrc
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Local sample files
+sample*.txt
+sample*.md
+sample.md
+sample.txt
+*output.txt
+*output.md
+回帰テスト用サンプル.md
+# Logs
+*.log
+*.ps1
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+CODEX_RULES.md
+NEXT_STEPS.md
+# Temporary files
+*.tmp
+*.bak
+.markdownlint.yaml

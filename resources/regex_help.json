@@ -1,0 +1,22 @@
+[
+  {
+    "label": "Digit",
+    "pattern": "\\d",
+    "description": "Matches one digit."
+  },
+  {
+    "label": "Word character",
+    "pattern": "\\w",
+    "description": "Matches one word character."
+  },
+  {
+    "label": "Whitespace",
+    "pattern": "\\s",
+    "description": "Matches one whitespace character."
+  },
+  {
+    "label": "Any character",
+    "pattern": ".",
+    "description": "Matches any character except a newline."
+  }
+]
