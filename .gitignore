@@ -36,7 +36,7 @@ settings.json
 
 # Logs
 *.log
-*.ps1
+
 # OS / editor
 .DS_Store
 Thumbs.db
