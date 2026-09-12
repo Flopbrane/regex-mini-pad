@@ -129,9 +129,9 @@ Completed:
   - `{cursor}` for placing the cursor after insertion.
 - Added parameter hints through menu action `statusTip` and `toolTip`.
 - Moved snippet data to local JSON dictionaries:
-  - `dictionarys/html_dict.json`
-  - `dictionarys/markdown_dict.json`
-  - `dictionarys/wordpress_html_dict.json`
+  - `dictionaries/html_dict.json`
+  - `dictionaries/markdown_dict.json`
+  - `dictionaries/wordpress_html_dict.json`
 - Added common Markdown snippets:
   - headings, bold, italic, links, images, inline code, fenced code blocks, quote, lists, horizontal rule.
   - language-specific fenced code blocks for Python, HTML, CSS, JavaScript, JSON, PowerShell, Bash, and SQL.

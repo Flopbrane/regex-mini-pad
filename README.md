@@ -35,7 +35,9 @@ The project focuses on practical regular expression search and replacement witho
 ## Planned Direction
 
 - Tag insertion assistance for HTML, Markdown, and WordPress HTML.
-- Manage candidates separately in `html_dict.py`, `md_dict.py`, and `wphtml_dict.py`.
+- Manage candidates separately in `dictionaries/html_dict.json`,
+  `dictionaries/markdown_dict.json`, and
+  `dictionaries/wordpress_html_dict.json`.
 - Insert tags or snippets at the current cursor position from the editor context menu.
 - Consider both mouse selection and keyboard selection with arrow keys plus Enter.
 - Consider automatic snippet switching by extension, such as `.html`, `.md`, and `.wp.html`.

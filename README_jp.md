@@ -35,7 +35,8 @@
 ## 今後の方針
 
 - HTML、Markdown、WordPress HTML向けのタグ挿入補助。
-- `html_dict.py`、`md_dict.py`、`wphtml_dict.py` に候補を分けて管理。
+- `dictionaries/html_dict.json`、`dictionaries/markdown_dict.json`、
+  `dictionaries/wordpress_html_dict.json` に候補を分けて管理。
 - 右クリックメニューからタグやスニペットを選び、カーソル位置へ挿入。
 - マウス選択に加えて、上下キーとEnterでの挿入も検討。
 - `.html`、`.md`、`.wp.html` など、拡張子による候補切り替えも検討。

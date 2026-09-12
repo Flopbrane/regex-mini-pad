@@ -29,29 +29,31 @@ class TagSnippetGroup:
     snippets: tuple[TagSnippet, ...]
 
 
-def tag_snippet_groups(dictionarys_path: Path | None = None) -> tuple[TagSnippetGroup, ...]:
-    dictionarys_path = dictionarys_path or Path(__file__).resolve().parent.parent / "dictionarys"
+def tag_snippet_groups(dictionaries_path: Path | None = None) -> tuple[TagSnippetGroup, ...]:
+    dictionaries_path = (
+        dictionaries_path or Path(__file__).resolve().parent.parent / "dictionaries"
+    )
     return (
         TagSnippetGroup(
             "tag.group.html",
-            _load_snippets_from_json(dictionarys_path / "html_dict.json"),
+            _load_snippets_from_json(dictionaries_path / "html_dict.json"),
         ),
         TagSnippetGroup(
             "tag.group.markdown",
-            _load_snippets_from_json(dictionarys_path / "markdown_dict.json"),
+            _load_snippets_from_json(dictionaries_path / "markdown_dict.json"),
         ),
         TagSnippetGroup(
             "tag.group.wordpress_html",
-            _load_snippets_from_json(dictionarys_path / "wordpress_html_dict.json"),
+            _load_snippets_from_json(dictionaries_path / "wordpress_html_dict.json"),
         ),
     )
 
 
 def ordered_tag_snippet_groups(
     save_file_path: Path | None,
-    dictionarys_path: Path | None = None,
+    dictionaries_path: Path | None = None,
 ) -> tuple[TagSnippetGroup, ...]:
-    groups = tag_snippet_groups(dictionarys_path)
+    groups = tag_snippet_groups(dictionaries_path)
     preferred_label_key = _preferred_group_label_key(save_file_path)
     if preferred_label_key is None:
         return groups
