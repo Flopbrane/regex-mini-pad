@@ -11,6 +11,7 @@ class SearchOptions:
     regular_expression: bool = False
     whole_word: bool = False
     selected_only: bool = False
+    visible_only: bool = False
 
 
 @dataclass(frozen=True)

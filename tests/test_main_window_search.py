@@ -151,6 +151,109 @@ def test_preview_matches_uses_selected_text_only(app: QApplication) -> None:
     assert line_item.text() == "2"
 
 
+def test_search_highlights_all_matches(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("alpha\nbeta alpha\nalpha")
+
+    window.update_search_highlights("alpha", SearchOptions())
+
+    assert [match.start for match in window.editor.search_matches] == [0, 11, 17]
+    assert len(window.editor.extraSelections()) == 3
+
+
+def test_search_highlights_can_target_selected_text_only(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("target\ninside target\noutside target")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(7)
+    cursor.setPosition(20, QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+    window.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+
+    window.update_search_highlights("target", SearchOptions(selected_only=True))
+
+    assert len(window.editor.search_matches) == 1
+    assert window.editor.search_matches[0].start == 14
+    assert len(window.editor.extraSelections()) == 1
+
+
+def test_find_next_can_target_visible_text_only(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("visible target\nhidden target")
+    monkeypatch.setattr(
+        window,
+        "_visible_search_bounds",
+        lambda source_length: (0, len("visible target\n")),
+    )
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len(window.editor.toPlainText()))
+    window.editor.setTextCursor(cursor)
+
+    window.find_next("target", SearchOptions(visible_only=True))
+
+    assert window.editor.textCursor().selectedText() == "target"
+    assert window.editor.textCursor().selectionStart() == 8
+
+
+def test_replace_all_can_target_visible_text_only(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("visible target\nhidden target")
+    monkeypatch.setattr(
+        window,
+        "_visible_search_bounds",
+        lambda source_length: (0, len("visible target\n")),
+    )
+
+    window.replace_all("target", "match", SearchOptions(visible_only=True))
+
+    assert window.editor.toPlainText() == "visible match\nhidden target"
+
+
+def test_selected_and_visible_options_use_intersection(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("first target\nsecond target\nthird target")
+    window.search_scope = (len("first target\n"), len("first target\nsecond target\n"))
+    monkeypatch.setattr(
+        window,
+        "_visible_search_bounds",
+        lambda source_length: (0, len("first target\nsecond target\n")),
+    )
+
+    window.update_search_highlights(
+        "target",
+        SearchOptions(selected_only=True, visible_only=True),
+    )
+
+    assert len(window.editor.search_matches) == 1
+    assert window.editor.search_matches[0].start == 20
+
+
+def test_invalid_regex_clears_search_highlights(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("alpha")
+    window.update_search_highlights("alpha", SearchOptions())
+
+    window.update_search_highlights("[", SearchOptions(regular_expression=True))
+
+    assert window.editor.search_matches == []
+    assert window.editor.extraSelections() == []
+
+
 def test_main_window_can_switch_display_language(app: QApplication) -> None:
     _ = app
     window = MainWindow()

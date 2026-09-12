@@ -64,6 +64,7 @@ class MainWindow(QMainWindow):
         self._apply_language()
 
         self.editor.textChanged.connect(self._update_status_bar)
+        self.editor.textChanged.connect(self._refresh_search_highlights_from_dialog)
         self.editor.cursorPositionChanged.connect(self._update_status_bar)
         self.editor.document().modificationChanged.connect(self._update_window_title)
         self._update_status_bar()
@@ -302,6 +303,7 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard_changes():
             return
         self.editor.clear()
+        self.editor.clear_search_matches()
         self.editor.document().setModified(False)
         self.current_save_file_path = None
         self._update_window_title()
@@ -441,6 +443,9 @@ class MainWindow(QMainWindow):
             self.find_replace_dialog.replace_requested.connect(self.replace_current)
             self.find_replace_dialog.replace_all_requested.connect(self.replace_all)
             self.find_replace_dialog.preview_requested.connect(self.preview_matches)
+            self.find_replace_dialog.search_parameters_changed.connect(
+                self.update_search_highlights
+            )
             self.find_replace_dialog.regex_help_requested.connect(self.show_regex_help_dialog)
 
         selected_text = self.editor.textCursor().selectedText()
@@ -451,6 +456,10 @@ class MainWindow(QMainWindow):
         else:
             self.search_scope = None
         self.find_replace_dialog.clear_error()
+        self.update_search_highlights(
+            self.find_replace_dialog.find_text_edit.text(),
+            self.find_replace_dialog.current_search_options(),
+        )
         self.find_replace_dialog.show()
         self.find_replace_dialog.raise_()
         self.find_replace_dialog.activateWindow()
@@ -511,6 +520,17 @@ class MainWindow(QMainWindow):
             cursor.selectionEnd(),
             cursor.selectedText().replace("\u2029", "\n"),
         )
+        scope_text, scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self._set_search_error(self.translator.text("search.select_before_replace"))
+            return
+        if scope_text is not None and not self._match_is_inside_scope(
+            selected_match,
+            scope_offset,
+            len(scope_text),
+        ):
+            self.find_next(search_text, options)
+            return
 
         try:
             current_selection_matches = self.search_engine.find_all(
@@ -543,6 +563,7 @@ class MainWindow(QMainWindow):
             return
 
         self._replace_document_text(result.text)
+        self.update_search_highlights(search_text, options)
         replaced_end = selected_match.start + len(result.text) - (
             len(source_text) - selected_match.end
         )
@@ -559,7 +580,7 @@ class MainWindow(QMainWindow):
             self._set_search_error(self.translator.text("search.empty"))
             return
 
-        scope_text, _scope_offset = self._search_scope_text(options)
+        scope_text, scope_offset = self._search_scope_text(options)
         if options.selected_only and scope_text is None:
             self._set_search_error(self.translator.text("search.select_before_replace"))
             return
@@ -582,16 +603,59 @@ class MainWindow(QMainWindow):
             self._set_search_error(self.translator.text("search.no_replacements"))
             return
 
-        if scope_text is not None and self.search_scope is not None:
-            scope_start, scope_end = self.search_scope
+        if scope_text is not None:
+            scope_start = scope_offset
+            scope_end = scope_offset + len(scope_text)
             result_text = source_text[:scope_start] + result.text + source_text[scope_end:]
-            self.search_scope = (scope_start, scope_start + len(result.text))
+            if options.selected_only:
+                self.search_scope = (scope_start, scope_start + len(result.text))
         else:
             result_text = result.text
 
         self._replace_document_text(result_text)
+        self.update_search_highlights(search_text, options)
         self._set_search_status(
             self.translator.text("search.replaced_many", count=result.count)
+        )
+
+    def update_search_highlights(
+        self,
+        search_text: str,
+        options: SearchOptions,
+    ) -> None:
+        if not search_text:
+            self.editor.clear_search_matches()
+            return
+
+        scope_text, scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self.editor.clear_search_matches()
+            return
+
+        source_text = scope_text if scope_text is not None else self.editor.toPlainText()
+        try:
+            matches = self.search_engine.find_all(source_text, search_text, options)
+        except RegexError:
+            self.editor.clear_search_matches()
+            return
+
+        self.editor.set_search_matches(
+            [
+                SearchMatch(
+                    match.start + scope_offset,
+                    match.end + scope_offset,
+                    match.text,
+                )
+                for match in matches
+            ]
+        )
+
+    def _refresh_search_highlights_from_dialog(self) -> None:
+        if self.find_replace_dialog is None or not self.find_replace_dialog.isVisible():
+            return
+        self.update_search_highlights(
+            self.find_replace_dialog.find_text_edit.text(),
+            self.find_replace_dialog.current_search_options(),
         )
 
     def preview_matches(
@@ -667,20 +731,88 @@ class MainWindow(QMainWindow):
             self.find_replace_dialog.insert_find_text(pattern)
 
     def _search_scope_text(self, options: SearchOptions) -> tuple[str | None, int]:
-        if not options.selected_only:
+        if not options.selected_only and not options.visible_only:
             return None, 0
 
+        source_text = self.editor.toPlainText()
+        scope_bounds: tuple[int, int] | None = None
+
+        if options.selected_only:
+            selected_bounds = self._selected_search_bounds(len(source_text))
+            if selected_bounds is None:
+                return None, 0
+            scope_bounds = selected_bounds
+
+        if options.visible_only:
+            visible_bounds = self._visible_search_bounds(len(source_text))
+            if visible_bounds is None:
+                return "", 0
+            scope_bounds = (
+                visible_bounds
+                if scope_bounds is None
+                else (
+                    max(scope_bounds[0], visible_bounds[0]),
+                    min(scope_bounds[1], visible_bounds[1]),
+                )
+            )
+
+        if scope_bounds is None:
+            return None, 0
+
+        scope_start, scope_end = scope_bounds
+        if scope_start >= scope_end:
+            return "", scope_start
+        return source_text[scope_start:scope_end], scope_start
+
+    def _selected_search_bounds(self, source_length: int) -> tuple[int, int] | None:
         if self.search_scope is None:
             cursor = self.editor.textCursor()
             if not cursor.hasSelection():
-                return None, 0
+                return None
             self.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
 
         scope_start, scope_end = self.search_scope
-        source_text = self.editor.toPlainText()
-        if scope_start >= scope_end or scope_end > len(source_text):
-            return None, 0
-        return source_text[scope_start:scope_end], scope_start
+        if scope_start >= scope_end or scope_end > source_length:
+            return None
+        return scope_start, scope_end
+
+    def _visible_search_bounds(self, source_length: int) -> tuple[int, int] | None:
+        first_block = self.editor.firstVisibleBlock()
+        if not first_block.isValid():
+            return None
+
+        viewport_rect = self.editor.viewport().rect()
+        block = first_block
+        top = round(
+            self.editor.blockBoundingGeometry(block)
+            .translated(self.editor.contentOffset())
+            .top()
+        )
+        bottom = top + round(self.editor.blockBoundingRect(block).height())
+        visible_start: int | None = None
+        visible_end: int | None = None
+
+        while block.isValid() and top <= viewport_rect.bottom():
+            if block.isVisible() and bottom >= viewport_rect.top():
+                if visible_start is None:
+                    visible_start = block.position()
+                visible_end = min(block.position() + block.length(), source_length)
+
+            block = block.next()
+            top = bottom
+            bottom = top + round(self.editor.blockBoundingRect(block).height())
+
+        if visible_start is None or visible_end is None:
+            return None
+        return visible_start, visible_end
+
+    def _match_is_inside_scope(
+        self,
+        match: SearchMatch,
+        scope_offset: int,
+        scope_length: int,
+    ) -> bool:
+        return scope_offset <= match.start and match.end <= scope_offset + scope_length
 
     def _preview_rows(
         self,

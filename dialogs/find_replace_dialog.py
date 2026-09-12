@@ -26,6 +26,7 @@ class FindReplaceDialog(QDialog):
     replace_requested = Signal(str, str, SearchOptions)
     replace_all_requested = Signal(str, str, SearchOptions)
     preview_requested = Signal(str, str, SearchOptions)
+    search_parameters_changed = Signal(str, SearchOptions)
     regex_help_requested = Signal()
 
     def __init__(self, translator: Translator, parent: QWidget | None = None) -> None:
@@ -43,6 +44,7 @@ class FindReplaceDialog(QDialog):
         self.regular_expression_check_box = QCheckBox("Regular expression", self)
         self.whole_word_check_box = QCheckBox("Whole word", self)
         self.selected_only_check_box = QCheckBox("Search only selected text", self)
+        self.visible_only_check_box = QCheckBox("Search only visible text", self)
 
         self.find_button = QPushButton("Find", self)
         self.replace_button = QPushButton("Replace", self)
@@ -85,6 +87,9 @@ class FindReplaceDialog(QDialog):
         self.find_text_edit.insert(text)
         self.find_text_edit.setFocus()
 
+    def current_search_options(self) -> SearchOptions:
+        return self._search_options()
+
     def set_search_recipe(self, search_text: str, replace_text: str) -> None:
         self.find_text_edit.setText(search_text)
         self.replace_text_edit.setText(replace_text)
@@ -117,6 +122,7 @@ class FindReplaceDialog(QDialog):
         self.regular_expression_check_box.setText(self.translator.text("find.regex"))
         self.whole_word_check_box.setText(self.translator.text("find.whole_word"))
         self.selected_only_check_box.setText(self.translator.text("find.selected_only"))
+        self.visible_only_check_box.setText(self.translator.text("find.visible_only"))
         self.find_button.setText(self.translator.text("find.find"))
         self.replace_button.setText(self.translator.text("find.replace"))
         self.replace_all_button.setText(self.translator.text("find.replace_all"))
@@ -146,6 +152,7 @@ class FindReplaceDialog(QDialog):
         form_layout.addWidget(self.regular_expression_check_box, 3, 1)
         form_layout.addWidget(self.whole_word_check_box, 4, 1)
         form_layout.addWidget(self.selected_only_check_box, 5, 1)
+        form_layout.addWidget(self.visible_only_check_box, 6, 1)
 
         button_layout = QGridLayout()
         button_layout.addWidget(self.find_button, 0, 0)
@@ -223,8 +230,17 @@ class FindReplaceDialog(QDialog):
         self.regex_help_button.clicked.connect(self.regex_help_requested.emit)
         self.close_button.clicked.connect(self.close)
         self.find_text_edit.textChanged.connect(self._update_regex_lint)
+        self.find_text_edit.textChanged.connect(self._emit_search_parameters_changed)
         self.replace_text_edit.textChanged.connect(self._update_regex_lint)
-        self.regular_expression_check_box.toggled.connect(self._update_regex_lint)
+        self.regular_expression_check_box.toggled.connect(
+            self._handle_search_option_changed
+        )
+        self.case_sensitive_check_box.toggled.connect(
+            self._emit_search_parameters_changed
+        )
+        self.whole_word_check_box.toggled.connect(self._emit_search_parameters_changed)
+        self.selected_only_check_box.toggled.connect(self._emit_search_parameters_changed)
+        self.visible_only_check_box.toggled.connect(self._emit_search_parameters_changed)
 
     def _search_options(self) -> SearchOptions:
         return SearchOptions(
@@ -232,6 +248,7 @@ class FindReplaceDialog(QDialog):
             regular_expression=self.regular_expression_check_box.isChecked(),
             whole_word=self.whole_word_check_box.isChecked(),
             selected_only=self.selected_only_check_box.isChecked(),
+            visible_only=self.visible_only_check_box.isChecked(),
         )
 
     def _update_regex_lint(self) -> None:
@@ -279,5 +296,15 @@ class FindReplaceDialog(QDialog):
         self.preview_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
+            self._search_options(),
+        )
+
+    def _handle_search_option_changed(self, *_args: object) -> None:
+        self._update_regex_lint()
+        self._emit_search_parameters_changed()
+
+    def _emit_search_parameters_changed(self, *_args: object) -> None:
+        self.search_parameters_changed.emit(
+            self.find_text_edit.text(),
             self._search_options(),
         )

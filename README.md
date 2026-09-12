@@ -32,6 +32,14 @@ The project focuses on practical regular expression search and replacement witho
 - Regex lint warnings.
 - Regex help with examples and replacement recipes.
 
+## Planned Direction
+
+- Tag insertion assistance for HTML, Markdown, and WordPress HTML.
+- Manage candidates separately in `html_dict.py`, `md_dict.py`, and `wphtml_dict.py`.
+- Insert tags or snippets at the current cursor position from the editor context menu.
+- Consider both mouse selection and keyboard selection with arrow keys plus Enter.
+- Consider automatic snippet switching by extension, such as `.html`, `.md`, and `.wp.html`.
+
 ## Supported Encodings
 
 - UTF-8

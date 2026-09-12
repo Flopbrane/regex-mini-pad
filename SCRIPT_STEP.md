@@ -39,6 +39,7 @@ This file records the planned build order for `mini_editor_project`.
    - Case-sensitive search.
    - Whole-word search.
    - Search only selected text.
+   - Search only visible text.
 
 9. Regex assistance
    - Regex insertion popup.
@@ -68,6 +69,7 @@ This file records the planned build order for `mini_editor_project`.
 2. Match highlighting
    - Highlight all current matches in the editor.
    - Keep current selected match visually distinct.
+   - Show match markers beside the vertical scroll area.
 
 3. Find Previous
    - Add previous-match navigation.
@@ -105,6 +107,13 @@ This file records the planned build order for `mini_editor_project`.
     - Review PyInstaller spec.
     - Verify resources load next to the executable.
     - Confirm portable folder behavior.
+
+11. Tag insertion assistance
+    - Add `html_dict.py`, `md_dict.py`, and `wphtml_dict.py`.
+    - Show file-format-specific tag snippets from the editor context menu.
+    - Insert the selected tag or snippet at the current cursor position.
+    - Support mouse selection and keyboard selection with arrow keys plus Enter.
+    - Consider automatic snippet set switching by extension, such as `.html`, `.md`, and `.wp.html`.
 
 ## Validation Commands
 

@@ -55,3 +55,13 @@ def test_preview_table_displays_rows(app: QApplication) -> None:
     assert line_item.text() == "2"
     assert before_item.text() == "second  "
     assert after_item.text() == "second"
+
+
+def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+
+    dialog.visible_only_check_box.setChecked(True)
+
+    assert dialog.current_search_options().visible_only

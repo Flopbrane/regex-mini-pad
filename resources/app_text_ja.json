@@ -54,6 +54,7 @@
   "find.regex": "正規表現として検索する",
   "find.whole_word": "単語全体に一致するものだけ",
   "find.selected_only": "選択範囲内だけを検索する",
+  "find.visible_only": "表示中の範囲だけを検索する",
   "find.find": "検索",
   "find.replace": "置換",
   "find.replace_all": "すべて置換",
