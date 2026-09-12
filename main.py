@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
+from editor.tag_insert import TagSnippet, tag_snippet_groups
 from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
 from localization.translator import Translator
@@ -134,6 +135,8 @@ class MainWindow(QMainWindow):
         self.select_all_action.setShortcut("Ctrl+A")
         self.select_all_action.triggered.connect(self.editor.selectAll)
 
+        self.insert_tag_menu = QMenu(self)
+
         self.find_action = QAction(self)
         self.find_action.setShortcut("Ctrl+F")
         self.find_action.triggered.connect(self.show_find_replace_dialog)
@@ -180,6 +183,8 @@ class MainWindow(QMainWindow):
         self.edit_menu.addAction(self.redo_action)
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.select_all_action)
+        self.edit_menu.addSeparator()
+        self.edit_menu.addMenu(self.insert_tag_menu)
         menu_bar.addMenu(self.edit_menu)
 
         self.search_menu = QMenu(self)
@@ -247,6 +252,7 @@ class MainWindow(QMainWindow):
         self.undo_action.setText(self.translator.text("action.undo"))
         self.redo_action.setText(self.translator.text("action.redo"))
         self.select_all_action.setText(self.translator.text("action.select_all"))
+        self._rebuild_insert_tag_menu()
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
@@ -259,6 +265,39 @@ class MainWindow(QMainWindow):
             self.regex_help_dialog.apply_language()
         self._update_status_bar()
         self._update_window_title()
+
+    def _rebuild_insert_tag_menu(self) -> None:
+        self.insert_tag_menu.clear()
+        self.insert_tag_menu.setTitle(self.translator.text("action.insert_tag"))
+        for group in tag_snippet_groups():
+            group_menu = self.insert_tag_menu.addMenu(self.translator.text(group.label_key))
+            assert group_menu is not None
+            for snippet in group.snippets:
+                label = self.translator.text(snippet.label_key)
+                hint = self.translator.text(snippet.hint_key)
+                action = QAction(label, self)
+                action.setStatusTip(hint)
+                action.setToolTip(hint)
+                action.hovered.connect(
+                    lambda hint_text=hint: self.statusBar().showMessage(hint_text)
+                )
+                action.triggered.connect(
+                    lambda checked=False, value=snippet: self.insert_tag_snippet(value)
+                )
+                group_menu.addAction(action)
+
+    def insert_tag_snippet(self, snippet: TagSnippet) -> None:
+        cursor = self.editor.textCursor()
+        insert_start = cursor.selectionStart()
+        selected_text = cursor.selectedText().replace("\u2029", "\n")
+        insert_text, cursor_offset = snippet.render(selected_text)
+
+        cursor.beginEditBlock()
+        cursor.insertText(insert_text)
+        cursor.endEditBlock()
+        cursor.setPosition(insert_start + cursor_offset)
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
 
     def _update_status_bar(self) -> None:
         cursor = self.editor.textCursor()
