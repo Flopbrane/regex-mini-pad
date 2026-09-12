@@ -1,0 +1,67 @@
+[
+  {
+    "label_key": "tag.html.paragraph",
+    "hint_key": "tag.hint.html.paragraph",
+    "template": "<p>{selection}{cursor}</p>"
+  },
+  {
+    "label_key": "tag.html.heading2",
+    "hint_key": "tag.hint.html.heading2",
+    "template": "<h2>{selection}{cursor}</h2>"
+  },
+  {
+    "label_key": "tag.html.heading3",
+    "hint_key": "tag.hint.html.heading3",
+    "template": "<h3>{selection}{cursor}</h3>"
+  },
+  {
+    "label_key": "tag.html.link",
+    "hint_key": "tag.hint.html.link",
+    "template": "<a href=\"{cursor}\">{selection}</a>"
+  },
+  {
+    "label_key": "tag.html.link_blank",
+    "hint_key": "tag.hint.html.link_blank",
+    "template": "<a href=\"{cursor}\" target=\"_blank\" rel=\"noopener noreferrer\">{selection}</a>"
+  },
+  {
+    "label_key": "tag.html.image",
+    "hint_key": "tag.hint.html.image",
+    "template": "<img src=\"{cursor}\" alt=\"\">"
+  },
+  {
+    "label_key": "tag.html.figure",
+    "hint_key": "tag.hint.html.figure",
+    "template": "<figure>\n<img src=\"{cursor}\" alt=\"\">\n<figcaption>{selection}</figcaption>\n</figure>"
+  },
+  {
+    "label_key": "tag.html.div",
+    "hint_key": "tag.hint.html.div",
+    "template": "<div class=\"{cursor}\">{selection}</div>"
+  },
+  {
+    "label_key": "tag.html.span",
+    "hint_key": "tag.hint.html.span",
+    "template": "<span class=\"{cursor}\">{selection}</span>"
+  },
+  {
+    "label_key": "tag.html.unordered_list",
+    "hint_key": "tag.hint.html.unordered_list",
+    "template": "<ul>\n<li>{selection}{cursor}</li>\n</ul>"
+  },
+  {
+    "label_key": "tag.html.ordered_list",
+    "hint_key": "tag.hint.html.ordered_list",
+    "template": "<ol>\n<li>{selection}{cursor}</li>\n</ol>"
+  },
+  {
+    "label_key": "tag.html.code",
+    "hint_key": "tag.hint.html.code",
+    "template": "<code>{selection}{cursor}</code>"
+  },
+  {
+    "label_key": "tag.html.pre_code",
+    "hint_key": "tag.hint.html.pre_code",
+    "template": "<pre><code>{selection}{cursor}</code></pre>"
+  }
+]

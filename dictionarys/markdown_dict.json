@@ -1,0 +1,102 @@
+[
+  {
+    "label_key": "tag.markdown.heading2",
+    "hint_key": "tag.hint.markdown.heading2",
+    "template": "## {selection}{cursor}"
+  },
+  {
+    "label_key": "tag.markdown.heading3",
+    "hint_key": "tag.hint.markdown.heading3",
+    "template": "### {selection}{cursor}"
+  },
+  {
+    "label_key": "tag.markdown.bold",
+    "hint_key": "tag.hint.markdown.bold",
+    "template": "**{selection}{cursor}**"
+  },
+  {
+    "label_key": "tag.markdown.italic",
+    "hint_key": "tag.hint.markdown.italic",
+    "template": "*{selection}{cursor}*"
+  },
+  {
+    "label_key": "tag.markdown.link",
+    "hint_key": "tag.hint.markdown.link",
+    "template": "[{selection}]({cursor})"
+  },
+  {
+    "label_key": "tag.markdown.image",
+    "hint_key": "tag.hint.markdown.image",
+    "template": "![{selection}]({cursor})"
+  },
+  {
+    "label_key": "tag.markdown.inline_code",
+    "hint_key": "tag.hint.markdown.inline_code",
+    "template": "`{selection}{cursor}`"
+  },
+  {
+    "label_key": "tag.markdown.code_block",
+    "hint_key": "tag.hint.markdown.code_block",
+    "template": "```{cursor}\n{selection}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_python",
+    "hint_key": "tag.hint.markdown.code_block_python",
+    "template": "```python\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_html",
+    "hint_key": "tag.hint.markdown.code_block_html",
+    "template": "```html\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_css",
+    "hint_key": "tag.hint.markdown.code_block_css",
+    "template": "```css\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_javascript",
+    "hint_key": "tag.hint.markdown.code_block_javascript",
+    "template": "```javascript\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_json",
+    "hint_key": "tag.hint.markdown.code_block_json",
+    "template": "```json\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_powershell",
+    "hint_key": "tag.hint.markdown.code_block_powershell",
+    "template": "```powershell\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_bash",
+    "hint_key": "tag.hint.markdown.code_block_bash",
+    "template": "```bash\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.code_block_sql",
+    "hint_key": "tag.hint.markdown.code_block_sql",
+    "template": "```sql\n{selection}{cursor}\n```"
+  },
+  {
+    "label_key": "tag.markdown.quote",
+    "hint_key": "tag.hint.markdown.quote",
+    "template": "> {selection}{cursor}"
+  },
+  {
+    "label_key": "tag.markdown.bullet",
+    "hint_key": "tag.hint.markdown.bullet",
+    "template": "- {selection}{cursor}"
+  },
+  {
+    "label_key": "tag.markdown.numbered",
+    "hint_key": "tag.hint.markdown.numbered",
+    "template": "1. {selection}{cursor}"
+  },
+  {
+    "label_key": "tag.markdown.horizontal_rule",
+    "hint_key": "tag.hint.markdown.horizontal_rule",
+    "template": "---\n{cursor}"
+  }
+]

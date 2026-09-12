@@ -54,6 +54,16 @@ def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> No
     first_html_action = group_menus[0].actions()[0]
     assert first_html_action.text() == "段落 <p>"
     assert "必須パラメータ" in first_html_action.statusTip()
+    image_action = group_menus[0].actions()[5]
+    assert image_action.text() == "画像 <img>"
+    assert "src" in image_action.statusTip()
+    assert "alt" in image_action.toolTip()
+    assert [action.text() for action in group_menus[1].actions()[:4]] == [
+        "見出し2",
+        "見出し3",
+        "太字",
+        "斜体",
+    ]
 
 
 def test_insert_tag_snippet_wraps_selected_text(app: QApplication) -> None:
@@ -78,9 +88,132 @@ def test_insert_link_snippet_places_cursor_in_href(app: QApplication) -> None:
     cursor = window.editor.textCursor()
     cursor.select(QTextCursor.SelectionType.Document)
     window.editor.setTextCursor(cursor)
-    link_snippet = tag_snippet_groups()[0].snippets[1]
+    link_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[0].snippets
+        if snippet.label_key == "tag.html.link"
+    )
 
     window.insert_tag_snippet(link_snippet)
 
     assert window.editor.toPlainText() == '<a href="">OpenAI</a>'
     assert window.editor.textCursor().position() == len('<a href="')
+
+
+def test_html_snippets_are_loaded_from_json() -> None:
+    html_group = tag_snippet_groups()[0]
+
+    assert html_group.label_key == "tag.group.html"
+    assert len(html_group.snippets) == 13
+    assert html_group.snippets[0].label_key == "tag.html.paragraph"
+    assert html_group.snippets[-1].label_key == "tag.html.pre_code"
+
+
+def test_insert_html_div_places_cursor_in_class_parameter(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("content")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    div_snippet = tag_snippet_groups()[0].snippets[7]
+
+    window.insert_tag_snippet(div_snippet)
+
+    assert window.editor.toPlainText() == '<div class="">content</div>'
+    assert window.editor.textCursor().position() == len('<div class="')
+
+
+def test_markdown_snippets_are_loaded_from_json() -> None:
+    markdown_group = tag_snippet_groups()[1]
+
+    assert markdown_group.label_key == "tag.group.markdown"
+    assert len(markdown_group.snippets) == 20
+    assert markdown_group.snippets[0].label_key == "tag.markdown.heading2"
+    assert markdown_group.snippets[-1].label_key == "tag.markdown.horizontal_rule"
+
+
+def test_insert_markdown_code_block_places_cursor_after_opening_fence(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("print('hello')")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    code_block_snippet = tag_snippet_groups()[1].snippets[7]
+
+    window.insert_tag_snippet(code_block_snippet)
+
+    assert window.editor.toPlainText() == "```\nprint('hello')\n```"
+    assert window.editor.textCursor().position() == len("```")
+
+
+def test_insert_markdown_python_code_block_uses_selected_language(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("print('hello')")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    python_code_block_snippet = tag_snippet_groups()[1].snippets[8]
+
+    window.insert_tag_snippet(python_code_block_snippet)
+
+    assert window.editor.toPlainText() == "```python\nprint('hello')\n```"
+    assert window.editor.textCursor().position() == len("```python\nprint('hello')")
+
+
+def test_wordpress_html_snippets_are_loaded_from_json() -> None:
+    wordpress_group = tag_snippet_groups()[2]
+
+    assert wordpress_group.label_key == "tag.group.wordpress_html"
+    assert len(wordpress_group.snippets) == 11
+    assert wordpress_group.snippets[0].label_key == "tag.wordpress.paragraph_block"
+    assert wordpress_group.snippets[7].label_key == "tag.wordpress.html_code_box"
+
+
+def test_insert_wordpress_code_block_uses_pre_code_markup(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("print('hello')")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    code_snippet = tag_snippet_groups()[2].snippets[5]
+
+    window.insert_tag_snippet(code_snippet)
+
+    assert window.editor.toPlainText() == (
+        "<!-- wp:code -->\n"
+        '<pre class="wp-block-code"><code>print(\'hello\')</code></pre>\n'
+        "<!-- /wp:code -->"
+    )
+    assert window.editor.textCursor().position() == len(
+        "<!-- wp:code -->\n"
+        '<pre class="wp-block-code"><code>print(\'hello\')'
+    )
+
+
+def test_insert_wordpress_html_code_box_uses_custom_style(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("sample")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    html_code_box_snippet = tag_snippet_groups()[2].snippets[7]
+
+    window.insert_tag_snippet(html_code_box_snippet)
+
+    assert "<!-- wp:html -->" in window.editor.toPlainText()
+    assert 'class="wp-block-code"' in window.editor.toPlainText()
+    assert "display:inline-block; border:1px solid #999;" in window.editor.toPlainText()
+    assert "<code>sample</code>" in window.editor.toPlainText()

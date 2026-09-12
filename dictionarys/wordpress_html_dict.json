@@ -1,0 +1,57 @@
+[
+  {
+    "label_key": "tag.wordpress.paragraph_block",
+    "hint_key": "tag.hint.wordpress.paragraph_block",
+    "template": "<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->"
+  },
+  {
+    "label_key": "tag.wordpress.heading2_block",
+    "hint_key": "tag.hint.wordpress.heading2_block",
+    "template": "<!-- wp:heading -->\n<h2>{selection}{cursor}</h2>\n<!-- /wp:heading -->"
+  },
+  {
+    "label_key": "tag.wordpress.heading3_block",
+    "hint_key": "tag.hint.wordpress.heading3_block",
+    "template": "<!-- wp:heading {\"level\":3} -->\n<h3>{selection}{cursor}</h3>\n<!-- /wp:heading -->"
+  },
+  {
+    "label_key": "tag.wordpress.list_block",
+    "hint_key": "tag.hint.wordpress.list_block",
+    "template": "<!-- wp:list -->\n<ul>\n<li>{selection}{cursor}</li>\n</ul>\n<!-- /wp:list -->"
+  },
+  {
+    "label_key": "tag.wordpress.quote_block",
+    "hint_key": "tag.hint.wordpress.quote_block",
+    "template": "<!-- wp:quote -->\n<blockquote class=\"wp-block-quote\"><p>{selection}{cursor}</p></blockquote>\n<!-- /wp:quote -->"
+  },
+  {
+    "label_key": "tag.wordpress.code_block",
+    "hint_key": "tag.hint.wordpress.code_block",
+    "template": "<!-- wp:code -->\n<pre class=\"wp-block-code\"><code>{selection}{cursor}</code></pre>\n<!-- /wp:code -->"
+  },
+  {
+    "label_key": "tag.wordpress.preformatted_block",
+    "hint_key": "tag.hint.wordpress.preformatted_block",
+    "template": "<!-- wp:preformatted -->\n<pre class=\"wp-block-preformatted\">{selection}{cursor}</pre>\n<!-- /wp:preformatted -->"
+  },
+  {
+    "label_key": "tag.wordpress.html_code_box",
+    "hint_key": "tag.hint.wordpress.html_code_box",
+    "template": "<!-- wp:html -->\n<pre class=\"wp-block-code\" style=\"display:inline-block; border:1px solid #999; padding:16px; border-radius:8px; background-color:#f9f9f9;\"><code>{selection}{cursor}</code></pre>\n<!-- /wp:html -->"
+  },
+  {
+    "label_key": "tag.wordpress.separator_block",
+    "hint_key": "tag.hint.wordpress.separator_block",
+    "template": "<!-- wp:separator -->\n<hr class=\"wp-block-separator has-alpha-channel-opacity\"/>\n<!-- /wp:separator -->\n{cursor}"
+  },
+  {
+    "label_key": "tag.wordpress.spacer_block",
+    "hint_key": "tag.hint.wordpress.spacer_block",
+    "template": "<!-- wp:spacer {\"height\":\"32px\"} -->\n<div style=\"height:32px\" aria-hidden=\"true\" class=\"wp-block-spacer\"></div>\n<!-- /wp:spacer -->\n{cursor}"
+  },
+  {
+    "label_key": "tag.wordpress.buttons_block",
+    "hint_key": "tag.hint.wordpress.buttons_block",
+    "template": "<!-- wp:buttons -->\n<div class=\"wp-block-buttons\"><!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"{cursor}\">{selection}</a></div>\n<!-- /wp:button --></div>\n<!-- /wp:buttons -->"
+  }
+]
