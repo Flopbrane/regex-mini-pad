@@ -83,8 +83,16 @@ class FindReplaceDialog(QDialog):
     def clear_error(self) -> None:
         self.error_label.clear()
 
-    def insert_find_text(self, text: str) -> None:
+    def insert_find_text(self, text: str, cursor_offset: int | None = None) -> None:
+        insert_position = (
+            self.find_text_edit.selectionStart()
+            if self.find_text_edit.hasSelectedText()
+            else self.find_text_edit.cursorPosition()
+        )
+        self.regular_expression_check_box.setChecked(True)
         self.find_text_edit.insert(text)
+        if cursor_offset is not None:
+            self.find_text_edit.setCursorPosition(insert_position + cursor_offset)
         self.find_text_edit.setFocus()
 
     def current_search_options(self) -> SearchOptions:
@@ -175,27 +183,72 @@ class FindReplaceDialog(QDialog):
 
     def _create_regex_insert_menu(self) -> None:
         regex_menu = QMenu(self)
-        snippets = {
-            "regex.snippet.digit": r"\d",
-            "regex.snippet.word": r"\w",
-            "regex.snippet.whitespace": r"\s",
-            "regex.snippet.any": ".",
-            "regex.snippet.start": "^",
-            "regex.snippet.end": "$",
-            "regex.snippet.one_or_more": "+",
-            "regex.snippet.zero_or_more": "*",
-            "regex.snippet.optional": "?",
-            "regex.snippet.capture": r"()",
-            "regex.snippet.class": r"[]",
-        }
-        for label_key, pattern in snippets.items():
-            label = self.translator.text(label_key)
-            action = QAction(f"{label}    {pattern}", self)
-            action.triggered.connect(
-                lambda checked=False, value=pattern: self.insert_find_text(value)
-            )
-            regex_menu.addAction(action)
+        snippet_groups = [
+            (
+                "regex.snippet_group.characters",
+                [
+                    ("regex.snippet.digit", r"\d", None),
+                    ("regex.snippet.not_digit", r"\D", None),
+                    ("regex.snippet.word", r"\w", None),
+                    ("regex.snippet.not_word", r"\W", None),
+                    ("regex.snippet.whitespace", r"\s", None),
+                    ("regex.snippet.not_whitespace", r"\S", None),
+                    ("regex.snippet.any", ".", None),
+                    ("regex.snippet.literal_dot", r"\.", None),
+                    ("regex.snippet.line_break", r"\n", None),
+                    ("regex.snippet.tab", r"\t", None),
+                ],
+            ),
+            (
+                "regex.snippet_group.positions",
+                [
+                    ("regex.snippet.start", "^", None),
+                    ("regex.snippet.end", "$", None),
+                    ("regex.snippet.word_boundary", r"\b", None),
+                ],
+            ),
+            (
+                "regex.snippet_group.repetition",
+                [
+                    ("regex.snippet.one_or_more", "+", None),
+                    ("regex.snippet.zero_or_more", "*", None),
+                    ("regex.snippet.optional", "?", None),
+                    ("regex.snippet.exact_count", r"{1}", 1),
+                    ("regex.snippet.count_range", r"{1,3}", 1),
+                ],
+            ),
+            (
+                "regex.snippet_group.groups",
+                [
+                    ("regex.snippet.capture", r"()", 1),
+                    ("regex.snippet.class", r"[]", 1),
+                    ("regex.snippet.non_capture", r"(?:)", 3),
+                    ("regex.snippet.alternative", "|", None),
+                ],
+            ),
+        ]
+        for group_key, snippets in snippet_groups:
+            group_menu = regex_menu.addMenu(self.translator.text(group_key))
+            assert group_menu is not None
+            for label_key, pattern, cursor_offset in snippets:
+                self._add_regex_snippet_action(group_menu, label_key, pattern, cursor_offset)
         self.insert_regex_button.setMenu(regex_menu)
+
+    def _add_regex_snippet_action(
+        self,
+        menu: QMenu,
+        label_key: str,
+        pattern: str,
+        cursor_offset: int | None,
+    ) -> None:
+        label = self.translator.text(label_key)
+        action = QAction(f"{label}    {pattern}", self)
+        action.triggered.connect(
+            lambda checked=False,
+            value=pattern,
+            offset=cursor_offset: self.insert_find_text(value, offset)
+        )
+        menu.addAction(action)
 
     def _create_recipe_menu(self) -> None:
         recipe_menu = QMenu(self)

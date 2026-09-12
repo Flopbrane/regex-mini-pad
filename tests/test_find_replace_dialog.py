@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMenu
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from localization.translator import Translator
@@ -65,3 +65,40 @@ def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
     dialog.visible_only_check_box.setChecked(True)
 
     assert dialog.current_search_options().visible_only
+
+
+def test_regex_snippet_insert_enables_regex_mode_and_places_cursor(
+    app: QApplication,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    dialog.find_text_edit.setText("prefix suffix")
+    dialog.find_text_edit.setSelection(7, 6)
+
+    dialog.insert_find_text("()", cursor_offset=1)
+
+    assert dialog.regular_expression_check_box.isChecked()
+    assert dialog.find_text_edit.text() == "prefix ()"
+    assert dialog.find_text_edit.cursorPosition() == 8
+
+
+def test_regex_insert_menu_is_grouped(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+
+    regex_menu = dialog.insert_regex_button.menu()
+    assert regex_menu is not None
+    group_menus: list[QMenu] = []
+    for action in regex_menu.actions():
+        child_menu = action.menu()
+        if isinstance(child_menu, QMenu):
+            group_menus.append(child_menu)
+
+    assert [menu.title() for menu in group_menus] == [
+        "Characters",
+        "Positions",
+        "Repetition",
+        "Groups",
+    ]
