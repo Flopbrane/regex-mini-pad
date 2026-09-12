@@ -142,44 +142,47 @@ Completed:
 - Added common HTML snippets:
   - paragraph, headings, links, image, figure, div, span, lists, inline code, and pre/code block.
   - HTML hints describe common parameters such as `href`, `src`, `alt`, `class`, `id`, `data-*`, `target`, `rel`, `start`, `reversed`, and `type`.
+- Added right-click tag insertion:
+  - The editor context menu now includes `タグ挿入`.
+  - It reuses the same snippet groups and insertion behavior as the menu bar.
+- Added menu hierarchy refinement:
+  - HTML is split into Basic, Link / Image, Layout, Lists, and Code.
+  - Markdown is split into Text, Link / Image, Code, Lists, and Utility.
+  - WordPress HTML is split into Text, Code, and Layout.
+- Added file extension based ordering:
+  - `.md` and `.markdown` prefer Markdown first.
+  - `.html` and `.htm` prefer HTML first.
+  - `.wp.html` prefers WordPress HTML first.
+  - All snippet groups remain available even when one group is prioritized.
+- Added keyboard tag insertion picker:
+  - `Ctrl+Shift+T` opens the tag insertion picker.
+  - The picker supports filtering snippets by text.
+  - `Tab` or arrow keys move from the filter field to the candidate list.
+  - `Enter` inserts the selected snippet.
+- Confirmed Undo/Redo behavior:
+  - Existing `Ctrl+Z` and `Ctrl+Y` shortcuts remain available.
+  - Inserted snippets can be undone and redone as a single edit operation.
 
 Follow-up candidates:
 
-1. Right-click tag insertion
-   - Add `タグ挿入` to the editor context menu.
-   - Reuse the same snippet groups as the menu bar.
-   - Keep selected text wrapping behavior identical.
-
-2. Menu hierarchy refinement
-   - Split large groups into submenus such as:
-     - HTML: Basic, Link/Image, Lists, Code, Layout.
-     - Markdown: Text, Link/Image, Code, Lists.
-     - WordPress HTML: Text, Layout, Code, Utility.
-
-3. File extension based ordering
-   - Prefer Markdown snippets for `.md`.
-   - Prefer HTML snippets for `.html`.
-   - Prefer WordPress HTML snippets for `.wp.html`.
-   - Keep manual access to all groups even when one group is prioritized.
-
-4. Dictionary JSON validation
+1. Dictionary JSON validation
    - Validate required keys: `label_key`, `hint_key`, and `template`.
    - Detect missing translation keys.
    - Detect missing or duplicated `{cursor}` when cursor placement is expected.
    - Detect unknown placeholders.
    - Detect empty labels, hints, or templates.
 
-5. Richer parameter hints
+2. Richer parameter hints
    - Consider adding structured `parameters` arrays to JSON.
    - Generate hover text from structured parameter definitions.
    - This can later support linting or inline assistance for tag attributes.
 
-6. Snippet search / keyboard picker
+3. Snippet search / keyboard picker
    - Add a small searchable popup for users who prefer typing tag names.
    - Support arrow keys plus Enter.
    - Keep menu insertion and popup insertion backed by the same JSON data.
 
-7. Attribute-aware insertion
+4. Attribute-aware insertion
    - For common attributes such as `class`, `id`, `href`, `src`, and `alt`, consider optional prompt or placeholder navigation.
    - Keep the current direct insertion as the fast path.
 

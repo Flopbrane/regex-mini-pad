@@ -47,6 +47,139 @@ def tag_snippet_groups(dictionarys_path: Path | None = None) -> tuple[TagSnippet
     )
 
 
+def ordered_tag_snippet_groups(
+    save_file_path: Path | None,
+    dictionarys_path: Path | None = None,
+) -> tuple[TagSnippetGroup, ...]:
+    groups = tag_snippet_groups(dictionarys_path)
+    preferred_label_key = _preferred_group_label_key(save_file_path)
+    if preferred_label_key is None:
+        return groups
+    return tuple(
+        sorted(
+            groups,
+            key=lambda group: 0 if group.label_key == preferred_label_key else 1,
+        )
+    )
+
+
+def tag_snippet_category_key(group_label_key: str, snippet: TagSnippet) -> str:
+    label_key = snippet.label_key
+    if group_label_key == "tag.group.html":
+        return _html_category_key(label_key)
+    if group_label_key == "tag.group.markdown":
+        return _markdown_category_key(label_key)
+    if group_label_key == "tag.group.wordpress_html":
+        return _wordpress_category_key(label_key)
+    return "tag.category.utility"
+
+
+def _preferred_group_label_key(save_file_path: Path | None) -> str | None:
+    if save_file_path is None:
+        return None
+
+    suffixes = [suffix.lower() for suffix in save_file_path.suffixes]
+    file_name = save_file_path.name.lower()
+    if file_name.endswith(".wp.html"):
+        return "tag.group.wordpress_html"
+    if ".md" in suffixes or ".markdown" in suffixes:
+        return "tag.group.markdown"
+    if ".html" in suffixes or ".htm" in suffixes:
+        return "tag.group.html"
+    return None
+
+
+def _html_category_key(label_key: str) -> str:
+    if label_key in {
+        "tag.html.paragraph",
+        "tag.html.heading2",
+        "tag.html.heading3",
+    }:
+        return "tag.category.basic"
+    if label_key in {
+        "tag.html.link",
+        "tag.html.link_blank",
+        "tag.html.image",
+        "tag.html.figure",
+    }:
+        return "tag.category.link_image"
+    if label_key in {
+        "tag.html.unordered_list",
+        "tag.html.ordered_list",
+    }:
+        return "tag.category.lists"
+    if label_key in {
+        "tag.html.code",
+        "tag.html.pre_code",
+    }:
+        return "tag.category.code"
+    if label_key in {
+        "tag.html.div",
+        "tag.html.span",
+    }:
+        return "tag.category.layout"
+    return "tag.category.utility"
+
+
+def _markdown_category_key(label_key: str) -> str:
+    if label_key in {
+        "tag.markdown.heading2",
+        "tag.markdown.heading3",
+        "tag.markdown.bold",
+        "tag.markdown.italic",
+    }:
+        return "tag.category.text"
+    if label_key in {
+        "tag.markdown.link",
+        "tag.markdown.image",
+    }:
+        return "tag.category.link_image"
+    if label_key in {
+        "tag.markdown.inline_code",
+        "tag.markdown.code_block",
+        "tag.markdown.code_block_python",
+        "tag.markdown.code_block_html",
+        "tag.markdown.code_block_css",
+        "tag.markdown.code_block_javascript",
+        "tag.markdown.code_block_json",
+        "tag.markdown.code_block_powershell",
+        "tag.markdown.code_block_bash",
+        "tag.markdown.code_block_sql",
+    }:
+        return "tag.category.code"
+    if label_key in {
+        "tag.markdown.quote",
+        "tag.markdown.bullet",
+        "tag.markdown.numbered",
+    }:
+        return "tag.category.lists"
+    return "tag.category.utility"
+
+
+def _wordpress_category_key(label_key: str) -> str:
+    if label_key in {
+        "tag.wordpress.paragraph_block",
+        "tag.wordpress.heading2_block",
+        "tag.wordpress.heading3_block",
+        "tag.wordpress.list_block",
+        "tag.wordpress.quote_block",
+    }:
+        return "tag.category.text"
+    if label_key in {
+        "tag.wordpress.code_block",
+        "tag.wordpress.preformatted_block",
+        "tag.wordpress.html_code_box",
+    }:
+        return "tag.category.code"
+    if label_key in {
+        "tag.wordpress.separator_block",
+        "tag.wordpress.spacer_block",
+        "tag.wordpress.buttons_block",
+    }:
+        return "tag.category.layout"
+    return "tag.category.utility"
+
+
 def _load_snippets_from_json(load_file_path: Path) -> tuple[TagSnippet, ...]:
     load_data = json.loads(load_file_path.read_text(encoding="utf-8"))
     if not isinstance(load_data, list):

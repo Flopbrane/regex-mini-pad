@@ -4,7 +4,8 @@ import sys
 from pathlib import Path
 from re import error as RegexError
 
-from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QTextCursor
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QKeySequence, QTextCursor
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -20,7 +21,12 @@ from PySide6.QtWidgets import (
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
-from editor.tag_insert import TagSnippet, tag_snippet_groups
+from dialogs.tag_insert_dialog import TagInsertDialog
+from editor.tag_insert import (
+    TagSnippet,
+    ordered_tag_snippet_groups,
+    tag_snippet_category_key,
+)
 from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
 from localization.translator import Translator
@@ -52,6 +58,7 @@ class MainWindow(QMainWindow):
         self.current_encoding = "utf-8"
         self.find_replace_dialog: FindReplaceDialog | None = None
         self.regex_help_dialog: RegexHelpDialog | None = None
+        self.tag_insert_dialog: TagInsertDialog | None = None
         self.search_scope: tuple[int, int] | None = None
 
         self.editor = TextEditor()
@@ -68,6 +75,8 @@ class MainWindow(QMainWindow):
         self.editor.textChanged.connect(self._refresh_search_highlights_from_dialog)
         self.editor.cursorPositionChanged.connect(self._update_status_bar)
         self.editor.document().modificationChanged.connect(self._update_window_title)
+        self.editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.editor.customContextMenuRequested.connect(self._show_editor_context_menu)
         self._update_status_bar()
         self._update_window_title()
 
@@ -128,7 +137,9 @@ class MainWindow(QMainWindow):
         self.undo_action.triggered.connect(self.editor.undo)
 
         self.redo_action = QAction("&Redo", self)
-        self.redo_action.setShortcut("Ctrl+Y")
+        self.redo_action.setShortcuts(
+            [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")]
+        )
         self.redo_action.triggered.connect(self.editor.redo)
 
         self.select_all_action = QAction("Select &All", self)
@@ -136,6 +147,9 @@ class MainWindow(QMainWindow):
         self.select_all_action.triggered.connect(self.editor.selectAll)
 
         self.insert_tag_menu = QMenu(self)
+        self.insert_tag_picker_action = QAction(self)
+        self.insert_tag_picker_action.setShortcut("Ctrl+Shift+T")
+        self.insert_tag_picker_action.triggered.connect(self.show_tag_insert_dialog)
 
         self.find_action = QAction(self)
         self.find_action.setShortcut("Ctrl+F")
@@ -184,6 +198,7 @@ class MainWindow(QMainWindow):
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.select_all_action)
         self.edit_menu.addSeparator()
+        self.edit_menu.addAction(self.insert_tag_picker_action)
         self.edit_menu.addMenu(self.insert_tag_menu)
         menu_bar.addMenu(self.edit_menu)
 
@@ -252,6 +267,9 @@ class MainWindow(QMainWindow):
         self.undo_action.setText(self.translator.text("action.undo"))
         self.redo_action.setText(self.translator.text("action.redo"))
         self.select_all_action.setText(self.translator.text("action.select_all"))
+        self.insert_tag_picker_action.setText(
+            self.translator.text("action.insert_tag_picker")
+        )
         self._rebuild_insert_tag_menu()
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
@@ -263,28 +281,67 @@ class MainWindow(QMainWindow):
             self.find_replace_dialog.apply_language()
         if self.regex_help_dialog is not None:
             self.regex_help_dialog.apply_language()
+        if self.tag_insert_dialog is not None:
+            self.tag_insert_dialog.apply_language()
         self._update_status_bar()
         self._update_window_title()
 
     def _rebuild_insert_tag_menu(self) -> None:
         self.insert_tag_menu.clear()
         self.insert_tag_menu.setTitle(self.translator.text("action.insert_tag"))
-        for group in tag_snippet_groups():
-            group_menu = self.insert_tag_menu.addMenu(self.translator.text(group.label_key))
+        self._populate_insert_tag_menu(self.insert_tag_menu)
+
+    def _populate_insert_tag_menu(self, root_menu: QMenu) -> None:
+        for group in ordered_tag_snippet_groups(self.current_save_file_path):
+            group_menu = root_menu.addMenu(self.translator.text(group.label_key))
             assert group_menu is not None
+            category_menus: dict[str, QMenu] = {}
             for snippet in group.snippets:
-                label = self.translator.text(snippet.label_key)
-                hint = self.translator.text(snippet.hint_key)
-                action = QAction(label, self)
-                action.setStatusTip(hint)
-                action.setToolTip(hint)
-                action.hovered.connect(
-                    lambda hint_text=hint: self.statusBar().showMessage(hint_text)
-                )
-                action.triggered.connect(
-                    lambda checked=False, value=snippet: self.insert_tag_snippet(value)
-                )
-                group_menu.addAction(action)
+                category_key = tag_snippet_category_key(group.label_key, snippet)
+                category_menu = category_menus.get(category_key)
+                if category_menu is None:
+                    category_menu = group_menu.addMenu(self.translator.text(category_key))
+                    assert category_menu is not None
+                    category_menus[category_key] = category_menu
+                category_menu.addAction(self._create_tag_snippet_action(snippet))
+
+    def _create_tag_snippet_action(self, snippet: TagSnippet) -> QAction:
+        label = self.translator.text(snippet.label_key)
+        hint = self.translator.text(snippet.hint_key)
+        action = QAction(label, self)
+        action.setStatusTip(hint)
+        action.setToolTip(hint)
+        action.hovered.connect(
+            lambda hint_text=hint: self.statusBar().showMessage(hint_text)
+        )
+        action.triggered.connect(
+            lambda checked=False, value=snippet: self.insert_tag_snippet(value)
+        )
+        return action
+
+    def _show_editor_context_menu(self, position: QPoint) -> None:
+        context_menu = self.editor.createStandardContextMenu()
+        context_menu.addSeparator()
+        context_menu.addAction(self.insert_tag_picker_action)
+        insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
+        self._populate_insert_tag_menu(insert_tag_menu)
+        context_menu.addMenu(insert_tag_menu)
+        context_menu.exec(self.editor.mapToGlobal(position))
+
+    def show_tag_insert_dialog(self) -> None:
+        if self.tag_insert_dialog is None:
+            self.tag_insert_dialog = TagInsertDialog(self.translator, self)
+
+        self.tag_insert_dialog.set_snippet_groups(
+            ordered_tag_snippet_groups(self.current_save_file_path)
+        )
+        self.tag_insert_dialog.search_edit.clear()
+        self.tag_insert_dialog.selected_snippet = None
+        if self.tag_insert_dialog.exec() != TagInsertDialog.DialogCode.Accepted:
+            return
+        selected_snippet = self.tag_insert_dialog.selected_choice()
+        if selected_snippet is not None:
+            self.insert_tag_snippet(selected_snippet)
 
     def insert_tag_snippet(self, snippet: TagSnippet) -> None:
         cursor = self.editor.textCursor()
