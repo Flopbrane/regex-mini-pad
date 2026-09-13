@@ -353,7 +353,7 @@ Use the project virtual environment:
 
 ## Project Principles
 
-- Keep the app portable.
+- ~~Keep the app portable.~~
 - Do not use the Windows Registry.
 - Do not require administrator privileges.
 - Store settings locally.
