@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import sys
+import uuid
 from pathlib import Path
 from re import error as RegexError
 
@@ -16,6 +18,7 @@ from PySide6.QtWidgets import (
     QMenu,
     QMessageBox,
     QStatusBar,
+    QTabWidget,
     QVBoxLayout,
 )
 
@@ -30,6 +33,7 @@ from editor.tag_insert import (
 )
 from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
+from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from localization.translator import Translator
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import SettingsManager
@@ -47,10 +51,28 @@ ENCODING_OPTIONS = {
 
 
 class MainWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        settings_path: Path | None = None,
+        unsaved_backup_path: Path | None = None,
+        restore_unsaved_backup: bool = True,
+        window_id: str | None = None,
+    ) -> None:
         super().__init__()
+        self.window_id = window_id or str(uuid.uuid4())
+        self.setObjectName(f"main-window-{self.window_id}")
         self.resources_path = Path(__file__).parent / "resources"
-        self.settings_manager = SettingsManager(Path(__file__).with_name("settings.json"))
+        self.settings_manager = SettingsManager(
+            settings_path or Path(__file__).with_name("settings.json")
+        )
+        self.unsaved_backup_enabled = (
+            unsaved_backup_path is not None
+            or os.environ.get("QT_QPA_PLATFORM") != "offscreen"
+        )
+        self.unsaved_backup_manager = UnsavedBackupManager(
+            unsaved_backup_path
+            or Path(__file__).with_name("autosave") / "unsaved_backup.json"
+        )
         settings = self.settings_manager.load()
         self.translator = Translator(self.resources_path, settings.language_code)
         self.file_manager = FileManager()
@@ -62,30 +84,48 @@ class MainWindow(QMainWindow):
         self.tag_insert_dialog: TagInsertDialog | None = None
         self.user_help_dialog: UserHelpDialog | None = None
         self.search_scope: tuple[int, int] | None = None
+        self.tab_file_paths: dict[TextEditor, Path | None] = {}
+        self.tab_encodings: dict[TextEditor, str] = {}
+        self.tab_windows: list[MainWindow] = []
+        self.child_windows: dict[str, MainWindow] = {}
+        self.editor: TextEditor
 
-        self.editor = TextEditor()
-        self.setCentralWidget(self.editor)
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setDocumentMode(True)
+        self.tab_widget.setMovable(True)
+        self.tab_widget.setTabsClosable(False)
+        self.tab_widget.currentChanged.connect(self._handle_current_tab_changed)
+        self.tab_widget.tabBar().setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu
+        )
+        self.tab_widget.tabBar().customContextMenuRequested.connect(
+            self._show_tab_context_menu
+        )
+        self.setCentralWidget(self.tab_widget)
 
         self.resize(900, 650)
         self._create_actions()
         self._create_menus()
         self._create_status_bar()
+        self.editor = self._create_editor_tab()
         self._restore_settings(settings)
         self._apply_language()
 
-        self.editor.textChanged.connect(self._update_status_bar)
-        self.editor.textChanged.connect(self._refresh_search_highlights_from_dialog)
-        self.editor.cursorPositionChanged.connect(self._update_status_bar)
-        self.editor.document().modificationChanged.connect(self._update_window_title)
-        self.editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.editor.customContextMenuRequested.connect(self._show_editor_context_menu)
         self._update_status_bar()
         self._update_window_title()
+        if restore_unsaved_backup:
+            self._restore_unsaved_backup_if_available()
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        if not self._confirm_discard_changes():
-            event.ignore()
-            return
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is None:
+                continue
+            self.tab_widget.setCurrentIndex(tab_index)
+            if not self._confirm_save_or_discard_editor(editor):
+                event.ignore()
+                return
+        self._clear_unsaved_backup()
         self._save_settings()
         event.accept()
 
@@ -136,17 +176,17 @@ class MainWindow(QMainWindow):
 
         self.undo_action = QAction("&Undo", self)
         self.undo_action.setShortcut("Ctrl+Z")
-        self.undo_action.triggered.connect(self.editor.undo)
+        self.undo_action.triggered.connect(lambda: self.editor.undo())
 
         self.redo_action = QAction("&Redo", self)
         self.redo_action.setShortcuts(
             [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")]
         )
-        self.redo_action.triggered.connect(self.editor.redo)
+        self.redo_action.triggered.connect(lambda: self.editor.redo())
 
         self.select_all_action = QAction("Select &All", self)
         self.select_all_action.setShortcut("Ctrl+A")
-        self.select_all_action.triggered.connect(self.editor.selectAll)
+        self.select_all_action.triggered.connect(lambda: self.editor.selectAll())
 
         self.insert_tag_menu = QMenu(self)
         self.insert_tag_picker_action = QAction(self)
@@ -159,11 +199,11 @@ class MainWindow(QMainWindow):
 
         self.word_wrap_action = QAction(self)
         self.word_wrap_action.setCheckable(True)
-        self.word_wrap_action.toggled.connect(self.editor.set_word_wrap_enabled)
+        self.word_wrap_action.toggled.connect(self._set_current_word_wrap_enabled)
 
         self.line_numbers_action = QAction(self)
         self.line_numbers_action.setCheckable(True)
-        self.line_numbers_action.toggled.connect(self.editor.set_line_numbers_enabled)
+        self.line_numbers_action.toggled.connect(self._set_current_line_numbers_enabled)
 
         self.user_help_action = QAction(self)
         self.user_help_action.setShortcut("F1")
@@ -228,6 +268,184 @@ class MainWindow(QMainWindow):
 
     def _create_status_bar(self) -> None:
         self.setStatusBar(QStatusBar(self))
+
+    def _create_editor_tab(
+        self,
+        text: str = "",
+        save_file_path: Path | None = None,
+        encoding: str = "utf-8",
+        modified: bool = False,
+    ) -> TextEditor:
+        editor = TextEditor()
+        editor.setPlainText(text)
+        editor.document().setModified(modified)
+        line_numbers_action = getattr(self, "line_numbers_action", None)
+        word_wrap_action = getattr(self, "word_wrap_action", None)
+        editor.set_line_numbers_enabled(
+            line_numbers_action.isChecked()
+            if isinstance(line_numbers_action, QAction)
+            else True
+        )
+        editor.set_word_wrap_enabled(
+            word_wrap_action.isChecked() if isinstance(word_wrap_action, QAction) else False
+        )
+        editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        editor.customContextMenuRequested.connect(self._show_editor_context_menu)
+        editor.textChanged.connect(self._update_status_bar)
+        editor.textChanged.connect(self._update_tab_titles)
+        editor.textChanged.connect(self._save_unsaved_backup)
+        editor.textChanged.connect(self._refresh_search_highlights_from_dialog)
+        editor.cursorPositionChanged.connect(self._update_status_bar)
+        editor.document().modificationChanged.connect(self._update_tab_titles)
+        editor.document().modificationChanged.connect(self._update_window_title)
+
+        self.tab_file_paths[editor] = save_file_path
+        self.tab_encodings[editor] = encoding
+        tab_index = self.tab_widget.addTab(editor, self._tab_title(editor))
+        self.tab_widget.setCurrentIndex(tab_index)
+        self._sync_current_tab_state()
+        return editor
+
+    def _handle_current_tab_changed(self, index: int) -> None:
+        widget = self.tab_widget.widget(index)
+        if widget is None:
+            return
+        if isinstance(widget, TextEditor):
+            self.editor = widget
+            self._sync_current_tab_state()
+        self.search_scope = None
+        self._update_status_bar()
+        self._update_window_title()
+        self._rebuild_insert_tag_menu()
+
+    def _sync_current_tab_state(self) -> None:
+        self.current_save_file_path = self.tab_file_paths.get(self.editor)
+        self.current_encoding = self.tab_encodings.get(self.editor, "utf-8")
+
+    def _set_current_file_state(
+        self,
+        save_file_path: Path | None,
+        encoding: str | None = None,
+    ) -> None:
+        self.current_save_file_path = save_file_path
+        self.tab_file_paths[self.editor] = save_file_path
+        if encoding is not None:
+            self.current_encoding = encoding
+            self.tab_encodings[self.editor] = encoding
+        self._update_tab_titles()
+
+    def _tab_title(self, editor: TextEditor) -> str:
+        save_file_path = self.tab_file_paths.get(editor)
+        title = save_file_path.name if save_file_path is not None else self._draft_title(editor)
+        return f"*{title}" if editor.document().isModified() else title
+
+    def _draft_title(self, editor: TextEditor) -> str:
+        lines = editor.toPlainText().splitlines()
+        first_line = lines[0].strip() if lines else ""
+        if not first_line:
+            return self.translator.text("document.untitled")
+        return first_line[:30]
+
+    def _update_tab_titles(self) -> None:
+        for index in range(self.tab_widget.count()):
+            widget = self.tab_widget.widget(index)
+            if isinstance(widget, TextEditor):
+                self.tab_widget.setTabText(index, self._tab_title(widget))
+
+    def _set_current_word_wrap_enabled(self, enabled: bool) -> None:
+        self.editor.set_word_wrap_enabled(enabled)
+
+    def _set_current_line_numbers_enabled(self, enabled: bool) -> None:
+        self.editor.set_line_numbers_enabled(enabled)
+
+    def _show_tab_context_menu(self, position: QPoint) -> None:
+        tab_index = self.tab_widget.tabBar().tabAt(position)
+        if tab_index < 0:
+            return
+
+        menu = QMenu(self)
+        close_action = menu.addAction(self.translator.text("tab.close"))
+        duplicate_action = menu.addAction(self.translator.text("tab.duplicate"))
+        move_to_window_action = menu.addAction(self.translator.text("tab.move_to_window"))
+        selected_action = menu.exec(self.tab_widget.tabBar().mapToGlobal(position))
+        if selected_action == close_action:
+            self.close_tab(tab_index)
+        elif selected_action == duplicate_action:
+            self.duplicate_tab(tab_index)
+        elif selected_action == move_to_window_action:
+            self.move_tab_to_new_window(tab_index)
+
+    def close_tab(self, tab_index: int) -> bool:
+        editor = self._editor_at(tab_index)
+        if editor is None:
+            return False
+        if not self._confirm_save_or_discard_editor(editor):
+            return False
+
+        self._remove_tab(tab_index)
+        if self.tab_widget.count() == 0:
+            self._create_editor_tab()
+        self._sync_current_tab_state()
+        self._update_status_bar()
+        self._update_window_title()
+        return True
+
+    def duplicate_tab(self, tab_index: int) -> TextEditor | None:
+        editor = self._editor_at(tab_index)
+        if editor is None:
+            return None
+
+        duplicate_editor = self._create_editor_tab(
+            text=editor.toPlainText(),
+            save_file_path=None,
+            encoding=self.tab_encodings.get(editor, "utf-8"),
+            modified=True,
+        )
+        duplicate_editor.moveCursor(QTextCursor.MoveOperation.Start)
+        return duplicate_editor
+
+    def move_tab_to_new_window(self, tab_index: int) -> MainWindow | None:
+        editor = self._editor_at(tab_index)
+        if editor is None:
+            return None
+
+        new_window = MainWindow(
+            settings_path=self.settings_manager.settings_path,
+            restore_unsaved_backup=False,
+        )
+        new_window._remove_tab(0)
+        new_window._create_editor_tab(
+            text=editor.toPlainText(),
+            save_file_path=self.tab_file_paths.get(editor),
+            encoding=self.tab_encodings.get(editor, "utf-8"),
+            modified=editor.document().isModified(),
+        )
+        new_window.show()
+        self.tab_windows.append(new_window)
+        self.child_windows[new_window.window_id] = new_window
+        new_window.destroyed.connect(
+            lambda _object=None, child_window_id=new_window.window_id: (
+                self.child_windows.pop(child_window_id, None)
+            )
+        )
+        self._remove_tab(tab_index)
+        if self.tab_widget.count() == 0:
+            self._create_editor_tab()
+        self._sync_current_tab_state()
+        self._update_window_title()
+        return new_window
+
+    def _editor_at(self, tab_index: int) -> TextEditor | None:
+        widget = self.tab_widget.widget(tab_index)
+        return widget if isinstance(widget, TextEditor) else None
+
+    def _remove_tab(self, tab_index: int) -> None:
+        editor = self._editor_at(tab_index)
+        self.tab_widget.removeTab(tab_index)
+        if editor is not None:
+            self.tab_file_paths.pop(editor, None)
+            self.tab_encodings.pop(editor, None)
+            editor.deleteLater()
 
     def _restore_settings(self, settings) -> None:
         self.line_numbers_action.setChecked(settings.line_numbers_enabled)
@@ -409,19 +627,36 @@ class MainWindow(QMainWindow):
         )
         return result == QMessageBox.StandardButton.Yes
 
+    def _confirm_save_or_discard_editor(self, editor: TextEditor) -> bool:
+        if not editor.document().isModified():
+            return True
+
+        tab_index = self.tab_widget.indexOf(editor)
+        if tab_index >= 0:
+            self.tab_widget.setCurrentIndex(tab_index)
+
+        result = QMessageBox.question(
+            self,
+            self.translator.text("dialog.unsaved.title"),
+            self.translator.text("dialog.unsaved_save.message"),
+            (
+                QMessageBox.StandardButton.Yes
+                | QMessageBox.StandardButton.No
+                | QMessageBox.StandardButton.Cancel
+            ),
+            QMessageBox.StandardButton.Cancel,
+        )
+        if result == QMessageBox.StandardButton.Cancel:
+            return False
+        if result == QMessageBox.StandardButton.No:
+            return True
+        return self.save_file()
+
     def new_file(self) -> None:
-        if not self._confirm_discard_changes():
-            return
-        self.editor.clear()
-        self.editor.clear_search_matches()
-        self.editor.document().setModified(False)
-        self.current_save_file_path = None
+        self._create_editor_tab()
         self._update_window_title()
 
     def open_file(self, encoding: str | None = None) -> None:
-        if not self._confirm_discard_changes():
-            return
-
         selected_path, _ = QFileDialog.getOpenFileName(
             self,
             self.translator.text("dialog.open.title"),
@@ -441,11 +676,15 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self.editor.setPlainText(load_data)
-        self.editor.moveCursor(QTextCursor.MoveOperation.Start)
-        self.editor.document().setModified(False)
-        self.current_save_file_path = load_file_path
-        self.current_encoding = selected_encoding
+        editor = self._create_editor_tab(
+            text=load_data,
+            save_file_path=load_file_path,
+            encoding=selected_encoding,
+            modified=False,
+        )
+        editor.moveCursor(QTextCursor.MoveOperation.Start)
+        self._clear_unsaved_backup()
+        self._set_current_file_state(load_file_path, selected_encoding)
         self._update_window_title()
         self._set_encoding_status()
 
@@ -478,21 +717,22 @@ class MainWindow(QMainWindow):
         self.editor.setPlainText(load_data)
         self.editor.moveCursor(QTextCursor.MoveOperation.Start)
         self.editor.document().setModified(False)
+        self._clear_unsaved_backup()
+        self._set_current_file_state(self.current_save_file_path, selected_encoding)
         self._update_window_title()
         self._set_encoding_status()
 
-    def save_file(self) -> None:
+    def save_file(self) -> bool:
         if self.current_save_file_path is None:
-            self.save_file_as()
-            return
-        self._save_to_path(self.current_save_file_path)
+            return self.save_file_as()
+        return self._save_to_path(self.current_save_file_path)
 
-    def save_file_as(self) -> None:
+    def save_file_as(self) -> bool:
         selected_save_file_path, selected_encoding = self._get_save_file_path()
         if selected_save_file_path is None:
-            return
+            return False
         self.current_encoding = selected_encoding
-        self._save_to_path(selected_save_file_path)
+        return self._save_to_path(selected_save_file_path)
 
     def _get_save_file_path(self) -> tuple[Path | None, str]:
         dialog = QFileDialog(self, self.translator.text("dialog.save_as.title"))
@@ -530,7 +770,7 @@ class MainWindow(QMainWindow):
 
         return Path(selected_files[0]), str(encoding_combo_box.currentData())
 
-    def _save_to_path(self, save_file_path: Path) -> None:
+    def _save_to_path(self, save_file_path: Path) -> bool:
         save_data = self.editor.toPlainText()
         try:
             self.file_manager.save_text(save_file_path, save_data, self.current_encoding)
@@ -540,11 +780,62 @@ class MainWindow(QMainWindow):
                 self.translator.text("dialog.save_failed.title"),
                 str(error),
             )
+            return False
+
+        self._set_current_file_state(save_file_path, self.current_encoding)
+        self.editor.document().setModified(False)
+        self._clear_unsaved_backup()
+        self._update_window_title()
+        return True
+
+    def _save_unsaved_backup(self) -> None:
+        if not self.unsaved_backup_enabled:
+            return
+        if not self.editor.document().isModified():
             return
 
-        self.current_save_file_path = save_file_path
-        self.editor.document().setModified(False)
+        save_data = self.editor.toPlainText()
+        if not save_data:
+            self._clear_unsaved_backup()
+            return
+
+        self.unsaved_backup_manager.save(
+            UnsavedBackup(
+                text=save_data,
+                encoding=self.current_encoding,
+                save_file_path=self.current_save_file_path,
+            )
+        )
+
+    def _restore_unsaved_backup_if_available(self) -> None:
+        if not self.unsaved_backup_enabled:
+            return
+        backup = self.unsaved_backup_manager.load()
+        if backup is None or not backup.text:
+            return
+
+        result = QMessageBox.question(
+            self,
+            self.translator.text("dialog.restore_backup.title"),
+            self.translator.text("dialog.restore_backup.message"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            self._clear_unsaved_backup()
+            return
+
+        self.current_encoding = backup.encoding
+        self.editor.setPlainText(backup.text)
+        self.editor.moveCursor(QTextCursor.MoveOperation.Start)
+        self.editor.document().setModified(True)
+        self._set_current_file_state(backup.save_file_path, backup.encoding)
         self._update_window_title()
+        self._set_encoding_status()
+
+    def _clear_unsaved_backup(self) -> None:
+        if self.unsaved_backup_enabled:
+            self.unsaved_backup_manager.clear()
 
     def show_find_replace_dialog(self) -> None:
         if self.find_replace_dialog is None:

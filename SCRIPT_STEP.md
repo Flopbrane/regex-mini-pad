@@ -311,6 +311,36 @@ Follow-up candidates:
    - Reuse the preview table to show only currently marked ranges.
    - Make the difference between all matches and marked matches clearer.
 
+## Step11-section6 Tabbed Documents
+
+Completed:
+
+- Converted the editor surface to a tabbed document interface.
+- `New` now creates a new untitled tab without discarding existing text.
+- Untitled tab names use the first line of the document as a temporary title.
+  - Empty tabs still use `Untitled` / `無題`.
+- Added tab right-click commands:
+  - `Close` / `閉じる`.
+  - `Duplicate This Tab` / `このタブの複製`.
+  - `Open in New Window` / `新規ウィンドウで開く`.
+- Closing an unsaved tab asks whether to save, discard, or cancel.
+- Duplicating a tab copies the current text into a new unsaved tab.
+- Moving a tab to a new window transfers the text and file state, then removes it from the source window.
+- Each window now has a UUID-based `window_id`.
+- Parent windows keep child windows in `child_windows` by `window_id`.
+- Updated the user help text with basic tab behavior.
+
+Follow-up candidates:
+
+1. Multi-tab autosave
+   - Extend the current single unsaved backup to store multiple tabs.
+   - Restore all unsaved tabs on launch.
+
+2. Tab UI polish
+   - Add close buttons on tabs after behavior stabilizes.
+   - Add keyboard shortcuts for next / previous tab.
+   - Consider middle-click close.
+
 ## Validation Commands
 
 Use the project virtual environment:

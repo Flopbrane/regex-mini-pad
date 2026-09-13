@@ -28,9 +28,12 @@ def test_regex_help_loads_examples(app: QApplication) -> None:
     dialog = RegexHelpDialog(Path("resources/regex_help_en.json"), translator)
 
     assert dialog.table.rowCount() >= 20
-    assert dialog.table.columnCount() == 7
+    assert dialog.table.columnCount() == 8
     assert dialog.table.item(0, 0) is not None
     assert dialog.table.item(0, 3) is not None
+    usage_item = dialog.table.item(0, 5)
+    assert usage_item is not None
+    assert usage_item.text() == "^TODO"
 
 
 def test_regex_help_can_switch_between_english_and_japanese(app: QApplication) -> None:
@@ -54,6 +57,9 @@ def test_regex_help_can_switch_between_english_and_japanese(app: QApplication) -
     assert category_item is not None
     assert header_item.text() == "種類"
     assert category_item.text() == "位置"
+    usage_header_item = dialog.table.horizontalHeaderItem(5)
+    assert usage_header_item is not None
+    assert usage_header_item.text() == "記述例"
 
 
 def test_help_headers_follow_help_language_not_app_language(app: QApplication) -> None:

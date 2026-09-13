@@ -10,6 +10,7 @@ REQUIRED_KEYS = {
     "pattern",
     "description",
     "example_text",
+    "usage_example",
     "matches",
     "replace_with",
     "replacement_result",

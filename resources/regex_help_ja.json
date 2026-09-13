@@ -5,6 +5,7 @@
     "pattern": "^",
     "description": "行の一番はじめの位置に一致します。文字そのものではなく、位置を探します。",
     "example_text": "TODO 用紙を買う",
+    "usage_example": "^TODO",
     "matches": "TODO の前の位置",
     "replace_with": "DONE ",
     "replacement_result": "DONE TODO 用紙を買う"
@@ -15,6 +16,7 @@
     "pattern": "$",
     "description": "行の一番最後の位置に一致します。末尾へ文字を足したい時に使えます。",
     "example_text": "report",
+    "usage_example": "report$",
     "matches": "report の後ろの位置",
     "replace_with": ".txt",
     "replacement_result": "report.txt"
@@ -25,6 +27,7 @@
     "pattern": "\\d",
     "description": "数字1文字に一致します。",
     "example_text": "会議室 A12",
+    "usage_example": "\\d",
     "matches": "1, 2",
     "replace_with": "#",
     "replacement_result": "会議室 A##"
@@ -35,6 +38,7 @@
     "pattern": "\\D",
     "description": "数字ではない1文字に一致します。",
     "example_text": "A12",
+    "usage_example": "\\D",
     "matches": "A",
     "replace_with": "",
     "replacement_result": "12"
@@ -45,6 +49,7 @@
     "pattern": "\\w",
     "description": "英数字またはアンダースコア1文字に一致します。",
     "example_text": "user_id!",
+    "usage_example": "\\w+",
     "matches": "u, s, e, r, _, i, d",
     "replace_with": "",
     "replacement_result": "!"
@@ -55,6 +60,7 @@
     "pattern": "\\W",
     "description": "英数字でもアンダースコアでもない1文字に一致します。",
     "example_text": "user_id!",
+    "usage_example": "\\W",
     "matches": "!",
     "replace_with": "",
     "replacement_result": "user_id"
@@ -65,6 +71,7 @@
     "pattern": "\\s",
     "description": "半角スペース、タブ、改行などの空白1文字に一致します。",
     "example_text": "A B",
+    "usage_example": "\\s",
     "matches": "A と B の間のスペース",
     "replace_with": "_",
     "replacement_result": "A_B"
@@ -75,6 +82,7 @@
     "pattern": "\\S",
     "description": "空白ではない1文字に一致します。",
     "example_text": "A B",
+    "usage_example": "\\S",
     "matches": "A, B",
     "replace_with": "#",
     "replacement_result": "# #"
@@ -85,6 +93,7 @@
     "pattern": ".",
     "description": "改行以外の任意の1文字に一致します。",
     "example_text": "abc",
+    "usage_example": "a.c",
     "matches": "a, b, c",
     "replace_with": "*",
     "replacement_result": "***"
@@ -95,6 +104,7 @@
     "pattern": "*",
     "description": "直前の文字やグループを0回以上繰り返します。",
     "example_text": "abbb ac",
+    "usage_example": "ab*",
     "matches": "abbb, a",
     "replace_with": "",
     "replacement_result": " c"
@@ -105,6 +115,7 @@
     "pattern": "+",
     "description": "直前の文字やグループを1回以上繰り返します。",
     "example_text": "abbb ac",
+    "usage_example": "ab+",
     "matches": "abbb",
     "replace_with": "",
     "replacement_result": " ac"
@@ -115,6 +126,7 @@
     "pattern": "?",
     "description": "直前の文字やグループが0回または1回ある場合に一致します。",
     "example_text": "color colour",
+    "usage_example": "colou?r",
     "matches": "colou?r で color, colour",
     "replace_with": "",
     "replacement_result": ""
@@ -125,6 +137,7 @@
     "pattern": "{3}",
     "description": "直前の文字やグループを指定した回数だけ繰り返します。",
     "example_text": "ID: 1234",
+    "usage_example": "\\d{3}",
     "matches": "\\d{3} で 123",
     "replace_with": "###",
     "replacement_result": "ID: ###4"
@@ -135,6 +148,7 @@
     "pattern": "{2,5}",
     "description": "直前の文字やグループを指定した回数の範囲で繰り返します。",
     "example_text": "ID: 12 123456",
+    "usage_example": "\\d{2,5}",
     "matches": "\\d{2,5} で 12, 12345",
     "replace_with": "NUM",
     "replacement_result": "ID: NUM NUM6"
@@ -145,6 +159,7 @@
     "pattern": "()",
     "description": "一致した一部をグループとして取り出し、置換文字で再利用できます。",
     "example_text": "2026-09-10",
+    "usage_example": "(\\d+)",
     "matches": "(\\d{4})-(\\d{2})-(\\d{2}) で年月日を分ける",
     "replace_with": "\\2/\\3/\\1",
     "replacement_result": "09/10/2026"
@@ -155,6 +170,7 @@
     "pattern": "|",
     "description": "左側または右側のどちらかに一致します。",
     "example_text": "cat dog bird",
+    "usage_example": "cat|dog",
     "matches": "cat|dog で cat, dog",
     "replace_with": "pet",
     "replacement_result": "pet pet bird"
@@ -165,6 +181,7 @@
     "pattern": "[]",
     "description": "角括弧の中に書いた文字のどれか1文字に一致します。",
     "example_text": "gray grey",
+    "usage_example": "[abc]",
     "matches": "gr[ae]y で gray, grey",
     "replace_with": "color",
     "replacement_result": "color color"
@@ -175,6 +192,7 @@
     "pattern": "[^]",
     "description": "角括弧の中に書いた文字以外の1文字に一致します。",
     "example_text": "abc123",
+    "usage_example": "[^abc]",
     "matches": "[^0-9] で a, b, c",
     "replace_with": "",
     "replacement_result": "123"
@@ -185,6 +203,7 @@
     "pattern": "\\b",
     "description": "単語の端に一致します。cat と catalog を区別したい時に便利です。",
     "example_text": "cat catalog cat",
+    "usage_example": "\\bcat\\b",
     "matches": "\\bcat\\b で先頭と末尾の cat",
     "replace_with": "dog",
     "replacement_result": "dog catalog dog"
@@ -195,6 +214,7 @@
     "pattern": "\\1",
     "description": "置換文字の中で、1番目の括弧に一致した内容を使います。",
     "example_text": "Smith, John",
+    "usage_example": "(\\w+) \\1",
     "matches": "(\\w+), (\\w+) で Smith と John",
     "replace_with": "\\2 \\1",
     "replacement_result": "John Smith"
@@ -205,6 +225,7 @@
     "pattern": "\\2",
     "description": "置換文字の中で、2番目の括弧に一致した内容を使います。",
     "example_text": "Smith, John",
+    "usage_example": "(\\w+) (\\w+)",
     "matches": "(\\w+), (\\w+) で Smith と John",
     "replace_with": "\\2 \\1",
     "replacement_result": "John Smith"
@@ -215,6 +236,7 @@
     "pattern": "\\n{3,}",
     "description": "改行が3つ以上続く場所を探して、空きすぎた行間を整えます。",
     "example_text": "1行目\\n\\n\\n2行目",
+    "usage_example": "\\n{3,}",
     "matches": "3つ続いた改行",
     "replace_with": "\\n\\n",
     "replacement_result": "1行目\\n\\n2行目"
@@ -225,6 +247,7 @@
     "pattern": "[ \\t]+$",
     "description": "各行の最後にある余分なスペースやタブを探します。",
     "example_text": "メモ   ",
+    "usage_example": "[ \\t]+$",
     "matches": "メモ の後ろのスペース",
     "replace_with": "",
     "replacement_result": "メモ"
@@ -235,6 +258,7 @@
     "pattern": "(\\d{4})-(\\d{2})-(\\d{2})",
     "description": "2026-09-10 のような日付を、年・月・日に分けて入れ替えます。",
     "example_text": "2026-09-10",
+    "usage_example": "(\\d{4})-(\\d{2})-(\\d{2})",
     "matches": "2026-09-10",
     "replace_with": "\\2/\\3/\\1",
     "replacement_result": "09/10/2026"
@@ -245,6 +269,7 @@
     "pattern": "^\\d+\\.\\s+",
     "description": "行頭の 1. や 23. のような番号を探します。",
     "example_text": "1. メール確認",
+    "usage_example": "^\\d+\\.\\s+",
     "matches": "1. ",
     "replace_with": "- ",
     "replacement_result": "- メール確認"
@@ -255,6 +280,7 @@
     "pattern": "^.*urgent.*$",
     "description": "指定した語を含む行全体を探します。urgent の部分を探したい語に変えます。",
     "example_text": "通常\\nurgent task\\n完了",
+    "usage_example": "^.*urgent.*$",
     "matches": "urgent task",
     "replace_with": "",
     "replacement_result": ""
@@ -265,6 +291,7 @@
     "pattern": "^[ \\t]*\\n",
     "description": "スペースやタブだけの行を探して、その行ごと削除します。",
     "example_text": "1行目\\n\\n2行目",
+    "usage_example": "^[ \\t]*\\n",
     "matches": "間にある空行",
     "replace_with": "",
     "replacement_result": "1行目\\n2行目"
@@ -275,6 +302,7 @@
     "pattern": "\\t",
     "description": "タブ文字を探して、インデントの見え方を揃えます。",
     "example_text": "\\t字下げ",
+    "usage_example": "\\t",
     "matches": "字下げ の前にあるタブ",
     "replace_with": "    ",
     "replacement_result": "    字下げ"

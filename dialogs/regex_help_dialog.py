@@ -27,6 +27,7 @@ HELP_HEADERS = {
         "Pattern",
         "Plain meaning",
         "Example text",
+        "Usage example",
         "Matches",
         "Replace with / Result",
     ],
@@ -36,6 +37,7 @@ HELP_HEADERS = {
         "パターン",
         "平文での意味",
         "例文",
+        "記述例",
         "対象になる部分",
         "置換文字 / 結果",
     ],
@@ -49,6 +51,7 @@ class RegexHelpItem:
     pattern: str
     description: str
     example_text: str
+    usage_example: str
     matches: str
     replace_with: str
     replacement_result: str
@@ -73,13 +76,13 @@ class RegexHelpDialog(QDialog):
             self.language_combo_box.addItem(language_name)
 
         self.table = QTableWidget(self)
-        self.table.setColumnCount(7)
-        for column in (0, 1, 2):
+        self.table.setColumnCount(8)
+        for column in (0, 1, 2, 5):
             self.table.horizontalHeader().setSectionResizeMode(
                 column,
                 QHeaderView.ResizeMode.ResizeToContents,
             )
-        for column in (3, 4, 5, 6):
+        for column in (3, 4, 6, 7):
             self.table.horizontalHeader().setSectionResizeMode(
                 column,
                 QHeaderView.ResizeMode.Stretch,
@@ -150,6 +153,7 @@ class RegexHelpDialog(QDialog):
                 pattern=str(item["pattern"]),
                 description=str(item["description"]),
                 example_text=str(item.get("example_text", "")),
+                usage_example=str(item.get("usage_example", "")),
                 matches=str(item.get("matches", "")),
                 replace_with=str(item.get("replace_with", "")),
                 replacement_result=str(item.get("replacement_result", "")),
@@ -164,8 +168,9 @@ class RegexHelpDialog(QDialog):
             self.table.setItem(row, 2, QTableWidgetItem(item.pattern))
             self.table.setItem(row, 3, QTableWidgetItem(item.description))
             self.table.setItem(row, 4, QTableWidgetItem(item.example_text))
-            self.table.setItem(row, 5, QTableWidgetItem(item.matches))
-            self.table.setItem(row, 6, QTableWidgetItem(replace_summary))
+            self.table.setItem(row, 5, QTableWidgetItem(item.usage_example))
+            self.table.setItem(row, 6, QTableWidgetItem(item.matches))
+            self.table.setItem(row, 7, QTableWidgetItem(replace_summary))
         self.table.resizeRowsToContents()
 
     def _replace_summary(self, item: RegexHelpItem) -> str:

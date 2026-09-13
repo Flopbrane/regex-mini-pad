@@ -5,6 +5,7 @@
     "pattern": "^",
     "description": "Matches a position at the beginning of a line.",
     "example_text": "TODO buy paper",
+    "usage_example": "^TODO",
     "matches": "The position before TODO",
     "replace_with": "DONE ",
     "replacement_result": "DONE TODO buy paper"
@@ -15,6 +16,7 @@
     "pattern": "$",
     "description": "Matches a position at the end of a line.",
     "example_text": "report",
+    "usage_example": "report$",
     "matches": "The position after report",
     "replace_with": ".txt",
     "replacement_result": "report.txt"
@@ -25,6 +27,7 @@
     "pattern": "\\d",
     "description": "Matches one number character.",
     "example_text": "Room A12",
+    "usage_example": "\\d",
     "matches": "1, 2",
     "replace_with": "#",
     "replacement_result": "Room A##"
@@ -35,6 +38,7 @@
     "pattern": "\\D",
     "description": "Matches one character that is not a number.",
     "example_text": "A12",
+    "usage_example": "\\D",
     "matches": "A",
     "replace_with": "",
     "replacement_result": "12"
@@ -45,6 +49,7 @@
     "pattern": "\\w",
     "description": "Matches one letter, number, or underscore.",
     "example_text": "user_id!",
+    "usage_example": "\\w+",
     "matches": "u, s, e, r, _, i, d",
     "replace_with": "",
     "replacement_result": "!"
@@ -55,6 +60,7 @@
     "pattern": "\\W",
     "description": "Matches one character that is not a letter, number, or underscore.",
     "example_text": "user_id!",
+    "usage_example": "\\W",
     "matches": "!",
     "replace_with": "",
     "replacement_result": "user_id"
@@ -65,6 +71,7 @@
     "pattern": "\\s",
     "description": "Matches one space, tab, or newline.",
     "example_text": "A B",
+    "usage_example": "\\s",
     "matches": "The space between A and B",
     "replace_with": "_",
     "replacement_result": "A_B"
@@ -75,6 +82,7 @@
     "pattern": "\\S",
     "description": "Matches one character that is not a space, tab, or newline.",
     "example_text": "A B",
+    "usage_example": "\\S",
     "matches": "A, B",
     "replace_with": "#",
     "replacement_result": "# #"
@@ -85,6 +93,7 @@
     "pattern": ".",
     "description": "Matches any one character except a newline.",
     "example_text": "abc",
+    "usage_example": "a.c",
     "matches": "a, b, c",
     "replace_with": "*",
     "replacement_result": "***"
@@ -95,6 +104,7 @@
     "pattern": "*",
     "description": "Repeats the previous item zero or more times.",
     "example_text": "abbb ac",
+    "usage_example": "ab*",
     "matches": "abbb, a",
     "replace_with": "",
     "replacement_result": " c"
@@ -105,6 +115,7 @@
     "pattern": "+",
     "description": "Repeats the previous item one or more times.",
     "example_text": "abbb ac",
+    "usage_example": "ab+",
     "matches": "abbb",
     "replace_with": "",
     "replacement_result": " ac"
@@ -115,6 +126,7 @@
     "pattern": "?",
     "description": "Repeats the previous item zero or one time.",
     "example_text": "color colour",
+    "usage_example": "colou?r",
     "matches": "color, colour with colou?r",
     "replace_with": "",
     "replacement_result": ""
@@ -125,6 +137,7 @@
     "pattern": "{3}",
     "description": "Repeats the previous item exactly three times.",
     "example_text": "ID: 1234",
+    "usage_example": "\\d{3}",
     "matches": "123 with \\d{3}",
     "replace_with": "###",
     "replacement_result": "ID: ###4"
@@ -135,6 +148,7 @@
     "pattern": "{2,5}",
     "description": "Repeats the previous item from two to five times.",
     "example_text": "ID: 12 123456",
+    "usage_example": "\\d{2,5}",
     "matches": "12, 12345 with \\d{2,5}",
     "replace_with": "NUM",
     "replacement_result": "ID: NUM NUM6"
@@ -145,6 +159,7 @@
     "pattern": "()",
     "description": "Groups part of a match so replacement text can reuse it.",
     "example_text": "2026-09-10",
+    "usage_example": "(\\d+)",
     "matches": "2026-09-10 with (\\d{4})-(\\d{2})-(\\d{2})",
     "replace_with": "\\2/\\3/\\1",
     "replacement_result": "09/10/2026"
@@ -155,6 +170,7 @@
     "pattern": "|",
     "description": "Matches the expression on the left or the right.",
     "example_text": "cat dog bird",
+    "usage_example": "cat|dog",
     "matches": "cat, dog with cat|dog",
     "replace_with": "pet",
     "replacement_result": "pet pet bird"
@@ -165,6 +181,7 @@
     "pattern": "[]",
     "description": "Matches one character listed inside the brackets.",
     "example_text": "gray grey",
+    "usage_example": "[abc]",
     "matches": "gray, grey with gr[ae]y",
     "replace_with": "color",
     "replacement_result": "color color"
@@ -175,6 +192,7 @@
     "pattern": "[^]",
     "description": "Matches one character not listed inside the brackets.",
     "example_text": "abc123",
+    "usage_example": "[^abc]",
     "matches": "a, b, c with [^0-9]",
     "replace_with": "",
     "replacement_result": "123"
@@ -185,6 +203,7 @@
     "pattern": "\\b",
     "description": "Matches the edge of a word.",
     "example_text": "cat catalog cat",
+    "usage_example": "\\bcat\\b",
     "matches": "cat at the beginning and end with \\bcat\\b",
     "replace_with": "dog",
     "replacement_result": "dog catalog dog"
@@ -195,6 +214,7 @@
     "pattern": "\\1",
     "description": "Uses the first capture group in replacement text.",
     "example_text": "Smith, John",
+    "usage_example": "(\\w+) \\1",
     "matches": "Smith, John with (\\w+), (\\w+)",
     "replace_with": "\\2 \\1",
     "replacement_result": "John Smith"
@@ -205,6 +225,7 @@
     "pattern": "\\2",
     "description": "Uses the second capture group in replacement text.",
     "example_text": "Smith, John",
+    "usage_example": "(\\w+) (\\w+)",
     "matches": "Smith, John with (\\w+), (\\w+)",
     "replace_with": "\\2 \\1",
     "replacement_result": "John Smith"
@@ -215,6 +236,7 @@
     "pattern": "\\n{3,}",
     "description": "Finds three or more newlines and makes large vertical gaps smaller.",
     "example_text": "Line 1\\n\\n\\nLine 2",
+    "usage_example": "\\n{3,}",
     "matches": "The three newline characters",
     "replace_with": "\\n\\n",
     "replacement_result": "Line 1\\n\\nLine 2"
@@ -225,6 +247,7 @@
     "pattern": "[ \\t]+$",
     "description": "Finds extra spaces or tabs at the end of each line.",
     "example_text": "memo   ",
+    "usage_example": "[ \\t]+$",
     "matches": "The spaces after memo",
     "replace_with": "",
     "replacement_result": "memo"
@@ -235,6 +258,7 @@
     "pattern": "(\\d{4})-(\\d{2})-(\\d{2})",
     "description": "Finds dates like 2026-09-10 and captures year, month, and day.",
     "example_text": "2026-09-10",
+    "usage_example": "(\\d{4})-(\\d{2})-(\\d{2})",
     "matches": "2026-09-10",
     "replace_with": "\\2/\\3/\\1",
     "replacement_result": "09/10/2026"
@@ -245,6 +269,7 @@
     "pattern": "^\\d+\\.\\s+",
     "description": "Finds numbering at the beginning of a line.",
     "example_text": "1. Check mail",
+    "usage_example": "^\\d+\\.\\s+",
     "matches": "1. ",
     "replace_with": "- ",
     "replacement_result": "- Check mail"
@@ -255,6 +280,7 @@
     "pattern": "^.*urgent.*$",
     "description": "Finds whole lines that contain a specific word.",
     "example_text": "normal\\nurgent task\\ndone",
+    "usage_example": "^.*urgent.*$",
     "matches": "urgent task",
     "replace_with": "",
     "replacement_result": ""
@@ -265,6 +291,7 @@
     "pattern": "^[ \\t]*\\n",
     "description": "Finds lines that contain only spaces or tabs, then removes the line.",
     "example_text": "Line 1\\n\\nLine 2",
+    "usage_example": "^[ \\t]*\\n",
     "matches": "The empty middle line",
     "replace_with": "",
     "replacement_result": "Line 1\\nLine 2"
@@ -275,6 +302,7 @@
     "pattern": "\\t",
     "description": "Finds tab characters so indentation can be made consistent.",
     "example_text": "\\tIndented",
+    "usage_example": "\\t",
     "matches": "The tab before Indented",
     "replace_with": "    ",
     "replacement_result": "    Indented"

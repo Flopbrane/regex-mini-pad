@@ -23,6 +23,9 @@ HELP_TOPICS = {
 - Open with Encoding: open a file with a selected character encoding.
 - Reload: reload the current file.
 - Save / Save As: save the current text.
+- Unsaved text is backed up locally and can be restored on the next launch.
+- New creates a new tab without discarding existing tabs.
+- Right-click a tab to close it, duplicate it, or move it to a new window.
 """,
         ),
         (
@@ -86,6 +89,9 @@ HELP_TOPICS = {
 - 文字コードを指定して開く: 文字コードを選んでファイルを開きます。
 - 読み直し: 現在のファイルを読み直します。
 - 保存 / 名前を付けて保存: 現在の本文を保存します。
+- 未保存の本文はローカルにバックアップされ、次回起動時に復元できます。
+- 新規は、既存のタブを破棄せずに新しいタブを作成します。
+- タブを右クリックすると、閉じる、複製、新規ウィンドウへの移動ができます。
 """,
         ),
         (
