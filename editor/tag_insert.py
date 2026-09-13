@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 SELECTION_PLACEHOLDER = "{selection}"
 CURSOR_PLACEHOLDER = "{cursor}"
+VALID_PLACEHOLDERS = {"selection", "cursor"}
+PLACEHOLDER_PATTERN = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 @dataclass(frozen=True)
@@ -207,5 +210,27 @@ def _snippet_from_dict(item: dict[str, Any], load_file_path: Path) -> TagSnippet
         raise TypeError(
             "Dictionary item requires string label_key, hint_key, and template: "
             f"{load_file_path}"
+        )
+    if not label_key.strip() or not hint_key.strip() or not template:
+        raise ValueError(
+            "Dictionary item requires non-empty label_key, hint_key, and template: "
+            f"{load_file_path}"
+        )
+    cursor_count = template.count(CURSOR_PLACEHOLDER)
+    if cursor_count > 1:
+        raise ValueError(
+            f"Dictionary item has duplicated cursor placeholder: {load_file_path}"
+        )
+    unknown_placeholders = sorted(
+        {
+            placeholder
+            for placeholder in PLACEHOLDER_PATTERN.findall(template)
+            if placeholder not in VALID_PLACEHOLDERS
+        }
+    )
+    if unknown_placeholders:
+        raise ValueError(
+            "Dictionary item has unknown placeholder(s) "
+            f"{', '.join(unknown_placeholders)}: {load_file_path}"
         )
     return TagSnippet(label_key, hint_key, template)

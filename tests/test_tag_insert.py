@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -14,6 +15,8 @@ from PySide6.QtWidgets import QApplication, QMenu
 from dialogs.tag_insert_dialog import TagInsertDialog
 from editor.tag_insert import TagSnippet, ordered_tag_snippet_groups, tag_snippet_groups
 from main import MainWindow
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture(scope="session")
@@ -252,6 +255,102 @@ def test_html_snippets_are_loaded_from_json() -> None:
     assert len(html_group.snippets) == 13
     assert html_group.snippets[0].label_key == "tag.html.paragraph"
     assert html_group.snippets[-1].label_key == "tag.html.pre_code"
+
+
+def test_tag_dictionary_rejects_empty_required_values(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{selection}{cursor}</p>",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="non-empty"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_rejects_duplicated_cursor_placeholder(
+    tmp_path: Path,
+) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.paragraph",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{cursor}{selection}{cursor}</p>",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="duplicated cursor"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_rejects_unknown_placeholder(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.paragraph",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{selected_text}</p>",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match="unknown placeholder"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_translation_keys_exist() -> None:
+    snippets = [
+        snippet
+        for group in tag_snippet_groups()
+        for snippet in group.snippets
+    ]
+    resource_paths = [
+        PROJECT_ROOT / "resources" / "app_text_en.json",
+        PROJECT_ROOT / "resources" / "app_text_ja.json",
+    ]
+
+    for resource_path in resource_paths:
+        translations = json.loads(resource_path.read_text(encoding="utf-8"))
+        missing_keys = [
+            key
+            for snippet in snippets
+            for key in (snippet.label_key, snippet.hint_key)
+            if key not in translations
+        ]
+
+        assert missing_keys == []
+
+
+def write_tag_dictionary_files(
+    dictionaries_path: Path,
+    html_items: list[dict[str, str]],
+) -> None:
+    valid_item = {
+        "label_key": "tag.html.paragraph",
+        "hint_key": "tag.hint.html.paragraph",
+        "template": "<p>{selection}{cursor}</p>",
+    }
+    (dictionaries_path / "html_dict.json").write_text(
+        json.dumps(html_items),
+        encoding="utf-8",
+    )
+    (dictionaries_path / "markdown_dict.json").write_text(
+        json.dumps([valid_item]),
+        encoding="utf-8",
+    )
+    (dictionaries_path / "wordpress_html_dict.json").write_text(
+        json.dumps([valid_item]),
+        encoding="utf-8",
+    )
 
 
 def test_insert_html_div_places_cursor_in_class_parameter(app: QApplication) -> None:

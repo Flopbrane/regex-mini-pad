@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
+from dialogs.user_help_dialog import UserHelpDialog
 from editor.tag_insert import (
     TagSnippet,
     ordered_tag_snippet_groups,
@@ -59,6 +60,7 @@ class MainWindow(QMainWindow):
         self.find_replace_dialog: FindReplaceDialog | None = None
         self.regex_help_dialog: RegexHelpDialog | None = None
         self.tag_insert_dialog: TagInsertDialog | None = None
+        self.user_help_dialog: UserHelpDialog | None = None
         self.search_scope: tuple[int, int] | None = None
 
         self.editor = TextEditor()
@@ -163,6 +165,10 @@ class MainWindow(QMainWindow):
         self.line_numbers_action.setCheckable(True)
         self.line_numbers_action.toggled.connect(self.editor.set_line_numbers_enabled)
 
+        self.user_help_action = QAction(self)
+        self.user_help_action.setShortcut("F1")
+        self.user_help_action.triggered.connect(self.show_user_help_dialog)
+
         self.english_action = QAction(self)
         self.english_action.setCheckable(True)
         self.english_action.triggered.connect(lambda: self.set_language("en"))
@@ -216,6 +222,10 @@ class MainWindow(QMainWindow):
         self.language_menu.addAction(self.japanese_action)
         menu_bar.addMenu(self.language_menu)
 
+        self.help_menu = QMenu(self)
+        self.help_menu.addAction(self.user_help_action)
+        menu_bar.addMenu(self.help_menu)
+
     def _create_status_bar(self) -> None:
         self.setStatusBar(QStatusBar(self))
 
@@ -251,6 +261,7 @@ class MainWindow(QMainWindow):
         self.search_menu.setTitle(self.translator.text("menu.search"))
         self.view_menu.setTitle(self.translator.text("menu.view"))
         self.language_menu.setTitle(self.translator.text("menu.language"))
+        self.help_menu.setTitle(self.translator.text("menu.help"))
 
         self.new_action.setText(self.translator.text("action.new"))
         self.open_action.setText(self.translator.text("action.open"))
@@ -274,6 +285,7 @@ class MainWindow(QMainWindow):
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
+        self.user_help_action.setText(self.translator.text("action.user_help"))
         self.english_action.setText(self.translator.text("language.english"))
         self.japanese_action.setText(self.translator.text("language.japanese"))
 
@@ -283,6 +295,8 @@ class MainWindow(QMainWindow):
             self.regex_help_dialog.apply_language()
         if self.tag_insert_dialog is not None:
             self.tag_insert_dialog.apply_language()
+        if self.user_help_dialog is not None:
+            self.user_help_dialog.apply_language()
         self._update_status_bar()
         self._update_window_title()
 
@@ -819,6 +833,14 @@ class MainWindow(QMainWindow):
         self.regex_help_dialog.show()
         self.regex_help_dialog.raise_()
         self.regex_help_dialog.activateWindow()
+
+    def show_user_help_dialog(self) -> None:
+        if self.user_help_dialog is None:
+            self.user_help_dialog = UserHelpDialog(self.translator, self)
+
+        self.user_help_dialog.show()
+        self.user_help_dialog.raise_()
+        self.user_help_dialog.activateWindow()
 
     def _insert_regex_pattern(self, pattern: str) -> None:
         if self.find_replace_dialog is None:

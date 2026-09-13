@@ -261,11 +261,15 @@ def test_main_window_can_switch_display_language(app: QApplication) -> None:
     try:
         window.set_language("en")
         assert window.search_menu.title() == "&Search"
+        assert window.help_menu.title() == "&Help"
         assert window.find_action.text() == "&Find / Replace..."
+        assert window.user_help_action.text() == "&Help..."
 
         window.set_language("ja")
         assert window.search_menu.title() == "検索(&S)"
+        assert window.help_menu.title() == "ヘルプ(&H)"
         assert window.find_action.text() == "検索 / 置換(&F)..."
+        assert window.user_help_action.text() == "使い方(&H)..."
     finally:
         Path("settings.json").unlink(missing_ok=True)
 

@@ -186,6 +186,105 @@ Follow-up candidates:
    - For common attributes such as `class`, `id`, `href`, `src`, and `alt`, consider optional prompt or placeholder navigation.
    - Keep the current direct insertion as the fast path.
 
+## Step11-section2 Dictionary Validation
+
+Completed:
+
+- Added dictionary validation while loading tag snippet JSON.
+- Required fields are checked:
+  - `label_key`
+  - `hint_key`
+  - `template`
+- Empty `label_key`, `hint_key`, and `template` values are rejected.
+- Duplicated `{cursor}` placeholders are rejected.
+- Unknown `{...}` placeholders are rejected.
+  - Valid placeholders are `{selection}` and `{cursor}`.
+- Added tests that confirm all tag snippet `label_key` and `hint_key` values exist in both:
+  - `resources/app_text_en.json`
+  - `resources/app_text_ja.json`
+
+Follow-up candidates:
+
+1. Structured parameters
+   - Add optional `parameters` arrays to snippet JSON.
+   - Store names such as `href`, `src`, `alt`, `class`, `id`, and `rel`.
+   - Generate hint text from structured parameter metadata.
+
+2. Duplicate snippet key detection
+   - Detect duplicate `label_key` values within one dictionary.
+   - Consider detecting duplicates across all dictionaries if cross-group uniqueness becomes important.
+
+3. JSON schema documentation
+   - Add a short dictionary format note to README or a dedicated `dictionaries/README.md`.
+   - Include examples for simple wrapping, cursor placement, and code-block snippets.
+
+## Step11-section3 User Help Entry
+
+Completed:
+
+- Added an application help dialog.
+- Added the `Help` / `ヘルプ` menu.
+- Added the `Help...` / `使い方...` menu action.
+- Added the `F1` shortcut for opening help.
+- Help content covers:
+  - File operations.
+  - Undo / Redo.
+  - Search / Replace.
+  - Regex Help.
+  - Tag insertion.
+  - View options.
+  - Language switching.
+- Help content follows the current application display language.
+
+Follow-up candidates:
+
+1. Expand help topics as features grow
+   - Character count.
+   - Whitespace display.
+   - Ruler.
+   - Rectangular selection.
+
+2. Add dedicated help pages
+   - Basic editing.
+   - Search and replace.
+   - Regular expressions.
+   - Tag insertion.
+
+3. Add in-dialog navigation
+   - Topic list on the left.
+   - Search inside help text.
+   - Links from feature dialogs to the relevant help topic.
+
+## Step11-section4 User Help Navigation
+
+Completed:
+
+- Split the help dialog into dedicated topic pages.
+- Added a topic list on the left side of the help dialog.
+- Added separate help topics for:
+  - File.
+  - Edit.
+  - Search / Replace.
+  - Tag Insertion.
+  - View.
+  - Language.
+- Preserved language switching for the currently open help dialog.
+- Added View help text for the existing status bar character count.
+
+Follow-up candidates:
+
+1. Search inside help
+   - Add a small filter field for help topics.
+   - Highlight or jump to matching help text.
+
+2. Direct links from feature dialogs
+   - Open Search / Replace help from the Find / Replace dialog.
+   - Open Tag Insertion help from the tag picker.
+
+3. Externalize help content
+   - Move help content from Python constants to JSON or Markdown files.
+   - Keep Japanese and English help structures aligned by tests.
+
 ## Validation Commands
 
 Use the project virtual environment:
