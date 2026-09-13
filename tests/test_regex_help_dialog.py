@@ -90,4 +90,18 @@ def test_regex_help_emits_selected_pattern(app: QApplication) -> None:
 
     dialog._emit_selected_pattern()
 
-    assert emitted_patterns
+    assert emitted_patterns == ["^"]
+
+
+def test_regex_help_double_click_emits_pattern_column(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = RegexHelpDialog(Path("resources/regex_help_en.json"), translator)
+    emitted_patterns: list[str] = []
+    dialog.pattern_insert_requested.connect(emitted_patterns.append)
+    item = dialog.table.item(1, 1)
+    assert item is not None
+
+    dialog._emit_item_pattern(item)
+
+    assert emitted_patterns == ["$"]

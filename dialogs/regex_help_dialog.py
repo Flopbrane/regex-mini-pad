@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
 
 from localization.translator import Translator
 
+PATTERN_COLUMN = 2
+
 HELP_HEADERS = {
     "EN_Ver.": [
         "Category",
@@ -184,11 +186,11 @@ class RegexHelpDialog(QDialog):
         selected_items = self.table.selectedItems()
         if not selected_items:
             return
-        pattern_item = self.table.item(selected_items[0].row(), 1)
+        pattern_item = self.table.item(selected_items[0].row(), PATTERN_COLUMN)
         if pattern_item is not None:
             self.pattern_insert_requested.emit(pattern_item.text())
 
     def _emit_item_pattern(self, item: QTableWidgetItem) -> None:
-        pattern_item = self.table.item(item.row(), 1)
+        pattern_item = self.table.item(item.row(), PATTERN_COLUMN)
         if pattern_item is not None:
             self.pattern_insert_requested.emit(pattern_item.text())
