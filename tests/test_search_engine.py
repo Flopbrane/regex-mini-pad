@@ -63,6 +63,15 @@ def test_find_next_wraps_to_the_beginning() -> None:
     assert (match.start, match.end, match.text) == (0, 3, "abc")
 
 
+def test_find_previous_wraps_to_the_end() -> None:
+    engine = SearchEngine()
+
+    match = engine.find_previous("abc abc", "abc", 0)
+
+    assert match is not None
+    assert (match.start, match.end, match.text) == (4, 7, "abc")
+
+
 def test_replace_all_supports_regex_groups() -> None:
     engine = SearchEngine()
 

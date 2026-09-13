@@ -42,6 +42,8 @@ HELP_TOPICS = {
 - Use Case-sensitive, Regular expression, Whole word, Search only selected text, or Search only visible text as needed.
 - Preview shows replacement results before applying them.
 - Regex Help opens examples and can insert a pattern into the Find field.
+- Use the arrow buttons next to the Find text field to move to the previous or next match.
+- Replace Marked replaces the currently highlighted search markers.
 """,
         ),
         (
@@ -103,6 +105,8 @@ HELP_TOPICS = {
 - 必要に応じて、大文字小文字、正規表現、単語全体、選択範囲内だけ、表示中の範囲だけを指定できます。
 - プレビューで、置換結果を実行前に確認できます。
 - 正規表現ヘルプから例を確認し、検索欄へパターンを挿入できます。
+- 検索欄横の矢印ボタンで、前または次の一致箇所へ移動できます。
+- マーカー部分を全て置換で、現在ハイライトされている検索マーカー部分だけを置換できます。
 """,
         ),
         (

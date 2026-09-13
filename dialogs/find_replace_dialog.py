@@ -23,8 +23,10 @@ from search.search_engine import SearchOptions
 
 class FindReplaceDialog(QDialog):
     find_requested = Signal(str, SearchOptions)
+    find_previous_requested = Signal(str, SearchOptions)
     replace_requested = Signal(str, str, SearchOptions)
     replace_all_requested = Signal(str, str, SearchOptions)
+    replace_marked_requested = Signal(str, str, SearchOptions)
     preview_requested = Signal(str, str, SearchOptions)
     search_parameters_changed = Signal(str, SearchOptions)
     regex_help_requested = Signal()
@@ -47,8 +49,11 @@ class FindReplaceDialog(QDialog):
         self.visible_only_check_box = QCheckBox("Search only visible text", self)
 
         self.find_button = QPushButton("Find", self)
+        self.find_previous_button = QPushButton("↑", self)
+        self.find_next_button = QPushButton("↓", self)
         self.replace_button = QPushButton("Replace", self)
         self.replace_all_button = QPushButton("Replace All", self)
+        self.replace_marked_button = QPushButton("Replace Marked", self)
         self.insert_regex_button = QPushButton("Insert Regex", self)
         self.recipe_button = QPushButton("Recipes", self)
         self.preview_button = QPushButton("Preview", self)
@@ -132,8 +137,13 @@ class FindReplaceDialog(QDialog):
         self.selected_only_check_box.setText(self.translator.text("find.selected_only"))
         self.visible_only_check_box.setText(self.translator.text("find.visible_only"))
         self.find_button.setText(self.translator.text("find.find"))
+        self.find_previous_button.setToolTip(self.translator.text("find.previous"))
+        self.find_next_button.setToolTip(self.translator.text("find.next"))
         self.replace_button.setText(self.translator.text("find.replace"))
         self.replace_all_button.setText(self.translator.text("find.replace_all"))
+        self.replace_marked_button.setText(
+            self.translator.text("find.replace_marked")
+        )
         self.insert_regex_button.setText(self.translator.text("find.insert_regex"))
         self.recipe_button.setText(self.translator.text("find.regex_recipes"))
         self.preview_button.setText(self.translator.text("find.preview"))
@@ -152,8 +162,14 @@ class FindReplaceDialog(QDialog):
 
     def _create_layout(self) -> None:
         form_layout = QGridLayout()
+        find_input_layout = QGridLayout()
+        find_input_layout.setContentsMargins(0, 0, 0, 0)
+        find_input_layout.addWidget(self.find_text_edit, 0, 0)
+        find_input_layout.addWidget(self.find_previous_button, 0, 1)
+        find_input_layout.addWidget(self.find_next_button, 0, 2)
+
         form_layout.addWidget(self.find_text_label, 0, 0)
-        form_layout.addWidget(self.find_text_edit, 0, 1)
+        form_layout.addLayout(find_input_layout, 0, 1)
         form_layout.addWidget(self.replace_text_label, 1, 0)
         form_layout.addWidget(self.replace_text_edit, 1, 1)
         form_layout.addWidget(self.case_sensitive_check_box, 2, 1)
@@ -166,6 +182,7 @@ class FindReplaceDialog(QDialog):
         button_layout.addWidget(self.find_button, 0, 0)
         button_layout.addWidget(self.replace_button, 0, 1)
         button_layout.addWidget(self.replace_all_button, 0, 2)
+        button_layout.addWidget(self.replace_marked_button, 0, 3)
         button_layout.addWidget(self.preview_button, 1, 0)
         button_layout.addWidget(self.insert_regex_button, 1, 1)
         button_layout.addWidget(self.recipe_button, 1, 2)
@@ -276,9 +293,12 @@ class FindReplaceDialog(QDialog):
 
     def _connect_signals(self) -> None:
         self.find_button.clicked.connect(self._emit_find_requested)
+        self.find_previous_button.clicked.connect(self._emit_find_previous_requested)
+        self.find_next_button.clicked.connect(self._emit_find_requested)
         self.find_text_edit.returnPressed.connect(self._emit_find_requested)
         self.replace_button.clicked.connect(self._emit_replace_requested)
         self.replace_all_button.clicked.connect(self._emit_replace_all_requested)
+        self.replace_marked_button.clicked.connect(self._emit_replace_marked_requested)
         self.preview_button.clicked.connect(self._emit_preview_requested)
         self.regex_help_button.clicked.connect(self.regex_help_requested.emit)
         self.close_button.clicked.connect(self.close)
@@ -331,6 +351,12 @@ class FindReplaceDialog(QDialog):
     def _emit_find_requested(self) -> None:
         self.find_requested.emit(self.find_text_edit.text(), self._search_options())
 
+    def _emit_find_previous_requested(self) -> None:
+        self.find_previous_requested.emit(
+            self.find_text_edit.text(),
+            self._search_options(),
+        )
+
     def _emit_replace_requested(self) -> None:
         self.replace_requested.emit(
             self.find_text_edit.text(),
@@ -340,6 +366,13 @@ class FindReplaceDialog(QDialog):
 
     def _emit_replace_all_requested(self) -> None:
         self.replace_all_requested.emit(
+            self.find_text_edit.text(),
+            self.replace_text_edit.text(),
+            self._search_options(),
+        )
+
+    def _emit_replace_marked_requested(self) -> None:
+        self.replace_marked_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
             self._search_options(),

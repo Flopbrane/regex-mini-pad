@@ -285,6 +285,32 @@ Follow-up candidates:
    - Move help content from Python constants to JSON or Markdown files.
    - Keep Japanese and English help structures aligned by tests.
 
+## Step11-section5 Search Navigation And Marked Replace
+
+Completed:
+
+- Added explicit previous / next search buttons beside the search text field.
+  - Previous uses the `↑` button.
+  - Next uses the `↓` button.
+- Added previous-match navigation.
+  - Uses the same search options as normal search.
+  - Wraps around when there is no previous match before the cursor.
+- Added `Replace Marked` / `マーカー部分を全て置換`.
+  - Replaces the currently highlighted search marker ranges.
+  - Applies replacements from the end of the document to avoid position shifts.
+  - Supports regex replacement groups.
+- Updated help text for search navigation and marked replacement.
+
+Follow-up candidates:
+
+1. Button icon polish
+   - Consider compact icon-only styling for the arrow buttons.
+   - Keep tooltips for clarity.
+
+2. Marker replacement preview
+   - Reuse the preview table to show only currently marked ranges.
+   - Make the difference between all matches and marked matches clearer.
+
 ## Validation Commands
 
 Use the project virtual environment:

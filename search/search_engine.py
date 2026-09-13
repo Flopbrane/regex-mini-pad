@@ -68,6 +68,36 @@ class SearchEngine:
             return None
         return SearchMatch(match.start(), match.end(), match.group(0))
 
+    def find_previous(
+        self,
+        source_text: str,
+        search_text: str,
+        start_position: int,
+        options: SearchOptions | None = None,
+    ) -> SearchMatch | None:
+        if not search_text:
+            return None
+
+        pattern = self._compile_pattern(search_text, options or SearchOptions())
+        bounded_start_position = min(max(start_position, 0), len(source_text))
+        match = self._last_non_empty_match(
+            pattern,
+            source_text,
+            0,
+            bounded_start_position,
+        )
+        if match is None and bounded_start_position < len(source_text):
+            match = self._last_non_empty_match(
+                pattern,
+                source_text,
+                bounded_start_position,
+                len(source_text),
+            )
+
+        if match is None:
+            return None
+        return SearchMatch(match.start(), match.end(), match.group(0))
+
     def replace_all(
         self,
         source_text: str,
@@ -139,3 +169,16 @@ class SearchEngine:
             if match.start() != match.end():
                 return match
         return None
+
+    def _last_non_empty_match(
+        self,
+        pattern: Pattern[str],
+        source_text: str,
+        start_position: int,
+        end_position: int,
+    ) -> Match[str] | None:
+        last_match: Match[str] | None = None
+        for match in pattern.finditer(source_text, start_position, end_position):
+            if match.start() != match.end():
+                last_match = match
+        return last_match

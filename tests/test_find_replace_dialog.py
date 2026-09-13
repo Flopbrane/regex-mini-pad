@@ -67,6 +67,18 @@ def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
     assert dialog.current_search_options().visible_only
 
 
+def test_dialog_has_explicit_previous_next_buttons(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "ja")
+    dialog = FindReplaceDialog(translator)
+
+    assert dialog.find_previous_button.text() == "↑"
+    assert dialog.find_next_button.text() == "↓"
+    assert dialog.find_previous_button.toolTip() == "前へ"
+    assert dialog.find_next_button.toolTip() == "次へ"
+    assert dialog.replace_marked_button.text() == "マーカー部分を全て置換"
+
+
 def test_regex_snippet_insert_enables_regex_mode_and_places_cursor(
     app: QApplication,
 ) -> None:

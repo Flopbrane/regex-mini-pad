@@ -122,7 +122,7 @@ class TextEditor(QPlainTextEdit):
 
     def _apply_search_highlights(self) -> None:
         highlight_format = QTextCharFormat()
-        highlight_format.setBackground(QColor("#fff2a8"))
+        highlight_format.setBackground(QColor("#ffff00"))
 
         selections: list[QTextEdit.ExtraSelection] = []
         for match in self.search_matches[:1000]:
@@ -131,11 +131,30 @@ class TextEditor(QPlainTextEdit):
             selection = QTextEdit.ExtraSelection()
             selection.format = highlight_format
             cursor = QTextCursor(self.document())
-            cursor.setPosition(match.start)
-            cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
+            cursor.setPosition(self.text_position_to_cursor_position(match.start))
+            cursor.setPosition(
+                self.text_position_to_cursor_position(match.end),
+                QTextCursor.MoveMode.KeepAnchor,
+            )
             selection.cursor = cursor
             selections.append(selection)
         self.setExtraSelections(selections)
+
+    def text_position_to_cursor_position(self, text_position: int) -> int:
+        source_text = self.toPlainText()
+        bounded_position = min(max(text_position, 0), len(source_text))
+        return len(source_text[:bounded_position].encode("utf-16-le")) // 2
+
+    def cursor_position_to_text_position(self, cursor_position: int) -> int:
+        source_text = self.toPlainText()
+        bounded_position = max(cursor_position, 0)
+        utf16_position = 0
+        for text_position, character in enumerate(source_text):
+            character_width = 2 if ord(character) > 0xFFFF else 1
+            if utf16_position + character_width > bounded_position:
+                return text_position
+            utf16_position += character_width
+        return len(source_text)
 
     def paint_line_number_area(self, event: QPaintEvent) -> None:
         painter = QPainter(self.line_number_area)
@@ -175,7 +194,7 @@ class TextEditor(QPlainTextEdit):
             return
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#d49a00"))
+        painter.setBrush(QColor("#ffff00"))
         area_width = self.search_marker_area.width()
         area_height = max(1, self.search_marker_area.height())
         block_count = max(1, self.blockCount())

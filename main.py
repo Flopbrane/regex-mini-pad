@@ -550,8 +550,12 @@ class MainWindow(QMainWindow):
         if self.find_replace_dialog is None:
             self.find_replace_dialog = FindReplaceDialog(self.translator, self)
             self.find_replace_dialog.find_requested.connect(self.find_next)
+            self.find_replace_dialog.find_previous_requested.connect(self.find_previous)
             self.find_replace_dialog.replace_requested.connect(self.replace_current)
             self.find_replace_dialog.replace_all_requested.connect(self.replace_all)
+            self.find_replace_dialog.replace_marked_requested.connect(
+                self.replace_marked_matches
+            )
             self.find_replace_dialog.preview_requested.connect(self.preview_matches)
             self.find_replace_dialog.search_parameters_changed.connect(
                 self.update_search_highlights
@@ -561,7 +565,10 @@ class MainWindow(QMainWindow):
         selected_text = self.editor.textCursor().selectedText()
         if selected_text:
             cursor = self.editor.textCursor()
-            self.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+            self.search_scope = (
+                self.editor.cursor_position_to_text_position(cursor.selectionStart()),
+                self.editor.cursor_position_to_text_position(cursor.selectionEnd()),
+            )
             self.find_replace_dialog.set_find_text(selected_text.replace("\u2029", "\n"))
         else:
             self.search_scope = None
@@ -586,7 +593,8 @@ class MainWindow(QMainWindow):
             return
 
         source_text = scope_text if scope_text is not None else self.editor.toPlainText()
-        start_position = cursor.selectionEnd() if cursor.hasSelection() else cursor.position()
+        cursor_position = cursor.selectionEnd() if cursor.hasSelection() else cursor.position()
+        start_position = self.editor.cursor_position_to_text_position(cursor_position)
         start_position = min(max(start_position - scope_offset, 0), len(source_text))
 
         try:
@@ -598,6 +606,50 @@ class MainWindow(QMainWindow):
             )
         except RegexError as error:
             self._set_search_error(self.translator.text("search.invalid_regex", error=error))
+            return
+
+        if match is None:
+            self._set_search_error(self.translator.text("search.no_matches"))
+            return
+
+        self._select_match(
+            SearchMatch(
+                match.start + scope_offset,
+                match.end + scope_offset,
+                match.text,
+            )
+        )
+        self._set_search_status(self.translator.text("search.match_found"))
+
+    def find_previous(self, search_text: str, options: SearchOptions) -> None:
+        if not search_text:
+            self._set_search_error(self.translator.text("search.empty"))
+            return
+
+        cursor = self.editor.textCursor()
+        scope_text, scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self._set_search_error(self.translator.text("search.select_before_find"))
+            return
+
+        source_text = scope_text if scope_text is not None else self.editor.toPlainText()
+        cursor_position = (
+            cursor.selectionStart() if cursor.hasSelection() else cursor.position()
+        )
+        start_position = self.editor.cursor_position_to_text_position(cursor_position)
+        start_position = min(max(start_position - scope_offset, 0), len(source_text))
+
+        try:
+            match = self.search_engine.find_previous(
+                source_text,
+                search_text,
+                start_position,
+                options,
+            )
+        except RegexError as error:
+            self._set_search_error(
+                self.translator.text("search.invalid_regex", error=error)
+            )
             return
 
         if match is None:
@@ -626,8 +678,8 @@ class MainWindow(QMainWindow):
         cursor = self.editor.textCursor()
         source_text = self.editor.toPlainText()
         selected_match = SearchMatch(
-            cursor.selectionStart(),
-            cursor.selectionEnd(),
+            self.editor.cursor_position_to_text_position(cursor.selectionStart()),
+            self.editor.cursor_position_to_text_position(cursor.selectionEnd()),
             cursor.selectedText().replace("\u2029", "\n"),
         )
         scope_text, scope_offset = self._search_scope_text(options)
@@ -726,6 +778,60 @@ class MainWindow(QMainWindow):
         self.update_search_highlights(search_text, options)
         self._set_search_status(
             self.translator.text("search.replaced_many", count=result.count)
+        )
+
+    def replace_marked_matches(
+        self,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> None:
+        if not search_text:
+            self._set_search_error(self.translator.text("search.empty"))
+            return
+        if not self.editor.search_matches:
+            self._set_search_error(self.translator.text("search.no_replacements"))
+            return
+
+        result_text = self.editor.toPlainText()
+        replacement_count = 0
+        try:
+            for match in sorted(
+                self.editor.search_matches,
+                key=lambda search_match: search_match.start,
+                reverse=True,
+            ):
+                if match.start < 0 or match.end > len(result_text):
+                    continue
+                target_text = result_text[match.start : match.end]
+                preview_result = self.search_engine.preview_replacement(
+                    target_text,
+                    search_text,
+                    replace_text,
+                    options,
+                )
+                if preview_result.count == 0:
+                    continue
+                result_text = (
+                    result_text[: match.start]
+                    + preview_result.text
+                    + result_text[match.end :]
+                )
+                replacement_count += 1
+        except RegexError as error:
+            self._set_search_error(
+                self.translator.text("search.invalid_regex", error=error)
+            )
+            return
+
+        if replacement_count == 0:
+            self._set_search_error(self.translator.text("search.no_replacements"))
+            return
+
+        self._replace_document_text(result_text)
+        self.update_search_highlights(search_text, options)
+        self._set_search_status(
+            self.translator.text("search.replaced_many", count=replacement_count)
         )
 
     def update_search_highlights(
@@ -887,7 +993,10 @@ class MainWindow(QMainWindow):
             cursor = self.editor.textCursor()
             if not cursor.hasSelection():
                 return None
-            self.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+            self.search_scope = (
+                self.editor.cursor_position_to_text_position(cursor.selectionStart()),
+                self.editor.cursor_position_to_text_position(cursor.selectionEnd()),
+            )
 
         scope_start, scope_end = self.search_scope
         if scope_start >= scope_end or scope_end > source_length:
@@ -913,8 +1022,15 @@ class MainWindow(QMainWindow):
         while block.isValid() and top <= viewport_rect.bottom():
             if block.isVisible() and bottom >= viewport_rect.top():
                 if visible_start is None:
-                    visible_start = block.position()
-                visible_end = min(block.position() + block.length(), source_length)
+                    visible_start = self.editor.cursor_position_to_text_position(
+                        block.position()
+                    )
+                visible_end = min(
+                    self.editor.cursor_position_to_text_position(
+                        block.position() + block.length()
+                    ),
+                    source_length,
+                )
 
             block = block.next()
             top = bottom
@@ -1005,14 +1121,17 @@ class MainWindow(QMainWindow):
 
     def _select_match(self, match: SearchMatch) -> None:
         cursor = self.editor.textCursor()
-        cursor.setPosition(match.start)
-        cursor.setPosition(match.end, QTextCursor.MoveMode.KeepAnchor)
+        cursor.setPosition(self.editor.text_position_to_cursor_position(match.start))
+        cursor.setPosition(
+            self.editor.text_position_to_cursor_position(match.end),
+            QTextCursor.MoveMode.KeepAnchor,
+        )
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
 
     def _set_cursor_position(self, position: int) -> None:
         cursor = self.editor.textCursor()
-        cursor.setPosition(min(max(position, 0), len(self.editor.toPlainText())))
+        cursor.setPosition(self.editor.text_position_to_cursor_position(position))
         self.editor.setTextCursor(cursor)
 
     def _set_search_error(self, message: str) -> None:

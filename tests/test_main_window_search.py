@@ -102,6 +102,20 @@ def test_find_next_can_target_selected_text_only(app: QApplication) -> None:
     assert window.editor.textCursor().selectionStart() == 14
 
 
+def test_find_previous_selects_previous_match(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("alpha beta alpha")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len(window.editor.toPlainText()))
+    window.editor.setTextCursor(cursor)
+
+    window.find_previous("alpha", SearchOptions())
+
+    assert window.editor.textCursor().selectedText() == "alpha"
+    assert window.editor.textCursor().selectionStart() == 11
+
+
 def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -162,6 +176,31 @@ def test_search_highlights_all_matches(app: QApplication) -> None:
     assert len(window.editor.extraSelections()) == 3
 
 
+def test_search_highlight_positions_stay_aligned_after_emoji(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("emoji 💦 before\n<p><strong>target</strong></p>")
+
+    window.update_search_highlights("<strong>", SearchOptions())
+
+    selections = window.editor.extraSelections()
+    assert len(selections) == 1
+    assert selections[0].cursor.selectedText() == "<strong>"
+    assert selections[0].format.background().color().name() == "#ffff00"
+
+
+def test_find_next_positions_stay_aligned_after_emoji(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("emoji 💦 before\n<p><strong>target</strong></p>")
+
+    window.find_next("<strong>", SearchOptions())
+
+    assert window.editor.textCursor().selectedText() == "<strong>"
+
+
 def test_search_highlights_can_target_selected_text_only(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -217,6 +256,32 @@ def test_replace_all_can_target_visible_text_only(
     window.replace_all("target", "match", SearchOptions(visible_only=True))
 
     assert window.editor.toPlainText() == "visible match\nhidden target"
+
+
+def test_replace_marked_matches_replaces_current_markers_only(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("target keep target")
+    window.update_search_highlights("target", SearchOptions())
+    window.editor.search_matches = window.editor.search_matches[:1]
+
+    window.replace_marked_matches("target", "done", SearchOptions())
+
+    assert window.editor.toPlainText() == "done keep target"
+
+
+def test_replace_marked_matches_supports_regex_groups(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("item-01 keep item-20")
+    options = SearchOptions(regular_expression=True)
+    window.update_search_highlights(r"item-(\d+)", options)
+
+    window.replace_marked_matches(r"item-(\d+)", r"code-\1", options)
+
+    assert window.editor.toPlainText() == "code-01 keep code-20"
 
 
 def test_selected_and_visible_options_use_intersection(
