@@ -93,15 +93,5 @@
     "label_key": "tag.wordpress.float_right_image_block",
     "hint_key": "tag.hint.wordpress.float_right_image_block",
     "template": "<!-- wp:html -->\n<div>\n<img src=\"https://example.com/sample.jpg\" alt=\"画像の説明\" style=\"float:right;width:40%;max-width:360px;margin:0 0 16px 24px;\">\n<p>{selection}{cursor}</p>\n<div style=\"clear:both;\"></div>\n</div>\n<!-- /wp:html -->"
-  },
-  {
-    "label_key": "tag.wordpress.video_block",
-    "hint_key": "tag.hint.wordpress.video_block",
-    "template": "<!-- wp:video -->\n<figure class=\"wp-block-video\"><video controls src=\"{cursor}\"></video><figcaption>{selection}</figcaption></figure>\n<!-- /wp:video -->"
-  },
-  {
-    "label_key": "tag.wordpress.audio_block",
-    "hint_key": "tag.hint.wordpress.audio_block",
-    "template": "<!-- wp:audio -->\n<figure class=\"wp-block-audio\"><audio controls src=\"{cursor}\"></audio><figcaption>{selection}</figcaption></figure>\n<!-- /wp:audio -->"
   }
 ]

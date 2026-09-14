@@ -5,11 +5,6 @@
     "template": "<p>{selection}{cursor}</p>"
   },
   {
-    "label_key": "tag.html.heading1",
-    "hint_key": "tag.hint.html.heading1",
-    "template": "<h1>{selection}{cursor}</h1>"
-  },
-  {
     "label_key": "tag.html.heading2",
     "hint_key": "tag.hint.html.heading2",
     "template": "<h2>{selection}{cursor}</h2>"
@@ -18,21 +13,6 @@
     "label_key": "tag.html.heading3",
     "hint_key": "tag.hint.html.heading3",
     "template": "<h3>{selection}{cursor}</h3>"
-  },
-  {
-    "label_key": "tag.html.heading4",
-    "hint_key": "tag.hint.html.heading4",
-    "template": "<h4>{selection}{cursor}</h4>"
-  },
-  {
-    "label_key": "tag.html.strong",
-    "hint_key": "tag.hint.html.strong",
-    "template": "<strong>{selection}{cursor}</strong>"
-  },
-  {
-    "label_key": "tag.html.emphasis",
-    "hint_key": "tag.hint.html.emphasis",
-    "template": "<em>{selection}{cursor}</em>"
   },
   {
     "label_key": "tag.html.link",
@@ -65,11 +45,6 @@
     "template": "<span class=\"{cursor}\">{selection}</span>"
   },
   {
-    "label_key": "tag.html.blockquote",
-    "hint_key": "tag.hint.html.blockquote",
-    "template": "<blockquote>\n  <p>{selection}{cursor}</p>\n</blockquote>"
-  },
-  {
     "label_key": "tag.html.unordered_list",
     "hint_key": "tag.hint.html.unordered_list",
     "template": "<ul>\n  <li>{selection}{cursor}</li>\n</ul>"
@@ -88,15 +63,5 @@
     "label_key": "tag.html.pre_code",
     "hint_key": "tag.hint.html.pre_code",
     "template": "<pre><code>{selection}{cursor}</code></pre>"
-  },
-  {
-    "label_key": "tag.html.line_break",
-    "hint_key": "tag.hint.html.line_break",
-    "template": "<br>\n{cursor}"
-  },
-  {
-    "label_key": "tag.html.horizontal_rule",
-    "hint_key": "tag.hint.html.horizontal_rule",
-    "template": "<hr>\n{cursor}"
   }
 ]

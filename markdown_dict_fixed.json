@@ -1,10 +1,5 @@
 [
   {
-    "label_key": "tag.markdown.heading1",
-    "hint_key": "tag.hint.markdown.heading1",
-    "template": "# {selection}{cursor}"
-  },
-  {
     "label_key": "tag.markdown.heading2",
     "hint_key": "tag.hint.markdown.heading2",
     "template": "## {selection}{cursor}"
@@ -15,11 +10,6 @@
     "template": "### {selection}{cursor}"
   },
   {
-    "label_key": "tag.markdown.heading4",
-    "hint_key": "tag.hint.markdown.heading4",
-    "template": "#### {selection}{cursor}"
-  },
-  {
     "label_key": "tag.markdown.bold",
     "hint_key": "tag.hint.markdown.bold",
     "template": "**{selection}{cursor}**"
@@ -28,11 +18,6 @@
     "label_key": "tag.markdown.italic",
     "hint_key": "tag.hint.markdown.italic",
     "template": "*{selection}{cursor}*"
-  },
-  {
-    "label_key": "tag.markdown.strikethrough",
-    "hint_key": "tag.hint.markdown.strikethrough",
-    "template": "~~{selection}{cursor}~~"
   },
   {
     "label_key": "tag.markdown.link",
@@ -108,21 +93,6 @@
     "label_key": "tag.markdown.numbered",
     "hint_key": "tag.hint.markdown.numbered",
     "template": "1. {selection}{cursor}"
-  },
-  {
-    "label_key": "tag.markdown.task_unchecked",
-    "hint_key": "tag.hint.markdown.task_unchecked",
-    "template": "- [ ] {selection}{cursor}"
-  },
-  {
-    "label_key": "tag.markdown.task_checked",
-    "hint_key": "tag.hint.markdown.task_checked",
-    "template": "- [x] {selection}{cursor}"
-  },
-  {
-    "label_key": "tag.markdown.table_2x2",
-    "hint_key": "tag.hint.markdown.table_2x2",
-    "template": "| 項目 | 内容 |\n| --- | --- |\n| {selection}{cursor} |  |\n|  |  |"
   },
   {
     "label_key": "tag.markdown.horizontal_rule",

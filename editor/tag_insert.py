@@ -10,6 +10,32 @@ SELECTION_PLACEHOLDER = "{selection}"
 CURSOR_PLACEHOLDER = "{cursor}"
 VALID_PLACEHOLDERS = {"selection", "cursor"}
 PLACEHOLDER_PATTERN = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+WORDPRESS_GROUP_LABEL_KEY = "tag.group.wordpress_html"
+WORDPRESS_MODE_NORMAL_KEY = "tag.wordpress_mode.normal"
+WORDPRESS_MODE_BUSINESS_KEY = "tag.wordpress_mode.business"
+WORDPRESS_MODE_HIGH_SECURITY_KEY = "tag.wordpress_mode.high_security"
+WORDPRESS_MODE_LABEL_KEYS = (
+    WORDPRESS_MODE_NORMAL_KEY,
+    WORDPRESS_MODE_BUSINESS_KEY,
+    WORDPRESS_MODE_HIGH_SECURITY_KEY,
+)
+WORDPRESS_BUSINESS_EXCLUDED_LABEL_KEYS = {
+    "tag.wordpress.html_code_box",
+    "tag.wordpress.image_row_html_block",
+    "tag.wordpress.float_left_image_block",
+    "tag.wordpress.float_right_image_block",
+}
+WORDPRESS_HIGH_SECURITY_LABEL_KEYS = {
+    "tag.wordpress.paragraph_block",
+    "tag.wordpress.heading2_block",
+    "tag.wordpress.heading3_block",
+    "tag.wordpress.list_block",
+    "tag.wordpress.quote_block",
+    "tag.wordpress.code_block",
+    "tag.wordpress.preformatted_block",
+    "tag.wordpress.separator_block",
+    "tag.wordpress.spacer_block",
+}
 
 
 @dataclass(frozen=True)
@@ -46,7 +72,7 @@ def tag_snippet_groups(dictionaries_path: Path | None = None) -> tuple[TagSnippe
             _load_snippets_from_json(dictionaries_path / "markdown_dict.json"),
         ),
         TagSnippetGroup(
-            "tag.group.wordpress_html",
+            WORDPRESS_GROUP_LABEL_KEY,
             _load_snippets_from_json(dictionaries_path / "wordpress_html_dict.json"),
         ),
     )
@@ -74,9 +100,31 @@ def tag_snippet_category_key(group_label_key: str, snippet: TagSnippet) -> str:
         return _html_category_key(label_key)
     if group_label_key == "tag.group.markdown":
         return _markdown_category_key(label_key)
-    if group_label_key == "tag.group.wordpress_html":
+    if group_label_key == WORDPRESS_GROUP_LABEL_KEY:
         return _wordpress_category_key(label_key)
     return "tag.category.utility"
+
+
+def wordpress_mode_label_keys() -> tuple[str, ...]:
+    return WORDPRESS_MODE_LABEL_KEYS
+
+
+def wordpress_snippets_for_mode(
+    snippets: tuple[TagSnippet, ...],
+    mode_label_key: str,
+) -> tuple[TagSnippet, ...]:
+    return tuple(
+        snippet for snippet in snippets if mode_label_key in wordpress_mode_keys(snippet)
+    )
+
+
+def wordpress_mode_keys(snippet: TagSnippet) -> tuple[str, ...]:
+    mode_keys = [WORDPRESS_MODE_NORMAL_KEY]
+    if snippet.label_key not in WORDPRESS_BUSINESS_EXCLUDED_LABEL_KEYS:
+        mode_keys.append(WORDPRESS_MODE_BUSINESS_KEY)
+    if snippet.label_key in WORDPRESS_HIGH_SECURITY_LABEL_KEYS:
+        mode_keys.append(WORDPRESS_MODE_HIGH_SECURITY_KEY)
+    return tuple(mode_keys)
 
 
 def _preferred_group_label_key(save_file_path: Path | None) -> str | None:
@@ -86,7 +134,7 @@ def _preferred_group_label_key(save_file_path: Path | None) -> str | None:
     suffixes = [suffix.lower() for suffix in save_file_path.suffixes]
     file_name = save_file_path.name.lower()
     if file_name.endswith(".wp.html"):
-        return "tag.group.wordpress_html"
+        return WORDPRESS_GROUP_LABEL_KEY
     if ".md" in suffixes or ".markdown" in suffixes:
         return "tag.group.markdown"
     if ".html" in suffixes or ".htm" in suffixes:
@@ -97,10 +145,18 @@ def _preferred_group_label_key(save_file_path: Path | None) -> str | None:
 def _html_category_key(label_key: str) -> str:
     if label_key in {
         "tag.html.paragraph",
+        "tag.html.heading1",
         "tag.html.heading2",
         "tag.html.heading3",
+        "tag.html.heading4",
     }:
         return "tag.category.basic"
+    if label_key in {
+        "tag.html.strong",
+        "tag.html.emphasis",
+        "tag.html.blockquote",
+    }:
+        return "tag.category.text"
     if label_key in {
         "tag.html.link",
         "tag.html.link_blank",
@@ -128,10 +184,13 @@ def _html_category_key(label_key: str) -> str:
 
 def _markdown_category_key(label_key: str) -> str:
     if label_key in {
+        "tag.markdown.heading1",
         "tag.markdown.heading2",
         "tag.markdown.heading3",
+        "tag.markdown.heading4",
         "tag.markdown.bold",
         "tag.markdown.italic",
+        "tag.markdown.strikethrough",
     }:
         return "tag.category.text"
     if label_key in {
@@ -156,8 +215,14 @@ def _markdown_category_key(label_key: str) -> str:
         "tag.markdown.quote",
         "tag.markdown.bullet",
         "tag.markdown.numbered",
+        "tag.markdown.task_unchecked",
+        "tag.markdown.task_checked",
     }:
         return "tag.category.lists"
+    if label_key in {
+        "tag.markdown.table_2x2",
+    }:
+        return "tag.category.layout"
     return "tag.category.utility"
 
 
@@ -170,6 +235,19 @@ def _wordpress_category_key(label_key: str) -> str:
         "tag.wordpress.quote_block",
     }:
         return "tag.category.text"
+    if label_key in {
+        "tag.wordpress.image_block",
+        "tag.wordpress.media_text_left_block",
+        "tag.wordpress.media_text_right_block",
+        "tag.wordpress.gallery_3_block",
+        "tag.wordpress.columns_3_images_block",
+        "tag.wordpress.image_row_html_block",
+        "tag.wordpress.float_left_image_block",
+        "tag.wordpress.float_right_image_block",
+        "tag.wordpress.video_block",
+        "tag.wordpress.audio_block",
+    }:
+        return "tag.category.media"
     if label_key in {
         "tag.wordpress.code_block",
         "tag.wordpress.preformatted_block",

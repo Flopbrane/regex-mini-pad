@@ -13,6 +13,11 @@ class EditorSettings:
     language_code: str = "ja"
     window_width: int = 900
     window_height: int = 650
+    wordpress_mode_label_key: str = "tag.wordpress_mode.normal"
+    hover_hints_enabled: bool = True
+    backup_folder: str = ""
+    font_family: str = "Consolas"
+    font_size: int = 11
 
 
 class SettingsManager:
@@ -36,6 +41,13 @@ class SettingsManager:
             language_code=str(load_data.get("language_code", "ja")),
             window_width=int(load_data.get("window_width", 900)),
             window_height=int(load_data.get("window_height", 650)),
+            wordpress_mode_label_key=str(
+                load_data.get("wordpress_mode_label_key", "tag.wordpress_mode.normal")
+            ),
+            hover_hints_enabled=bool(load_data.get("hover_hints_enabled", True)),
+            backup_folder=str(load_data.get("backup_folder", "")),
+            font_family=str(load_data.get("font_family", "Consolas")),
+            font_size=int(load_data.get("font_size", 11)),
         )
 
     def save(
@@ -46,6 +58,11 @@ class SettingsManager:
         language_code: str,
         window_width: int,
         window_height: int,
+        wordpress_mode_label_key: str = "tag.wordpress_mode.normal",
+        hover_hints_enabled: bool = True,
+        backup_folder: str = "",
+        font_family: str = "Consolas",
+        font_size: int = 11,
     ) -> None:
         save_data = {
             "word_wrap_enabled": word_wrap_enabled,
@@ -53,6 +70,11 @@ class SettingsManager:
             "language_code": language_code,
             "window_width": window_width,
             "window_height": window_height,
+            "wordpress_mode_label_key": wordpress_mode_label_key,
+            "hover_hints_enabled": hover_hints_enabled,
+            "backup_folder": backup_folder,
+            "font_family": font_family,
+            "font_size": font_size,
         }
         self.settings_path.write_text(
             json.dumps(save_data, indent=2),

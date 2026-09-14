@@ -13,7 +13,13 @@ from PySide6.QtGui import QKeyEvent, QTextCursor
 from PySide6.QtWidgets import QApplication, QMenu
 
 from dialogs.tag_insert_dialog import TagInsertDialog
-from editor.tag_insert import TagSnippet, ordered_tag_snippet_groups, tag_snippet_groups
+from editor.tag_insert import (
+    TagSnippet,
+    ordered_tag_snippet_groups,
+    tag_snippet_category_key,
+    tag_snippet_groups,
+    wordpress_mode_keys,
+)
 from main import MainWindow
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -60,15 +66,17 @@ def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> No
     html_category_menus = child_menus(group_menus[0])
     assert [menu.title() for menu in html_category_menus] == [
         "基本",
+        "テキスト",
         "リンク / 画像",
         "レイアウト",
         "リスト",
         "コード",
+        "ユーティリティ",
     ]
     first_html_action = html_category_menus[0].actions()[0]
     assert first_html_action.text() == "段落 <p>"
     assert "必須パラメータ" in first_html_action.statusTip()
-    image_action = html_category_menus[1].actions()[2]
+    image_action = html_category_menus[2].actions()[2]
     assert image_action.text() == "画像 <img>"
     assert "src" in image_action.statusTip()
     assert "alt" in image_action.toolTip()
@@ -79,13 +87,24 @@ def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> No
         "リンク / 画像",
         "コード",
         "リスト",
+        "レイアウト",
         "ユーティリティ",
     ]
     assert [action.text() for action in markdown_category_menus[0].actions()] == [
+        "見出し1",
         "見出し2",
         "見出し3",
+        "見出し4",
         "太字",
         "斜体",
+        "取り消し線",
+    ]
+
+    wordpress_mode_menus = child_menus(group_menus[2])
+    assert [menu.title() for menu in wordpress_mode_menus] == [
+        "Normal",
+        "企業・事業所",
+        "Hi-security",
     ]
 
 
@@ -117,14 +136,21 @@ def child_menus(menu: QMenu) -> list[QMenu]:
     return menus
 
 
-def test_context_menu_reuses_tag_insert_groups(app: QApplication) -> None:
+def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
     _ = app
     window = MainWindow()
-    context_menu = QMenu()
-    insert_tag_menu = QMenu("タグ挿入", context_menu)
+    context_menu = window._create_editor_context_menu()
 
-    window._populate_insert_tag_menu(insert_tag_menu)
+    action_texts = [action.text() for action in context_menu.actions()]
+    insert_tag_menu: QMenu | None = None
+    for action in context_menu.actions():
+        child_menu = action.menu()
+        if isinstance(child_menu, QMenu) and child_menu.title() == "タグ挿入(&T)":
+            insert_tag_menu = child_menu
+            break
 
+    assert "タグ挿入..." in action_texts
+    assert isinstance(insert_tag_menu, QMenu)
     assert [menu.title() for menu in child_menus(insert_tag_menu)] == [
         "HTML",
         "Markdown",
@@ -252,9 +278,9 @@ def test_html_snippets_are_loaded_from_json() -> None:
     html_group = tag_snippet_groups()[0]
 
     assert html_group.label_key == "tag.group.html"
-    assert len(html_group.snippets) == 13
+    assert len(html_group.snippets) == 20
     assert html_group.snippets[0].label_key == "tag.html.paragraph"
-    assert html_group.snippets[-1].label_key == "tag.html.pre_code"
+    assert html_group.snippets[-1].label_key == "tag.html.horizontal_rule"
 
 
 def test_tag_dictionary_rejects_empty_required_values(tmp_path: Path) -> None:
@@ -360,7 +386,11 @@ def test_insert_html_div_places_cursor_in_class_parameter(app: QApplication) -> 
     cursor = window.editor.textCursor()
     cursor.select(QTextCursor.SelectionType.Document)
     window.editor.setTextCursor(cursor)
-    div_snippet = tag_snippet_groups()[0].snippets[7]
+    div_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[0].snippets
+        if snippet.label_key == "tag.html.div"
+    )
 
     window.insert_tag_snippet(div_snippet)
 
@@ -372,8 +402,8 @@ def test_markdown_snippets_are_loaded_from_json() -> None:
     markdown_group = tag_snippet_groups()[1]
 
     assert markdown_group.label_key == "tag.group.markdown"
-    assert len(markdown_group.snippets) == 20
-    assert markdown_group.snippets[0].label_key == "tag.markdown.heading2"
+    assert len(markdown_group.snippets) == 26
+    assert markdown_group.snippets[0].label_key == "tag.markdown.heading1"
     assert markdown_group.snippets[-1].label_key == "tag.markdown.horizontal_rule"
 
 
@@ -386,7 +416,11 @@ def test_insert_markdown_code_block_places_cursor_after_opening_fence(
     cursor = window.editor.textCursor()
     cursor.select(QTextCursor.SelectionType.Document)
     window.editor.setTextCursor(cursor)
-    code_block_snippet = tag_snippet_groups()[1].snippets[7]
+    code_block_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[1].snippets
+        if snippet.label_key == "tag.markdown.code_block"
+    )
 
     window.insert_tag_snippet(code_block_snippet)
 
@@ -403,7 +437,11 @@ def test_insert_markdown_python_code_block_uses_selected_language(
     cursor = window.editor.textCursor()
     cursor.select(QTextCursor.SelectionType.Document)
     window.editor.setTextCursor(cursor)
-    python_code_block_snippet = tag_snippet_groups()[1].snippets[8]
+    python_code_block_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[1].snippets
+        if snippet.label_key == "tag.markdown.code_block_python"
+    )
 
     window.insert_tag_snippet(python_code_block_snippet)
 
@@ -415,9 +453,46 @@ def test_wordpress_html_snippets_are_loaded_from_json() -> None:
     wordpress_group = tag_snippet_groups()[2]
 
     assert wordpress_group.label_key == "tag.group.wordpress_html"
-    assert len(wordpress_group.snippets) == 11
+    assert len(wordpress_group.snippets) == 21
     assert wordpress_group.snippets[0].label_key == "tag.wordpress.paragraph_block"
     assert wordpress_group.snippets[7].label_key == "tag.wordpress.html_code_box"
+    assert wordpress_group.snippets[-2].label_key == "tag.wordpress.video_block"
+    assert wordpress_group.snippets[-1].label_key == "tag.wordpress.audio_block"
+
+
+def test_wordpress_media_snippets_use_media_category() -> None:
+    wordpress_group = tag_snippet_groups()[2]
+
+    media_categories = {
+        tag_snippet_category_key(wordpress_group.label_key, snippet)
+        for snippet in wordpress_group.snippets
+        if snippet.label_key
+        in {
+            "tag.wordpress.image_block",
+            "tag.wordpress.media_text_left_block",
+            "tag.wordpress.video_block",
+            "tag.wordpress.audio_block",
+        }
+    }
+
+    assert media_categories == {"tag.category.media"}
+
+
+def test_wordpress_snippets_have_expected_mode_groups() -> None:
+    snippets = {snippet.label_key: snippet for snippet in tag_snippet_groups()[2].snippets}
+
+    assert wordpress_mode_keys(snippets["tag.wordpress.paragraph_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.image_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.html_code_box"]) == (
+        "tag.wordpress_mode.normal",
+    )
 
 
 def test_insert_wordpress_code_block_uses_pre_code_markup(

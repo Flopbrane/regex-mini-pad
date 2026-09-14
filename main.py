@@ -7,7 +7,14 @@ from pathlib import Path
 from re import error as RegexError
 
 from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QAction, QActionGroup, QCloseEvent, QKeySequence, QTextCursor
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QCloseEvent,
+    QFont,
+    QKeySequence,
+    QTextCursor,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -23,20 +30,25 @@ from PySide6.QtWidgets import (
 )
 
 from dialogs.find_replace_dialog import FindReplaceDialog
+from dialogs.options_dialog import OptionsDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
 from dialogs.user_help_dialog import UserHelpDialog
 from editor.tag_insert import (
+    WORDPRESS_GROUP_LABEL_KEY,
     TagSnippet,
+    TagSnippetGroup,
     ordered_tag_snippet_groups,
     tag_snippet_category_key,
+    wordpress_mode_label_keys,
+    wordpress_snippets_for_mode,
 )
 from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from localization.translator import Translator
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
-from settings.settings_manager import SettingsManager
+from settings.settings_manager import EditorSettings, SettingsManager
 
 ENCODING_OPTIONS = {
     "UTF-8": "utf-8",
@@ -70,8 +82,7 @@ class MainWindow(QMainWindow):
             or os.environ.get("QT_QPA_PLATFORM") != "offscreen"
         )
         self.unsaved_backup_manager = UnsavedBackupManager(
-            unsaved_backup_path
-            or Path(__file__).with_name("autosave") / "unsaved_backup.json"
+            unsaved_backup_path or self._unsaved_backup_path_for_folder("")
         )
         settings = self.settings_manager.load()
         self.translator = Translator(self.resources_path, settings.language_code)
@@ -83,7 +94,13 @@ class MainWindow(QMainWindow):
         self.regex_help_dialog: RegexHelpDialog | None = None
         self.tag_insert_dialog: TagInsertDialog | None = None
         self.user_help_dialog: UserHelpDialog | None = None
+        self.options_dialog: OptionsDialog | None = None
         self.search_scope: tuple[int, int] | None = None
+        self.wordpress_mode_label_key = settings.wordpress_mode_label_key
+        self.hover_hints_enabled = settings.hover_hints_enabled
+        self.backup_folder = settings.backup_folder
+        self.font_family = settings.font_family
+        self.font_size = settings.font_size
         self.tab_file_paths: dict[TextEditor, Path | None] = {}
         self.tab_encodings: dict[TextEditor, str] = {}
         self.tab_windows: list[MainWindow] = []
@@ -205,6 +222,10 @@ class MainWindow(QMainWindow):
         self.line_numbers_action.setCheckable(True)
         self.line_numbers_action.toggled.connect(self._set_current_line_numbers_enabled)
 
+        self.options_action = QAction(self)
+        self.options_action.setShortcut("Ctrl+,")
+        self.options_action.triggered.connect(self.show_options_dialog)
+
         self.user_help_action = QAction(self)
         self.user_help_action.setShortcut("F1")
         self.user_help_action.triggered.connect(self.show_user_help_dialog)
@@ -257,6 +278,10 @@ class MainWindow(QMainWindow):
         self.view_menu.addAction(self.word_wrap_action)
         menu_bar.addMenu(self.view_menu)
 
+        self.options_menu = QMenu(self)
+        self.options_menu.addAction(self.options_action)
+        menu_bar.addMenu(self.options_menu)
+
         self.language_menu = QMenu(self)
         self.language_menu.addAction(self.english_action)
         self.language_menu.addAction(self.japanese_action)
@@ -289,6 +314,8 @@ class MainWindow(QMainWindow):
         editor.set_word_wrap_enabled(
             word_wrap_action.isChecked() if isinstance(word_wrap_action, QAction) else False
         )
+        editor.setFont(QFont(self.font_family, self.font_size))
+        editor.setTabStopDistance(editor.fontMetrics().horizontalAdvance(" ") * 4)
         editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         editor.customContextMenuRequested.connect(self._show_editor_context_menu)
         editor.textChanged.connect(self._update_status_bar)
@@ -447,11 +474,12 @@ class MainWindow(QMainWindow):
             self.tab_encodings.pop(editor, None)
             editor.deleteLater()
 
-    def _restore_settings(self, settings) -> None:
+    def _restore_settings(self, settings: EditorSettings) -> None:
         self.line_numbers_action.setChecked(settings.line_numbers_enabled)
         self.editor.set_line_numbers_enabled(settings.line_numbers_enabled)
         self.word_wrap_action.setChecked(settings.word_wrap_enabled)
         self.editor.set_word_wrap_enabled(settings.word_wrap_enabled)
+        self._apply_editor_font_to_all_tabs()
         self.english_action.setChecked(settings.language_code == "en")
         self.japanese_action.setChecked(settings.language_code != "en")
         if settings.window_width > 0 and settings.window_height > 0:
@@ -464,6 +492,11 @@ class MainWindow(QMainWindow):
             language_code=self.translator.language_code,
             window_width=self.width(),
             window_height=self.height(),
+            wordpress_mode_label_key=self.wordpress_mode_label_key,
+            hover_hints_enabled=self.hover_hints_enabled,
+            backup_folder=self.backup_folder,
+            font_family=self.font_family,
+            font_size=self.font_size,
         )
 
     def set_language(self, language_code: str) -> None:
@@ -478,6 +511,7 @@ class MainWindow(QMainWindow):
         self.edit_menu.setTitle(self.translator.text("menu.edit"))
         self.search_menu.setTitle(self.translator.text("menu.search"))
         self.view_menu.setTitle(self.translator.text("menu.view"))
+        self.options_menu.setTitle(self.translator.text("menu.options"))
         self.language_menu.setTitle(self.translator.text("menu.language"))
         self.help_menu.setTitle(self.translator.text("menu.help"))
 
@@ -503,6 +537,7 @@ class MainWindow(QMainWindow):
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
+        self.options_action.setText(self.translator.text("action.options"))
         self.user_help_action.setText(self.translator.text("action.user_help"))
         self.english_action.setText(self.translator.text("language.english"))
         self.japanese_action.setText(self.translator.text("language.japanese"))
@@ -515,6 +550,8 @@ class MainWindow(QMainWindow):
             self.tag_insert_dialog.apply_language()
         if self.user_help_dialog is not None:
             self.user_help_dialog.apply_language()
+        if self.options_dialog is not None:
+            self.options_dialog.apply_language()
         self._update_status_bar()
         self._update_window_title()
 
@@ -527,38 +564,78 @@ class MainWindow(QMainWindow):
         for group in ordered_tag_snippet_groups(self.current_save_file_path):
             group_menu = root_menu.addMenu(self.translator.text(group.label_key))
             assert group_menu is not None
-            category_menus: dict[str, QMenu] = {}
-            for snippet in group.snippets:
-                category_key = tag_snippet_category_key(group.label_key, snippet)
-                category_menu = category_menus.get(category_key)
-                if category_menu is None:
-                    category_menu = group_menu.addMenu(self.translator.text(category_key))
-                    assert category_menu is not None
-                    category_menus[category_key] = category_menu
-                category_menu.addAction(self._create_tag_snippet_action(snippet))
+            if group.label_key == WORDPRESS_GROUP_LABEL_KEY:
+                self._populate_wordpress_tag_mode_menus(group_menu, group)
+            else:
+                self._populate_tag_category_menu(
+                    group_menu,
+                    group.label_key,
+                    group.snippets,
+                )
+
+    def _populate_wordpress_tag_mode_menus(
+        self,
+        group_menu: QMenu,
+        group: TagSnippetGroup,
+    ) -> None:
+        mode_label_keys = sorted(
+            wordpress_mode_label_keys(),
+            key=lambda mode_label_key: (
+                0 if mode_label_key == self.wordpress_mode_label_key else 1
+            ),
+        )
+        for mode_label_key in mode_label_keys:
+            mode_menu = group_menu.addMenu(self.translator.text(mode_label_key))
+            assert mode_menu is not None
+            self._populate_tag_category_menu(
+                mode_menu,
+                group.label_key,
+                wordpress_snippets_for_mode(group.snippets, mode_label_key),
+            )
+
+    def _populate_tag_category_menu(
+        self,
+        root_menu: QMenu,
+        group_label_key: str,
+        snippets: tuple[TagSnippet, ...],
+    ) -> None:
+        category_menus: dict[str, QMenu] = {}
+        for snippet in snippets:
+            category_key = tag_snippet_category_key(group_label_key, snippet)
+            category_menu = category_menus.get(category_key)
+            if category_menu is None:
+                category_menu = root_menu.addMenu(self.translator.text(category_key))
+                assert category_menu is not None
+                category_menus[category_key] = category_menu
+            category_menu.addAction(self._create_tag_snippet_action(snippet))
 
     def _create_tag_snippet_action(self, snippet: TagSnippet) -> QAction:
         label = self.translator.text(snippet.label_key)
         hint = self.translator.text(snippet.hint_key)
         action = QAction(label, self)
-        action.setStatusTip(hint)
-        action.setToolTip(hint)
-        action.hovered.connect(
-            lambda hint_text=hint: self.statusBar().showMessage(hint_text)
-        )
+        if self.hover_hints_enabled:
+            action.setStatusTip(hint)
+            action.setToolTip(hint)
+            action.hovered.connect(
+                lambda hint_text=hint: self.statusBar().showMessage(hint_text)
+            )
         action.triggered.connect(
             lambda checked=False, value=snippet: self.insert_tag_snippet(value)
         )
         return action
 
     def _show_editor_context_menu(self, position: QPoint) -> None:
+        context_menu = self._create_editor_context_menu()
+        context_menu.exec(self.editor.mapToGlobal(position))
+
+    def _create_editor_context_menu(self) -> QMenu:
         context_menu = self.editor.createStandardContextMenu()
         context_menu.addSeparator()
         context_menu.addAction(self.insert_tag_picker_action)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
         self._populate_insert_tag_menu(insert_tag_menu)
         context_menu.addMenu(insert_tag_menu)
-        context_menu.exec(self.editor.mapToGlobal(position))
+        return context_menu
 
     def show_tag_insert_dialog(self) -> None:
         if self.tag_insert_dialog is None:
@@ -574,6 +651,51 @@ class MainWindow(QMainWindow):
         selected_snippet = self.tag_insert_dialog.selected_choice()
         if selected_snippet is not None:
             self.insert_tag_snippet(selected_snippet)
+
+    def show_options_dialog(self) -> None:
+        settings = EditorSettings(
+            word_wrap_enabled=self.word_wrap_action.isChecked(),
+            line_numbers_enabled=self.line_numbers_action.isChecked(),
+            language_code=self.translator.language_code,
+            window_width=self.width(),
+            window_height=self.height(),
+            wordpress_mode_label_key=self.wordpress_mode_label_key,
+            hover_hints_enabled=self.hover_hints_enabled,
+            backup_folder=self.backup_folder,
+            font_family=self.font_family,
+            font_size=self.font_size,
+        )
+        dialog = OptionsDialog(self.translator, settings, self)
+        self.options_dialog = dialog
+        if dialog.exec() != OptionsDialog.DialogCode.Accepted:
+            return
+        values = dialog.values()
+        self.wordpress_mode_label_key = values.wordpress_mode_label_key
+        self.hover_hints_enabled = values.hover_hints_enabled
+        self.backup_folder = values.backup_folder
+        self.font_family = values.font_family
+        self.font_size = values.font_size
+        self.unsaved_backup_manager = UnsavedBackupManager(
+            self._unsaved_backup_path_for_folder(self.backup_folder)
+        )
+        self._apply_editor_font_to_all_tabs()
+        self._rebuild_insert_tag_menu()
+        self._save_settings()
+
+    def _unsaved_backup_path_for_folder(self, backup_folder: str) -> Path:
+        if backup_folder:
+            return Path(backup_folder) / "unsaved_backup.json"
+        return Path(__file__).with_name("autosave") / "unsaved_backup.json"
+
+    def _apply_editor_font_to_all_tabs(self) -> None:
+        editor_font = QFont(self.font_family, self.font_size)
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is None:
+                continue
+            editor.setFont(editor_font)
+            editor.setTabStopDistance(editor.fontMetrics().horizontalAdvance(" ") * 4)
+            editor.update_line_number_area_width()
 
     def insert_tag_snippet(self, snippet: TagSnippet) -> None:
         cursor = self.editor.textCursor()
