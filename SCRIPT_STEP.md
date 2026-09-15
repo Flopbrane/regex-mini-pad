@@ -1,5 +1,9 @@
 # SCRIPT_STEP.md
 
+## Python environment
+
+D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe
+
 ## Development Steps
 
 This file records the planned build order for `mini_editor_project`.
@@ -341,6 +345,92 @@ Follow-up candidates:
    - Add keyboard shortcuts for next / previous tab.
    - Consider middle-click close.
 
+## Step11-section7 Options Window Entry
+
+Completed:
+
+- Added the `Options` / `設定` menu.
+- Added the `Options...` / `オプション...` action.
+- Added the `Ctrl+,` shortcut for opening the options window.
+- Built the options window as a tabbed dialog.
+- Grouped future and current settings by topic:
+  - General
+  - View
+  - Tag Insert
+  - Backup
+  - Font
+  - Search
+- Connected the currently usable options:
+  - Default WordPress HTML mode.
+  - Hover hint visibility.
+  - Backup folder.
+  - Editor font family.
+  - Editor font size.
+- Kept not-yet-implemented options visible as disabled placeholders so the planned categories are clear.
+- The backup folder option uses local files only.
+- The application must not change environment variables from options.
+- Settings that might otherwise require Registry usage should be stored in a local settings file instead.
+
+Follow-up candidates:
+
+1. Move existing View toggles into options
+   - Line numbers.
+   - Word wrap.
+   - Ruler.
+   - Visible spaces, tabs, and newlines.
+
+2. Backup detail options
+   - Backup interval.
+   - Backup retention count.
+   - Backup retention days.
+   - Multi-tab backup restore behavior.
+
+3. Search color options
+   - Search marker color.
+   - Current match marker color.
+   - Regex lint display behavior.
+
+## Priority Implementation Queue From 2026-09-15
+
+Implement these items before adding large new editor features:
+
+1. Dictionary safety validation
+   - Validate every dictionary JSON at load time.
+   - Detect required key omissions.
+   - Detect duplicate `label_key` values in one dictionary.
+   - Detect missing translation keys in Japanese and English resources.
+   - Detect broken `{selection}` and `{cursor}` placeholders.
+   - Add clear error messages that identify the dictionary file and snippet.
+
+2. Hover hint enrichment
+   - Expand hints for HTML, Markdown, and WordPress HTML snippets.
+   - Add practical attribute guidance such as `href`, `src`, `alt`, `class`, `id`, `rel`, `target`, and `style`.
+   - Consider structured parameter metadata in dictionaries so hints can later support linting.
+   - Keep hover hints optional through the Options window.
+
+3. WordPress HTML mode refinement
+   - Define clear rules for `Normal`, `Business`, and `Hi-security` modes.
+   - Restrict risky snippets in stricter modes.
+   - Review media snippets such as image, gallery, video, audio, embed, and file blocks.
+   - Keep manual access to all groups unless a mode is explicitly intended to hide unsafe entries.
+
+4. User dictionary folder
+   - Allow user-provided dictionaries separate from bundled dictionaries.
+   - Validate user dictionaries with the same safety checks.
+   - Keep bundled dictionaries read-only in normal use.
+
+5. PyInstaller dictionary packaging
+   - `regex-pad.spec` must include the whole `dictionaries` folder.
+   - Do not list dictionary JSON files one by one in the spec.
+   - This prevents missing newly added dictionary files during builds.
+   - After dictionary changes, run a clean build and confirm the executable can load snippets.
+
+6. Then continue display features
+   - Character ruler.
+   - Click-to-set wrap column.
+   - Blue wrap-column marker.
+   - Visible half-width spaces, full-width spaces, tabs, and newlines.
+
 ## Validation Commands
 
 Use the project virtual environment:
@@ -353,8 +443,10 @@ Use the project virtual environment:
 
 ## Project Principles
 
-- ~~Keep the app portable.~~
-- Do not use the Windows Registry.
+- Keep the app usable as a high-function one-folder application.
+- Do not modify environment variables.
+- Do not use the Windows Registry for settings.
+- If a setting would normally require Registry usage, store it in a local `.ini` or `.json` file instead.
 - Do not require administrator privileges.
 - Store settings locally.
 - Keep regex usable for non-programmers.

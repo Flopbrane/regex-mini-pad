@@ -3,12 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def test_pyinstaller_spec_includes_dictionary_json_files() -> None:
+def test_pyinstaller_spec_includes_dictionaries_folder() -> None:
     spec_text = Path("regex-pad.spec").read_text(encoding="utf-8")
 
-    assert "dictionaries/html_dict.json" in spec_text
-    assert "dictionaries/markdown_dict.json" in spec_text
-    assert "dictionaries/wordpress_html_dict.json" in spec_text
+    assert "('dictionaries', 'dictionaries')" in spec_text
 
 
 def test_pyinstaller_spec_builds_gui_app_without_upx() -> None:
