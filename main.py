@@ -1,3 +1,12 @@
+# pylint: disable=C0302,C0301,C0411,C0413
+# ruff: noqa:E402
+"""Main window class for the Regex Pad application."""
+#########################
+# Author: F.Kurokawa
+# Description:
+# Main window class for the Regex Pad application.
+#########################
+
 from __future__ import annotations
 
 import os
@@ -6,8 +15,13 @@ import uuid
 from pathlib import Path
 from re import error as RegexError
 
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import (
+from portable_runtime import configure_portable_runtime
+
+configure_portable_runtime()
+
+# PySide6 exposes Qt modules dynamically; Pylint may report false no-name-in-module.
+from PySide6.QtCore import QPoint, Qt  # pylint: disable=no-name-in-module
+from PySide6.QtGui import (  # pylint: disable=no-name-in-module
     QAction,
     QActionGroup,
     QCloseEvent,
@@ -15,7 +29,7 @@ from PySide6.QtGui import (
     QKeySequence,
     QTextCursor,
 )
-from PySide6.QtWidgets import (
+from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
     QComboBox,
     QFileDialog,
@@ -50,7 +64,7 @@ from localization.translator import Translator
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import EditorSettings, SettingsManager
 
-ENCODING_OPTIONS = {
+ENCODING_OPTIONS: dict[str, str] = {
     "UTF-8": "utf-8",
     "UTF-8 with BOM": "utf-8-sig",
     "CP932 / Shift_JIS": "cp932",
@@ -63,6 +77,7 @@ ENCODING_OPTIONS = {
 
 
 class MainWindow(QMainWindow):
+    """Main window class for the Regex Pad application."""
     def __init__(
         self,
         settings_path: Path | None = None,
@@ -71,9 +86,9 @@ class MainWindow(QMainWindow):
         window_id: str | None = None,
     ) -> None:
         super().__init__()
-        self.window_id = window_id or str(uuid.uuid4())
+        self.window_id: str = window_id or str(uuid.uuid4())
         self.setObjectName(f"main-window-{self.window_id}")
-        self.resources_path = Path(__file__).parent / "resources"
+        self.resources_path: Path = Path(__file__).parent / "resources"
         self.settings_manager = SettingsManager(
             settings_path or Path(__file__).with_name("settings.json")
         )
@@ -84,7 +99,7 @@ class MainWindow(QMainWindow):
         self.unsaved_backup_manager = UnsavedBackupManager(
             unsaved_backup_path or self._unsaved_backup_path_for_folder("")
         )
-        settings = self.settings_manager.load()
+        settings: EditorSettings = self.settings_manager.load()
         self.translator = Translator(self.resources_path, settings.language_code)
         self.file_manager = FileManager()
         self.search_engine = SearchEngine()
@@ -133,9 +148,10 @@ class MainWindow(QMainWindow):
         if restore_unsaved_backup:
             self._restore_unsaved_backup_if_available()
 
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name
+        """Handle the close event for the main window."""
         for tab_index in range(self.tab_widget.count()):
-            editor = self._editor_at(tab_index)
+            editor: TextEditor | None = self._editor_at(tab_index)
             if editor is None:
                 continue
             self.tab_widget.setCurrentIndex(tab_index)
@@ -147,6 +163,7 @@ class MainWindow(QMainWindow):
         event.accept()
 
     def _create_actions(self) -> None:
+        """Create actions for the main window."""
         self.new_action = QAction("&New", self)
         self.new_action.setShortcut("Ctrl+N")
         self.new_action.triggered.connect(self.new_file)
@@ -193,17 +210,17 @@ class MainWindow(QMainWindow):
 
         self.undo_action = QAction("&Undo", self)
         self.undo_action.setShortcut("Ctrl+Z")
-        self.undo_action.triggered.connect(lambda: self.editor.undo())
+        self.undo_action.triggered.connect(self.editor.undo)
 
         self.redo_action = QAction("&Redo", self)
         self.redo_action.setShortcuts(
             [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")]
         )
-        self.redo_action.triggered.connect(lambda: self.editor.redo())
+        self.redo_action.triggered.connect(self.editor.redo)
 
         self.select_all_action = QAction("Select &All", self)
         self.select_all_action.setShortcut("Ctrl+A")
-        self.select_all_action.triggered.connect(lambda: self.editor.selectAll())
+        self.select_all_action.triggered.connect(self.editor.selectAll())
 
         self.insert_tag_menu = QMenu(self)
         self.insert_tag_picker_action = QAction(self)
@@ -244,6 +261,7 @@ class MainWindow(QMainWindow):
         self.language_action_group.addAction(self.japanese_action)
 
     def _create_menus(self) -> None:
+        """Create menus for the main window."""
         menu_bar = self.menuBar()
 
         self.file_menu = QMenu(self)
@@ -292,6 +310,7 @@ class MainWindow(QMainWindow):
         menu_bar.addMenu(self.help_menu)
 
     def _create_status_bar(self) -> None:
+        """Create the status bar for the main window."""
         self.setStatusBar(QStatusBar(self))
 
     def _create_editor_tab(
@@ -301,6 +320,7 @@ class MainWindow(QMainWindow):
         encoding: str = "utf-8",
         modified: bool = False,
     ) -> TextEditor:
+        """Create a new editor tab with the specified parameters."""
         editor = TextEditor()
         editor.setPlainText(text)
         editor.document().setModified(modified)
@@ -333,7 +353,23 @@ class MainWindow(QMainWindow):
         self._sync_current_tab_state()
         return editor
 
+    def create_editor_tab(
+        self,
+        text: str = "",
+        save_file_path: Path | None = None,
+        encoding: str = "utf-8",
+        modified: bool = False,
+    ) -> TextEditor:
+        """Create an editor tab for external window operations."""
+        return self._create_editor_tab(
+            text=text,
+            save_file_path=save_file_path,
+            encoding=encoding,
+            modified=modified,
+        )
+
     def _handle_current_tab_changed(self, index: int) -> None:
+        """Handle the event when the current tab is changed."""
         widget = self.tab_widget.widget(index)
         if widget is None:
             return
@@ -346,6 +382,7 @@ class MainWindow(QMainWindow):
         self._rebuild_insert_tag_menu()
 
     def _sync_current_tab_state(self) -> None:
+        """Synchronize the state of the current tab with the main window."""
         self.current_save_file_path = self.tab_file_paths.get(self.editor)
         self.current_encoding = self.tab_encodings.get(self.editor, "utf-8")
 
@@ -354,6 +391,7 @@ class MainWindow(QMainWindow):
         save_file_path: Path | None,
         encoding: str | None = None,
     ) -> None:
+        """Set the current file state, including the save file path and encoding."""
         self.current_save_file_path = save_file_path
         self.tab_file_paths[self.editor] = save_file_path
         if encoding is not None:
@@ -362,11 +400,13 @@ class MainWindow(QMainWindow):
         self._update_tab_titles()
 
     def _tab_title(self, editor: TextEditor) -> str:
+        """Get the title for the tab corresponding to the given editor."""
         save_file_path = self.tab_file_paths.get(editor)
         title = save_file_path.name if save_file_path is not None else self._draft_title(editor)
         return f"*{title}" if editor.document().isModified() else title
 
     def _draft_title(self, editor: TextEditor) -> str:
+        """Get the draft title for the given editor based on its content."""
         lines = editor.toPlainText().splitlines()
         first_line = lines[0].strip() if lines else ""
         if not first_line:
@@ -374,18 +414,22 @@ class MainWindow(QMainWindow):
         return first_line[:30]
 
     def _update_tab_titles(self) -> None:
+        """Update the titles of all tabs based on their current state."""
         for index in range(self.tab_widget.count()):
             widget = self.tab_widget.widget(index)
             if isinstance(widget, TextEditor):
                 self.tab_widget.setTabText(index, self._tab_title(widget))
 
     def _set_current_word_wrap_enabled(self, enabled: bool) -> None:
+        """Enable or disable word wrap for the current editor."""
         self.editor.set_word_wrap_enabled(enabled)
 
     def _set_current_line_numbers_enabled(self, enabled: bool) -> None:
+        """Enable or disable line numbers for the current editor."""
         self.editor.set_line_numbers_enabled(enabled)
 
     def _show_tab_context_menu(self, position: QPoint) -> None:
+        """Show the context menu for the tab at the given position."""
         tab_index = self.tab_widget.tabBar().tabAt(position)
         if tab_index < 0:
             return
@@ -403,6 +447,7 @@ class MainWindow(QMainWindow):
             self.move_tab_to_new_window(tab_index)
 
     def close_tab(self, tab_index: int) -> bool:
+        """Close the tab at the given index, prompting to save if necessary."""
         editor = self._editor_at(tab_index)
         if editor is None:
             return False
@@ -418,6 +463,7 @@ class MainWindow(QMainWindow):
         return True
 
     def duplicate_tab(self, tab_index: int) -> TextEditor | None:
+        """Duplicate the tab at the given index, creating a new editor with the same content."""
         editor = self._editor_at(tab_index)
         if editor is None:
             return None
@@ -432,6 +478,7 @@ class MainWindow(QMainWindow):
         return duplicate_editor
 
     def move_tab_to_new_window(self, tab_index: int) -> MainWindow | None:
+        """Move the tab at the given index to a new window."""
         editor = self._editor_at(tab_index)
         if editor is None:
             return None
@@ -440,8 +487,8 @@ class MainWindow(QMainWindow):
             settings_path=self.settings_manager.settings_path,
             restore_unsaved_backup=False,
         )
-        new_window._remove_tab(0)
-        new_window._create_editor_tab(
+        new_window.remove_tab(0)
+        new_window.create_editor_tab(
             text=editor.toPlainText(),
             save_file_path=self.tab_file_paths.get(editor),
             encoding=self.tab_encodings.get(editor, "utf-8"),
@@ -463,10 +510,12 @@ class MainWindow(QMainWindow):
         return new_window
 
     def _editor_at(self, tab_index: int) -> TextEditor | None:
+        """Return the editor widget at the given tab index, or None if it doesn't exist."""
         widget = self.tab_widget.widget(tab_index)
         return widget if isinstance(widget, TextEditor) else None
 
     def _remove_tab(self, tab_index: int) -> None:
+        """Remove the tab at the given index and clean up its associated resources."""
         editor = self._editor_at(tab_index)
         self.tab_widget.removeTab(tab_index)
         if editor is not None:
@@ -474,7 +523,12 @@ class MainWindow(QMainWindow):
             self.tab_encodings.pop(editor, None)
             editor.deleteLater()
 
+    def remove_tab(self, tab_index: int) -> None:
+        """Remove a tab without prompting to save."""
+        self._remove_tab(tab_index)
+
     def _restore_settings(self, settings: EditorSettings) -> None:
+        """Restore the main window and editor settings from the given EditorSettings object."""
         self.line_numbers_action.setChecked(settings.line_numbers_enabled)
         self.editor.set_line_numbers_enabled(settings.line_numbers_enabled)
         self.word_wrap_action.setChecked(settings.word_wrap_enabled)
@@ -486,6 +540,7 @@ class MainWindow(QMainWindow):
             self.resize(settings.window_width, settings.window_height)
 
     def _save_settings(self) -> None:
+        """Save the current main window and editor settings to the settings manager."""
         self.settings_manager.save(
             word_wrap_enabled=self.word_wrap_action.isChecked(),
             line_numbers_enabled=self.line_numbers_action.isChecked(),
@@ -500,6 +555,7 @@ class MainWindow(QMainWindow):
         )
 
     def set_language(self, language_code: str) -> None:
+        """Set the application's language and update the UI accordingly."""
         self.translator.set_language(language_code)
         self.english_action.setChecked(language_code == "en")
         self.japanese_action.setChecked(language_code == "ja")
@@ -507,6 +563,7 @@ class MainWindow(QMainWindow):
         self._save_settings()
 
     def _apply_language(self) -> None:
+        """Apply the current language to all UI elements."""
         self.file_menu.setTitle(self.translator.text("menu.file"))
         self.edit_menu.setTitle(self.translator.text("menu.edit"))
         self.search_menu.setTitle(self.translator.text("menu.search"))
@@ -556,11 +613,13 @@ class MainWindow(QMainWindow):
         self._update_window_title()
 
     def _rebuild_insert_tag_menu(self) -> None:
+        """Rebuild the insert tag menu based on the current language and available tag snippets."""
         self.insert_tag_menu.clear()
         self.insert_tag_menu.setTitle(self.translator.text("action.insert_tag"))
         self._populate_insert_tag_menu(self.insert_tag_menu)
 
     def _populate_insert_tag_menu(self, root_menu: QMenu) -> None:
+        """Populate the insert tag menu with tag snippet groups."""
         for group in ordered_tag_snippet_groups(self.current_save_file_path):
             group_menu = root_menu.addMenu(self.translator.text(group.label_key))
             assert group_menu is not None
@@ -578,6 +637,7 @@ class MainWindow(QMainWindow):
         group_menu: QMenu,
         group: TagSnippetGroup,
     ) -> None:
+        """Populate the WordPress tag mode submenus within the insert tag menu."""
         mode_label_keys = sorted(
             wordpress_mode_label_keys(),
             key=lambda mode_label_key: (
@@ -599,6 +659,7 @@ class MainWindow(QMainWindow):
         group_label_key: str,
         snippets: tuple[TagSnippet, ...],
     ) -> None:
+        """Populate a tag category menu with the given tag snippets."""
         category_menus: dict[str, QMenu] = {}
         for snippet in snippets:
             category_key = tag_snippet_category_key(group_label_key, snippet)
@@ -610,6 +671,7 @@ class MainWindow(QMainWindow):
             category_menu.addAction(self._create_tag_snippet_action(snippet))
 
     def _create_tag_snippet_action(self, snippet: TagSnippet) -> QAction:
+        """Create a QAction for the given tag snippet, including its label, hint, and triggered behavior."""
         label = self.translator.text(snippet.label_key)
         hint = self.translator.text(snippet.hint_key)
         action = QAction(label, self)
@@ -625,10 +687,12 @@ class MainWindow(QMainWindow):
         return action
 
     def _show_editor_context_menu(self, position: QPoint) -> None:
+        """Show the context menu for the editor at the given position."""
         context_menu = self._create_editor_context_menu()
         context_menu.exec(self.editor.mapToGlobal(position))
 
     def _create_editor_context_menu(self) -> QMenu:
+        """Create and return the context menu for the editor, including standard actions and the insert tag menu."""
         context_menu = self.editor.createStandardContextMenu()
         context_menu.addSeparator()
         context_menu.addAction(self.insert_tag_picker_action)
@@ -638,6 +702,7 @@ class MainWindow(QMainWindow):
         return context_menu
 
     def show_tag_insert_dialog(self) -> None:
+        """Show the tag insert dialog, allowing the user to select and insert a tag snippet."""
         if self.tag_insert_dialog is None:
             self.tag_insert_dialog = TagInsertDialog(self.translator, self)
 
@@ -653,6 +718,7 @@ class MainWindow(QMainWindow):
             self.insert_tag_snippet(selected_snippet)
 
     def show_options_dialog(self) -> None:
+        """Show the options dialog, allowing the user to modify editor and application settings."""
         settings = EditorSettings(
             word_wrap_enabled=self.word_wrap_action.isChecked(),
             line_numbers_enabled=self.line_numbers_action.isChecked(),
@@ -683,11 +749,13 @@ class MainWindow(QMainWindow):
         self._save_settings()
 
     def _unsaved_backup_path_for_folder(self, backup_folder: str) -> Path:
+        """Return the path to the unsaved backup file for the given backup folder."""
         if backup_folder:
             return Path(backup_folder) / "unsaved_backup.json"
         return Path(__file__).with_name("autosave") / "unsaved_backup.json"
 
     def _apply_editor_font_to_all_tabs(self) -> None:
+        """Apply the current editor font settings to all open tabs."""
         editor_font = QFont(self.font_family, self.font_size)
         for tab_index in range(self.tab_widget.count()):
             editor = self._editor_at(tab_index)
@@ -698,6 +766,7 @@ class MainWindow(QMainWindow):
             editor.update_line_number_area_width()
 
     def insert_tag_snippet(self, snippet: TagSnippet) -> None:
+        """Insert the given tag snippet into the current editor at the cursor position."""
         cursor = self.editor.textCursor()
         insert_start = cursor.selectionStart()
         selected_text = cursor.selectedText().replace("\u2029", "\n")
@@ -711,6 +780,7 @@ class MainWindow(QMainWindow):
         self.editor.setFocus()
 
     def _update_status_bar(self) -> None:
+        """Update the status bar with the current cursor position and character count."""
         cursor = self.editor.textCursor()
         line_number = cursor.blockNumber() + 1
         column_number = cursor.positionInBlock() + 1
@@ -725,6 +795,7 @@ class MainWindow(QMainWindow):
         )
 
     def _update_window_title(self) -> None:
+        """Update the main window title to reflect the current document name and modification status."""
         load_file_path = self.current_save_file_path
         document_name = (
             load_file_path.name
@@ -737,6 +808,7 @@ class MainWindow(QMainWindow):
         )
 
     def _confirm_discard_changes(self) -> bool:
+        """Prompt the user to confirm discarding unsaved changes in the current editor."""
         if not self.editor.document().isModified():
             return True
 
@@ -750,6 +822,7 @@ class MainWindow(QMainWindow):
         return result == QMessageBox.StandardButton.Yes
 
     def _confirm_save_or_discard_editor(self, editor: TextEditor) -> bool:
+        """Prompt the user to save or discard changes for the given editor, returning True if it's safe to proceed."""
         if not editor.document().isModified():
             return True
 
@@ -775,10 +848,12 @@ class MainWindow(QMainWindow):
         return self.save_file()
 
     def new_file(self) -> None:
+        """Create a new editor tab with an untitled document."""
         self._create_editor_tab()
         self._update_window_title()
 
     def open_file(self, encoding: str | None = None) -> None:
+        """Open a file dialog to select and load a text file into a new editor tab."""
         selected_path, _ = QFileDialog.getOpenFileName(
             self,
             self.translator.text("dialog.open.title"),
@@ -811,6 +886,7 @@ class MainWindow(QMainWindow):
         self._set_encoding_status()
 
     def reload_file(self, encoding: str | None = None) -> None:
+        """Reload the current file from disk, optionally using a specified encoding."""
         if self.current_save_file_path is None:
             self._set_search_error(self.translator.text("dialog.reload_no_file"))
             return
@@ -845,11 +921,13 @@ class MainWindow(QMainWindow):
         self._set_encoding_status()
 
     def save_file(self) -> bool:
+        """Save the current file, returning True if successful."""
         if self.current_save_file_path is None:
             return self.save_file_as()
         return self._save_to_path(self.current_save_file_path)
 
     def save_file_as(self) -> bool:
+        """Prompt the user to select a save location and save the current file, returning True if successful."""
         selected_save_file_path, selected_encoding = self._get_save_file_path()
         if selected_save_file_path is None:
             return False
@@ -857,6 +935,7 @@ class MainWindow(QMainWindow):
         return self._save_to_path(selected_save_file_path)
 
     def _get_save_file_path(self) -> tuple[Path | None, str]:
+        """Show the save file dialog and return the selected file path and encoding."""
         dialog = QFileDialog(self, self.translator.text("dialog.save_as.title"))
         dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
@@ -893,6 +972,7 @@ class MainWindow(QMainWindow):
         return Path(selected_files[0]), str(encoding_combo_box.currentData())
 
     def _save_to_path(self, save_file_path: Path) -> bool:
+        """Save the current editor content to the specified file path, returning True if successful."""
         save_data = self.editor.toPlainText()
         try:
             self.file_manager.save_text(save_file_path, save_data, self.current_encoding)
@@ -911,6 +991,7 @@ class MainWindow(QMainWindow):
         return True
 
     def _save_unsaved_backup(self) -> None:
+        """Save an unsaved backup of the current editor content if enabled and modified."""
         if not self.unsaved_backup_enabled:
             return
         if not self.editor.document().isModified():
@@ -930,6 +1011,7 @@ class MainWindow(QMainWindow):
         )
 
     def _restore_unsaved_backup_if_available(self) -> None:
+        """Restore an unsaved backup if available and prompt the user for confirmation."""
         if not self.unsaved_backup_enabled:
             return
         backup = self.unsaved_backup_manager.load()
@@ -956,10 +1038,12 @@ class MainWindow(QMainWindow):
         self._set_encoding_status()
 
     def _clear_unsaved_backup(self) -> None:
+        """Clear the unsaved backup if it exists and unsaved backups are enabled."""
         if self.unsaved_backup_enabled:
             self.unsaved_backup_manager.clear()
 
     def show_find_replace_dialog(self) -> None:
+        """Show the find and replace dialog, initializing it with the current selection if available."""
         if self.find_replace_dialog is None:
             self.find_replace_dialog = FindReplaceDialog(self.translator, self)
             self.find_replace_dialog.find_requested.connect(self.find_next)
@@ -995,6 +1079,7 @@ class MainWindow(QMainWindow):
         self.find_replace_dialog.activateWindow()
 
     def find_next(self, search_text: str, options: SearchOptions) -> None:
+        """Find the next occurrence of the search text using the specified search options.""" 
         if not search_text:
             self._set_search_error(self.translator.text("search.empty"))
             return
@@ -1035,6 +1120,7 @@ class MainWindow(QMainWindow):
         self._set_search_status(self.translator.text("search.match_found"))
 
     def find_previous(self, search_text: str, options: SearchOptions) -> None:
+        """Find the previous occurrence of the search text using the specified search options."""
         if not search_text:
             self._set_search_error(self.translator.text("search.empty"))
             return
@@ -1084,6 +1170,7 @@ class MainWindow(QMainWindow):
         replace_text: str,
         options: SearchOptions,
     ) -> None:
+        """Replace the currently selected occurrence of the search text with the replacement text using the specified search options."""
         if not search_text:
             self._set_search_error(self.translator.text("search.empty"))
             return
@@ -1151,6 +1238,7 @@ class MainWindow(QMainWindow):
         replace_text: str,
         options: SearchOptions,
     ) -> None:
+        """Replace all occurrences of the search text with the replacement text using the specified search options."""
         if not search_text:
             self._set_search_error(self.translator.text("search.empty"))
             return
@@ -1199,6 +1287,7 @@ class MainWindow(QMainWindow):
         replace_text: str,
         options: SearchOptions,
     ) -> None:
+        """Replace all marked occurrences of the search text with the replacement text using the specified search options."""
         if not search_text:
             self._set_search_error(self.translator.text("search.empty"))
             return
@@ -1252,6 +1341,7 @@ class MainWindow(QMainWindow):
         search_text: str,
         options: SearchOptions,
     ) -> None:
+        """Update the search highlights in the editor based on the current search text and options."""
         if not search_text:
             self.editor.clear_search_matches()
             return
@@ -1280,6 +1370,7 @@ class MainWindow(QMainWindow):
         )
 
     def _refresh_search_highlights_from_dialog(self) -> None:
+        """Refresh the search highlights in the editor based on the current state of the find and replace dialog."""
         if self.find_replace_dialog is None or not self.find_replace_dialog.isVisible():
             return
         self.update_search_highlights(
@@ -1293,6 +1384,7 @@ class MainWindow(QMainWindow):
         replace_text: str,
         options: SearchOptions,
     ) -> None:
+        """Preview the matches for the current search and replacement settings in the find and replace dialog."""
         if self.find_replace_dialog is None:
             return
         if not search_text:
@@ -1335,6 +1427,7 @@ class MainWindow(QMainWindow):
         self._set_search_status(summary)
 
     def show_regex_help_dialog(self) -> None:
+        """Show the regex help dialog, initializing it if necessary."""
         if self.regex_help_dialog is None:
             regex_help_paths = {
                 "EN_Ver.": self.resources_path / "regex_help_en.json",
@@ -1354,6 +1447,7 @@ class MainWindow(QMainWindow):
         self.regex_help_dialog.activateWindow()
 
     def show_user_help_dialog(self) -> None:
+        """Show the user help dialog, initializing it if necessary."""
         if self.user_help_dialog is None:
             self.user_help_dialog = UserHelpDialog(self.translator, self)
 
@@ -1362,12 +1456,14 @@ class MainWindow(QMainWindow):
         self.user_help_dialog.activateWindow()
 
     def _insert_regex_pattern(self, pattern: str) -> None:
+        """Insert the given regex pattern into the find text field of the find and replace dialog."""
         if self.find_replace_dialog is None:
             self.show_find_replace_dialog()
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.insert_find_text(pattern)
 
     def _search_scope_text(self, options: SearchOptions) -> tuple[str | None, int]:
+        """Determine the text and offset for the current search scope based on the search options."""
         if not options.selected_only and not options.visible_only:
             return None, 0
 
@@ -1402,6 +1498,7 @@ class MainWindow(QMainWindow):
         return source_text[scope_start:scope_end], scope_start
 
     def _selected_search_bounds(self, source_length: int) -> tuple[int, int] | None:
+        """Determine the start and end bounds of the selected text for searching, or return None if no valid selection exists."""
         if self.search_scope is None:
             cursor = self.editor.textCursor()
             if not cursor.hasSelection():
@@ -1417,6 +1514,7 @@ class MainWindow(QMainWindow):
         return scope_start, scope_end
 
     def _visible_search_bounds(self, source_length: int) -> tuple[int, int] | None:
+        """Determine the start and end bounds of the visible text for searching, or return None if no valid visible text exists."""
         first_block = self.editor.firstVisibleBlock()
         if not first_block.isValid():
             return None
@@ -1459,6 +1557,7 @@ class MainWindow(QMainWindow):
         scope_offset: int,
         scope_length: int,
     ) -> bool:
+        """Check if the given match is entirely within the specified search scope."""
         return scope_offset <= match.start and match.end <= scope_offset + scope_length
 
     def _preview_rows(
@@ -1470,6 +1569,7 @@ class MainWindow(QMainWindow):
         options: SearchOptions,
         scope_offset: int,
     ) -> list[tuple[int, str, str]]:
+        """Generate a preview of the replacement results for the given matches within the specified search scope."""
         rows: list[tuple[int, str, str]] = []
         for match in matches[:200]:
             absolute_start = scope_offset + match.start
@@ -1496,6 +1596,7 @@ class MainWindow(QMainWindow):
         return rows
 
     def _line_context(self, source_text: str, match: SearchMatch) -> str:
+        """Extract the context of the line containing the given match, highlighting the match itself."""
         line_start = source_text.rfind("\n", 0, match.start) + 1
         line_end = source_text.find("\n", match.end)
         if line_end == -1:
@@ -1511,6 +1612,7 @@ class MainWindow(QMainWindow):
         match: SearchMatch,
         replacement_text: str,
     ) -> str:
+        """Extract the context of the line containing the given match, showing the replacement text in place of the match."""
         line_start = source_text.rfind("\n", 0, match.start) + 1
         line_end = source_text.find("\n", match.end)
         if line_end == -1:
@@ -1520,12 +1622,14 @@ class MainWindow(QMainWindow):
         return self._visible_preview_text(f"{prefix}{replacement_text}{suffix}")
 
     def _visible_preview_text(self, text: str) -> str:
+        """Convert the given text into a visible preview by escaping tabs and newlines, and truncating if necessary."""
         visible_text = text.replace("\t", "\\t").replace("\n", "\\n")
         if len(visible_text) > 140:
             return f"{visible_text[:137]}..."
         return visible_text
 
     def _replace_document_text(self, text: str) -> None:
+        """Replace the entire text of the document in the editor with the given text."""
         cursor = self.editor.textCursor()
         cursor.beginEditBlock()
         cursor.select(QTextCursor.SelectionType.Document)
@@ -1533,6 +1637,7 @@ class MainWindow(QMainWindow):
         cursor.endEditBlock()
 
     def _select_match(self, match: SearchMatch) -> None:
+        """Select the text corresponding to the given match in the editor and focus the editor."""
         cursor = self.editor.textCursor()
         cursor.setPosition(self.editor.text_position_to_cursor_position(match.start))
         cursor.setPosition(
@@ -1543,27 +1648,32 @@ class MainWindow(QMainWindow):
         self.editor.setFocus()
 
     def _set_cursor_position(self, position: int) -> None:
+        """Set the cursor position in the editor to the specified text position."""
         cursor = self.editor.textCursor()
         cursor.setPosition(self.editor.text_position_to_cursor_position(position))
         self.editor.setTextCursor(cursor)
 
     def _set_search_error(self, message: str) -> None:
+        """Display the given search error message in the find and replace dialog and the status bar."""
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.set_error(message)
         self.statusBar().showMessage(message)
 
     def _set_search_status(self, message: str) -> None:
+        """Display the given search status message in the status bar and clear any error in the find and replace dialog."""
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.clear_error()
         self.statusBar().showMessage(message)
 
     def _set_encoding_status(self) -> None:
+        """Display the current encoding status in the status bar."""
         self.statusBar().showMessage(
             self.translator.text("status.encoding", encoding=self.current_encoding)
         )
 
 
 def main() -> int:
+    """Entry point for the application."""
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()

@@ -1,0 +1,9 @@
+regex-pad license notice
+========================
+
+This package is prepared for office/internal use by the project owner unless a separate license is provided.
+
+Third-party Python modules remain under their own licenses.
+Before redistribution, review the licenses of all bundled dependencies and generated artifacts.
+
+No warranty is provided. Use at your own risk.
