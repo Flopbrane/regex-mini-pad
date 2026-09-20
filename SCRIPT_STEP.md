@@ -373,11 +373,11 @@ Completed:
 
 Follow-up candidates:
 
-1. Move existing View toggles into options
-   - Line numbers.
-   - Word wrap.
-   - Ruler.
-   - Visible spaces, tabs, and newlines.
+1. Complete visible whitespace rendering
+   - Draw half-width spaces.
+   - Draw tabs.
+   - Draw newline marks.
+   - Use the saved `visible_spaces_enabled`, `visible_tabs_enabled`, and `visible_newlines_enabled` flags.
 
 2. Backup detail options
    - Backup interval.
@@ -385,10 +385,80 @@ Follow-up candidates:
    - Backup retention days.
    - Multi-tab backup restore behavior.
 
-3. Search color options
-   - Search marker color.
-   - Current match marker color.
+3. Search option expansion
    - Regex lint display behavior.
+   - Consider free color selection later if presets are not enough.
+
+## Step11-section8 View And Search Options
+
+Completed:
+
+- Moved existing View toggles into the Options window:
+  - Line numbers.
+  - Word wrap.
+- Added `Ruler` / `文字数ルーラー` as both:
+  - A View menu toggle.
+  - An Options > View setting.
+- Implemented the lightweight character ruler:
+  - `editor/ruler.py` now draws character-position ticks.
+  - It follows the current editor font.
+  - It follows horizontal scroll position.
+  - It aligns with the line-number margin.
+- Added Search color options:
+  - Search marker color.
+  - Current match marker color.
+  - Preset colors are used first to keep the setting simple and stable.
+- Stored the new settings in local `settings.json` through `EditorSettings`:
+  - `ruler_enabled`
+  - `search_marker_color`
+  - `current_match_marker_color`
+- Applied View and Search settings to all open tabs.
+- Added a small foundation for future visible whitespace rendering:
+  - Options > View now has separate checkboxes for spaces, TABs, and newlines.
+  - `EditorSettings` persists:
+    - `visible_spaces_enabled`
+    - `visible_tabs_enabled`
+    - `visible_newlines_enabled`
+  - `TextEditor.set_visible_whitespace_options()` stores those flags and requests a viewport update.
+  - Actual drawing of the visible whitespace marks is intentionally left for the next implementation step.
+- Fixed the main-window action initialization so Undo / Redo / Select All call the current editor lazily instead of reading `self.editor` before the first tab exists.
+- Updated Japanese and English Options text for the new visible whitespace checkboxes.
+- Updated tests for the new Options values and saved settings.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+```
+
+Latest result:
+
+```text
+pytest: 104 passed
+ruff: All checks passed
+pyright: 0 errors, 0 warnings, 0 informations
+JSON validation: app_text_en.json OK, app_text_ja.json OK
+```
+
+Follow-up candidates:
+
+1. Visible whitespace drawing
+   - Draw half-width spaces without changing document text.
+   - Draw TAB marks using the existing tab width.
+   - Draw newline marks at line ends.
+   - Keep marks subtle enough not to interfere with search highlights.
+
+2. Visible whitespace tests
+   - Add focused tests for storing and applying the three flags.
+   - If paint behavior is hard to assert directly, separate calculation of mark positions from painting.
+
+3. Ruler polish
+   - Consider a wrap-column marker.
+   - Consider click-to-set wrap column after ruler behavior stabilizes.
 
 ## Priority Implementation Queue From 2026-09-15
 

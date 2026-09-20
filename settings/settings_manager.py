@@ -10,6 +10,10 @@ from typing import Any
 class EditorSettings:
     word_wrap_enabled: bool = False
     line_numbers_enabled: bool = True
+    ruler_enabled: bool = False
+    visible_spaces_enabled: bool = False
+    visible_tabs_enabled: bool = False
+    visible_newlines_enabled: bool = False
     language_code: str = "ja"
     window_width: int = 900
     window_height: int = 650
@@ -18,6 +22,8 @@ class EditorSettings:
     backup_folder: str = ""
     font_family: str = "Consolas"
     font_size: int = 11
+    search_marker_color: str = "#ffff00"
+    current_match_marker_color: str = "#ff9900"
 
 
 class SettingsManager:
@@ -38,6 +44,14 @@ class SettingsManager:
         return EditorSettings(
             word_wrap_enabled=bool(load_data.get("word_wrap_enabled", False)),
             line_numbers_enabled=bool(load_data.get("line_numbers_enabled", True)),
+            ruler_enabled=bool(load_data.get("ruler_enabled", False)),
+            visible_spaces_enabled=bool(
+                load_data.get("visible_spaces_enabled", False)
+            ),
+            visible_tabs_enabled=bool(load_data.get("visible_tabs_enabled", False)),
+            visible_newlines_enabled=bool(
+                load_data.get("visible_newlines_enabled", False)
+            ),
             language_code=str(load_data.get("language_code", "ja")),
             window_width=int(load_data.get("window_width", 900)),
             window_height=int(load_data.get("window_height", 650)),
@@ -48,6 +62,10 @@ class SettingsManager:
             backup_folder=str(load_data.get("backup_folder", "")),
             font_family=str(load_data.get("font_family", "Consolas")),
             font_size=int(load_data.get("font_size", 11)),
+            search_marker_color=str(load_data.get("search_marker_color", "#ffff00")),
+            current_match_marker_color=str(
+                load_data.get("current_match_marker_color", "#ff9900")
+            ),
         )
 
     def save(
@@ -55,6 +73,10 @@ class SettingsManager:
         *,
         word_wrap_enabled: bool,
         line_numbers_enabled: bool,
+        ruler_enabled: bool,
+        visible_spaces_enabled: bool,
+        visible_tabs_enabled: bool,
+        visible_newlines_enabled: bool,
         language_code: str,
         window_width: int,
         window_height: int,
@@ -63,10 +85,16 @@ class SettingsManager:
         backup_folder: str = "",
         font_family: str = "Consolas",
         font_size: int = 11,
+        search_marker_color: str = "#ffff00",
+        current_match_marker_color: str = "#ff9900",
     ) -> None:
         save_data = {
             "word_wrap_enabled": word_wrap_enabled,
             "line_numbers_enabled": line_numbers_enabled,
+            "ruler_enabled": ruler_enabled,
+            "visible_spaces_enabled": visible_spaces_enabled,
+            "visible_tabs_enabled": visible_tabs_enabled,
+            "visible_newlines_enabled": visible_newlines_enabled,
             "language_code": language_code,
             "window_width": window_width,
             "window_height": window_height,
@@ -75,6 +103,8 @@ class SettingsManager:
             "backup_folder": backup_folder,
             "font_family": font_family,
             "font_size": font_size,
+            "search_marker_color": search_marker_color,
+            "current_match_marker_color": current_match_marker_color,
         }
         self.settings_path.write_text(
             json.dumps(save_data, indent=2),

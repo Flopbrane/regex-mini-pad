@@ -25,12 +25,18 @@ class TextEditor(QPlainTextEdit):
         self.search_marker_area = SearchMarkerArea(self)
         self.line_numbers_enabled = True
         self.search_matches: list[SearchMatch] = []
+        self.search_marker_color = "#ffff00"
+        self.current_match_marker_color = "#ff9900"
+        self.visible_spaces_enabled = False
+        self.visible_tabs_enabled = False
+        self.visible_newlines_enabled = False
 
         self.setFont(QFont("Consolas", 11))
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.setTabStopDistance(self.fontMetrics().horizontalAdvance(" ") * 4)
         self.blockCountChanged.connect(self.update_line_number_area_width)
         self.updateRequest.connect(self.update_line_number_area)
+        self.cursorPositionChanged.connect(self._apply_search_highlights)
         self.update_editor_margins()
 
     def set_word_wrap_enabled(self, enabled: bool) -> None:
@@ -120,23 +126,54 @@ class TextEditor(QPlainTextEdit):
     def clear_search_matches(self) -> None:
         self.set_search_matches([])
 
+    def set_search_marker_colors(
+        self,
+        search_marker_color: str,
+        current_match_marker_color: str,
+    ) -> None:
+        self.search_marker_color = search_marker_color
+        self.current_match_marker_color = current_match_marker_color
+        self._apply_search_highlights()
+        self.search_marker_area.update()
+
+    def set_visible_whitespace_options(
+        self,
+        *,
+        spaces_enabled: bool,
+        tabs_enabled: bool,
+        newlines_enabled: bool,
+    ) -> None:
+        self.visible_spaces_enabled = spaces_enabled
+        self.visible_tabs_enabled = tabs_enabled
+        self.visible_newlines_enabled = newlines_enabled
+        self.viewport().update()
+
     def _apply_search_highlights(self) -> None:
         highlight_format = QTextCharFormat()
-        highlight_format.setBackground(QColor("#ffff00"))
+        highlight_format.setBackground(QColor(self.search_marker_color))
+        current_highlight_format = QTextCharFormat()
+        current_highlight_format.setBackground(QColor(self.current_match_marker_color))
 
         selections: list[QTextEdit.ExtraSelection] = []
+        cursor = self.textCursor()
+        selection_start = self.cursor_position_to_text_position(cursor.selectionStart())
+        selection_end = self.cursor_position_to_text_position(cursor.selectionEnd())
         for match in self.search_matches[:1000]:
             if match.start == match.end:
                 continue
             selection = QTextEdit.ExtraSelection()
-            selection.format = highlight_format
-            cursor = QTextCursor(self.document())
-            cursor.setPosition(self.text_position_to_cursor_position(match.start))
-            cursor.setPosition(
+            selection.format = (
+                current_highlight_format
+                if match.start == selection_start and match.end == selection_end
+                else highlight_format
+            )
+            match_cursor = QTextCursor(self.document())
+            match_cursor.setPosition(self.text_position_to_cursor_position(match.start))
+            match_cursor.setPosition(
                 self.text_position_to_cursor_position(match.end),
                 QTextCursor.MoveMode.KeepAnchor,
             )
-            selection.cursor = cursor
+            selection.cursor = match_cursor
             selections.append(selection)
         self.setExtraSelections(selections)
 
@@ -194,7 +231,7 @@ class TextEditor(QPlainTextEdit):
             return
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor("#ffff00"))
+        painter.setBrush(QColor(self.search_marker_color))
         area_width = self.search_marker_area.width()
         area_height = max(1, self.search_marker_area.height())
         block_count = max(1, self.blockCount())

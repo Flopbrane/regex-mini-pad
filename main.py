@@ -41,6 +41,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QStatusBar,
     QTabWidget,
     QVBoxLayout,
+    QWidget,
 )
 
 from dialogs.find_replace_dialog import FindReplaceDialog
@@ -48,6 +49,7 @@ from dialogs.options_dialog import OptionsDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
 from dialogs.user_help_dialog import UserHelpDialog
+from editor.ruler import Ruler
 from editor.tag_insert import (
     WORDPRESS_GROUP_LABEL_KEY,
     TagSnippet,
@@ -116,6 +118,11 @@ class MainWindow(QMainWindow):
         self.backup_folder = settings.backup_folder
         self.font_family = settings.font_family
         self.font_size = settings.font_size
+        self.search_marker_color = settings.search_marker_color
+        self.current_match_marker_color = settings.current_match_marker_color
+        self.visible_spaces_enabled = settings.visible_spaces_enabled
+        self.visible_tabs_enabled = settings.visible_tabs_enabled
+        self.visible_newlines_enabled = settings.visible_newlines_enabled
         self.tab_file_paths: dict[TextEditor, Path | None] = {}
         self.tab_encodings: dict[TextEditor, str] = {}
         self.tab_windows: list[MainWindow] = []
@@ -133,7 +140,15 @@ class MainWindow(QMainWindow):
         self.tab_widget.tabBar().customContextMenuRequested.connect(
             self._show_tab_context_menu
         )
-        self.setCentralWidget(self.tab_widget)
+        self.ruler = Ruler(self)
+        central_widget = QWidget(self)
+        central_layout = QVBoxLayout()
+        central_layout.setContentsMargins(0, 0, 0, 0)
+        central_layout.setSpacing(0)
+        central_layout.addWidget(self.ruler)
+        central_layout.addWidget(self.tab_widget)
+        central_widget.setLayout(central_layout)
+        self.setCentralWidget(central_widget)
 
         self.resize(900, 650)
         self._create_actions()
@@ -210,13 +225,13 @@ class MainWindow(QMainWindow):
 
         self.undo_action = QAction("&Undo", self)
         self.undo_action.setShortcut("Ctrl+Z")
-        self.undo_action.triggered.connect(self.editor.undo)
+        self.undo_action.triggered.connect(self.editor.undo())
 
         self.redo_action = QAction("&Redo", self)
         self.redo_action.setShortcuts(
             [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")]
         )
-        self.redo_action.triggered.connect(self.editor.redo)
+        self.redo_action.triggered.connect(self.editor.redo())
 
         self.select_all_action = QAction("Select &All", self)
         self.select_all_action.setShortcut("Ctrl+A")
@@ -238,6 +253,10 @@ class MainWindow(QMainWindow):
         self.line_numbers_action = QAction(self)
         self.line_numbers_action.setCheckable(True)
         self.line_numbers_action.toggled.connect(self._set_current_line_numbers_enabled)
+
+        self.ruler_action = QAction(self)
+        self.ruler_action.setCheckable(True)
+        self.ruler_action.toggled.connect(self._set_ruler_enabled)
 
         self.options_action = QAction(self)
         self.options_action.setShortcut("Ctrl+,")
@@ -294,6 +313,7 @@ class MainWindow(QMainWindow):
         self.view_menu = QMenu(self)
         self.view_menu.addAction(self.line_numbers_action)
         self.view_menu.addAction(self.word_wrap_action)
+        self.view_menu.addAction(self.ruler_action)
         menu_bar.addMenu(self.view_menu)
 
         self.options_menu = QMenu(self)
@@ -333,6 +353,15 @@ class MainWindow(QMainWindow):
         )
         editor.set_word_wrap_enabled(
             word_wrap_action.isChecked() if isinstance(word_wrap_action, QAction) else False
+        )
+        editor.set_search_marker_colors(
+            self.search_marker_color,
+            self.current_match_marker_color,
+        )
+        editor.set_visible_whitespace_options(
+            spaces_enabled=self.visible_spaces_enabled,
+            tabs_enabled=self.visible_tabs_enabled,
+            newlines_enabled=self.visible_newlines_enabled,
         )
         editor.setFont(QFont(self.font_family, self.font_size))
         editor.setTabStopDistance(editor.fontMetrics().horizontalAdvance(" ") * 4)
@@ -375,6 +404,7 @@ class MainWindow(QMainWindow):
             return
         if isinstance(widget, TextEditor):
             self.editor = widget
+            self.ruler.set_editor(widget)
             self._sync_current_tab_state()
         self.search_scope = None
         self._update_status_bar()
@@ -421,12 +451,23 @@ class MainWindow(QMainWindow):
                 self.tab_widget.setTabText(index, self._tab_title(widget))
 
     def _set_current_word_wrap_enabled(self, enabled: bool) -> None:
-        """Enable or disable word wrap for the current editor."""
-        self.editor.set_word_wrap_enabled(enabled)
+        """Enable or disable word wrap for all open editors."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None:
+                editor.set_word_wrap_enabled(enabled)
 
     def _set_current_line_numbers_enabled(self, enabled: bool) -> None:
-        """Enable or disable line numbers for the current editor."""
-        self.editor.set_line_numbers_enabled(enabled)
+        """Enable or disable line numbers for all open editors."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None:
+                editor.set_line_numbers_enabled(enabled)
+        self.ruler.update()
+
+    def _set_ruler_enabled(self, enabled: bool) -> None:
+        """Enable or disable the character ruler."""
+        self.ruler.setVisible(enabled)
 
     def _show_tab_context_menu(self, position: QPoint) -> None:
         """Show the context menu for the tab at the given position."""
@@ -530,9 +571,16 @@ class MainWindow(QMainWindow):
     def _restore_settings(self, settings: EditorSettings) -> None:
         """Restore the main window and editor settings from the given EditorSettings object."""
         self.line_numbers_action.setChecked(settings.line_numbers_enabled)
-        self.editor.set_line_numbers_enabled(settings.line_numbers_enabled)
         self.word_wrap_action.setChecked(settings.word_wrap_enabled)
-        self.editor.set_word_wrap_enabled(settings.word_wrap_enabled)
+        self.ruler_action.setChecked(settings.ruler_enabled)
+        self._set_ruler_enabled(settings.ruler_enabled)
+        self.search_marker_color = settings.search_marker_color
+        self.current_match_marker_color = settings.current_match_marker_color
+        self._apply_search_marker_colors_to_all_tabs()
+        self.visible_spaces_enabled = settings.visible_spaces_enabled
+        self.visible_tabs_enabled = settings.visible_tabs_enabled
+        self.visible_newlines_enabled = settings.visible_newlines_enabled
+        self._apply_visible_whitespace_options_to_all_tabs()
         self._apply_editor_font_to_all_tabs()
         self.english_action.setChecked(settings.language_code == "en")
         self.japanese_action.setChecked(settings.language_code != "en")
@@ -544,6 +592,10 @@ class MainWindow(QMainWindow):
         self.settings_manager.save(
             word_wrap_enabled=self.word_wrap_action.isChecked(),
             line_numbers_enabled=self.line_numbers_action.isChecked(),
+            ruler_enabled=self.ruler_action.isChecked(),
+            visible_spaces_enabled=self.visible_spaces_enabled,
+            visible_tabs_enabled=self.visible_tabs_enabled,
+            visible_newlines_enabled=self.visible_newlines_enabled,
             language_code=self.translator.language_code,
             window_width=self.width(),
             window_height=self.height(),
@@ -552,6 +604,8 @@ class MainWindow(QMainWindow):
             backup_folder=self.backup_folder,
             font_family=self.font_family,
             font_size=self.font_size,
+            search_marker_color=self.search_marker_color,
+            current_match_marker_color=self.current_match_marker_color,
         )
 
     def set_language(self, language_code: str) -> None:
@@ -594,6 +648,7 @@ class MainWindow(QMainWindow):
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
+        self.ruler_action.setText(self.translator.text("options.item.ruler"))
         self.options_action.setText(self.translator.text("action.options"))
         self.user_help_action.setText(self.translator.text("action.user_help"))
         self.english_action.setText(self.translator.text("language.english"))
@@ -722,6 +777,10 @@ class MainWindow(QMainWindow):
         settings = EditorSettings(
             word_wrap_enabled=self.word_wrap_action.isChecked(),
             line_numbers_enabled=self.line_numbers_action.isChecked(),
+            ruler_enabled=self.ruler_action.isChecked(),
+            visible_spaces_enabled=self.visible_spaces_enabled,
+            visible_tabs_enabled=self.visible_tabs_enabled,
+            visible_newlines_enabled=self.visible_newlines_enabled,
             language_code=self.translator.language_code,
             window_width=self.width(),
             window_height=self.height(),
@@ -730,21 +789,33 @@ class MainWindow(QMainWindow):
             backup_folder=self.backup_folder,
             font_family=self.font_family,
             font_size=self.font_size,
+            search_marker_color=self.search_marker_color,
+            current_match_marker_color=self.current_match_marker_color,
         )
         dialog = OptionsDialog(self.translator, settings, self)
         self.options_dialog = dialog
         if dialog.exec() != OptionsDialog.DialogCode.Accepted:
             return
         values = dialog.values()
+        self.line_numbers_action.setChecked(values.line_numbers_enabled)
+        self.word_wrap_action.setChecked(values.word_wrap_enabled)
+        self.ruler_action.setChecked(values.ruler_enabled)
         self.wordpress_mode_label_key = values.wordpress_mode_label_key
         self.hover_hints_enabled = values.hover_hints_enabled
         self.backup_folder = values.backup_folder
         self.font_family = values.font_family
         self.font_size = values.font_size
+        self.search_marker_color = values.search_marker_color
+        self.current_match_marker_color = values.current_match_marker_color
+        self.visible_spaces_enabled = values.visible_spaces_enabled
+        self.visible_tabs_enabled = values.visible_tabs_enabled
+        self.visible_newlines_enabled = values.visible_newlines_enabled
         self.unsaved_backup_manager = UnsavedBackupManager(
             self._unsaved_backup_path_for_folder(self.backup_folder)
         )
         self._apply_editor_font_to_all_tabs()
+        self._apply_search_marker_colors_to_all_tabs()
+        self._apply_visible_whitespace_options_to_all_tabs()
         self._rebuild_insert_tag_menu()
         self._save_settings()
 
@@ -764,6 +835,28 @@ class MainWindow(QMainWindow):
             editor.setFont(editor_font)
             editor.setTabStopDistance(editor.fontMetrics().horizontalAdvance(" ") * 4)
             editor.update_line_number_area_width()
+        self.ruler.set_editor(self.editor)
+
+    def _apply_search_marker_colors_to_all_tabs(self) -> None:
+        """Apply the current search marker colors to all open tabs."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None:
+                editor.set_search_marker_colors(
+                    self.search_marker_color,
+                    self.current_match_marker_color,
+                )
+
+    def _apply_visible_whitespace_options_to_all_tabs(self) -> None:
+        """Apply visible whitespace option flags to all open tabs."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None:
+                editor.set_visible_whitespace_options(
+                    spaces_enabled=self.visible_spaces_enabled,
+                    tabs_enabled=self.visible_tabs_enabled,
+                    newlines_enabled=self.visible_newlines_enabled,
+                )
 
     def insert_tag_snippet(self, snippet: TagSnippet) -> None:
         """Insert the given tag snippet into the current editor at the cursor position."""

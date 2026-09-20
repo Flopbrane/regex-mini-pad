@@ -23,14 +23,31 @@ from editor.tag_insert import wordpress_mode_label_keys
 from localization.translator import Translator
 from settings.settings_manager import EditorSettings
 
+COLOR_PRESETS: tuple[tuple[str, str], ...] = (
+    ("Yellow", "#ffff00"),
+    ("Orange", "#ff9900"),
+    ("Green", "#b6f2a5"),
+    ("Blue", "#9ed8ff"),
+    ("Pink", "#ffb3d9"),
+    ("Gray", "#d9d9d9"),
+)
+
 
 @dataclass(frozen=True)
 class OptionsDialogValues:
+    word_wrap_enabled: bool
+    line_numbers_enabled: bool
+    ruler_enabled: bool
+    visible_spaces_enabled: bool
+    visible_tabs_enabled: bool
+    visible_newlines_enabled: bool
     wordpress_mode_label_key: str
     hover_hints_enabled: bool
     backup_folder: str
     font_family: str
     font_size: int
+    search_marker_color: str
+    current_match_marker_color: str
 
 
 class OptionsDialog(QDialog):
@@ -45,12 +62,20 @@ class OptionsDialog(QDialog):
         self.wordpress_mode_keys = wordpress_mode_label_keys()
 
         self.tabs = QTabWidget(self)
+        self.line_numbers_checkbox = QCheckBox(self)
+        self.word_wrap_checkbox = QCheckBox(self)
+        self.ruler_checkbox = QCheckBox(self)
+        self.visible_spaces_checkbox = QCheckBox(self)
+        self.visible_tabs_checkbox = QCheckBox(self)
+        self.visible_newlines_checkbox = QCheckBox(self)
         self.wordpress_mode_combo = QComboBox(self)
         self.hover_hints_checkbox = QCheckBox(self)
         self.backup_folder_edit = QLineEdit(self)
         self.backup_folder_button = QPushButton(self)
         self.font_family_combo = QComboBox(self)
         self.font_size_spin = QSpinBox(self)
+        self.search_marker_color_combo = QComboBox(self)
+        self.current_match_marker_color_combo = QComboBox(self)
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok
             | QDialogButtonBox.StandardButton.Cancel,
@@ -76,12 +101,32 @@ class OptionsDialog(QDialog):
         ):
             self.tabs.setTabText(index, self.translator.text(key))
 
+        self.line_numbers_checkbox.setText(
+            self.translator.text("options.item.line_numbers")
+        )
+        self.word_wrap_checkbox.setText(self.translator.text("options.item.word_wrap"))
+        self.ruler_checkbox.setText(self.translator.text("options.item.ruler"))
+        self.visible_spaces_checkbox.setText(
+            self.translator.text("options.item.visible_spaces")
+        )
+        self.visible_tabs_checkbox.setText(
+            self.translator.text("options.item.visible_tabs")
+        )
+        self.visible_newlines_checkbox.setText(
+            self.translator.text("options.item.visible_newlines")
+        )
         self.hover_hints_checkbox.setText(
             self.translator.text("options.hover_hints_enabled")
         )
         self.backup_folder_button.setText(self.translator.text("options.browse"))
 
     def set_values(self, settings: EditorSettings) -> None:
+        self.line_numbers_checkbox.setChecked(settings.line_numbers_enabled)
+        self.word_wrap_checkbox.setChecked(settings.word_wrap_enabled)
+        self.ruler_checkbox.setChecked(settings.ruler_enabled)
+        self.visible_spaces_checkbox.setChecked(settings.visible_spaces_enabled)
+        self.visible_tabs_checkbox.setChecked(settings.visible_tabs_enabled)
+        self.visible_newlines_checkbox.setChecked(settings.visible_newlines_enabled)
         self.wordpress_mode_combo.clear()
         for mode_label_key in self.wordpress_mode_keys:
             self.wordpress_mode_combo.addItem(
@@ -95,14 +140,32 @@ class OptionsDialog(QDialog):
         self._set_font_families(settings.font_family)
         self.font_size_spin.setRange(8, 48)
         self.font_size_spin.setValue(settings.font_size)
+        self._set_color_combo(
+            self.search_marker_color_combo,
+            settings.search_marker_color,
+        )
+        self._set_color_combo(
+            self.current_match_marker_color_combo,
+            settings.current_match_marker_color,
+        )
 
     def values(self) -> OptionsDialogValues:
         return OptionsDialogValues(
+            word_wrap_enabled=self.word_wrap_checkbox.isChecked(),
+            line_numbers_enabled=self.line_numbers_checkbox.isChecked(),
+            ruler_enabled=self.ruler_checkbox.isChecked(),
+            visible_spaces_enabled=self.visible_spaces_checkbox.isChecked(),
+            visible_tabs_enabled=self.visible_tabs_checkbox.isChecked(),
+            visible_newlines_enabled=self.visible_newlines_checkbox.isChecked(),
             wordpress_mode_label_key=str(self.wordpress_mode_combo.currentData()),
             hover_hints_enabled=self.hover_hints_checkbox.isChecked(),
             backup_folder=self.backup_folder_edit.text().strip(),
             font_family=self.font_family_combo.currentText(),
             font_size=self.font_size_spin.value(),
+            search_marker_color=str(self.search_marker_color_combo.currentData()),
+            current_match_marker_color=str(
+                self.current_match_marker_color_combo.currentData()
+            ),
         )
 
     def _create_tabs(self) -> None:
@@ -130,15 +193,17 @@ class OptionsDialog(QDialog):
         )
 
     def _view_tab(self) -> QWidget:
-        return self._placeholder_tab(
-            (
-                "options.item.line_numbers",
-                "options.item.word_wrap",
-                "options.item.ruler",
-                "options.item.visible_spaces",
-                "options.item.theme",
-            )
-        )
+        tab = QWidget(self)
+        layout = QFormLayout()
+        layout.addRow(self.line_numbers_checkbox)
+        layout.addRow(self.word_wrap_checkbox)
+        layout.addRow(self.ruler_checkbox)
+        layout.addRow(self.visible_spaces_checkbox)
+        layout.addRow(self.visible_tabs_checkbox)
+        layout.addRow(self.visible_newlines_checkbox)
+        layout.addRow(self._disabled_checkbox("options.item.theme"))
+        tab.setLayout(layout)
+        return tab
 
     def _tag_insert_tab(self) -> QWidget:
         tab = QWidget(self)
@@ -177,13 +242,21 @@ class OptionsDialog(QDialog):
         return tab
 
     def _search_tab(self) -> QWidget:
-        return self._placeholder_tab(
-            (
-                "options.item.search_marker_color",
-                "options.item.current_match_color",
-                "options.item.regex_lint",
-            )
+        tab = QWidget(self)
+        layout = QFormLayout()
+        self._populate_color_combo(self.search_marker_color_combo)
+        self._populate_color_combo(self.current_match_marker_color_combo)
+        layout.addRow(
+            self.translator.text("options.item.search_marker_color"),
+            self.search_marker_color_combo,
         )
+        layout.addRow(
+            self.translator.text("options.item.current_match_color"),
+            self.current_match_marker_color_combo,
+        )
+        layout.addRow(self._disabled_checkbox("options.item.regex_lint"))
+        tab.setLayout(layout)
+        return tab
 
     def _placeholder_tab(self, translation_keys: tuple[str, ...]) -> QWidget:
         tab = QWidget(self)
@@ -222,3 +295,15 @@ class OptionsDialog(QDialog):
             self.font_family_combo.insertItem(0, current_font_family)
             font_index = 0
         self.font_family_combo.setCurrentIndex(font_index)
+
+    def _populate_color_combo(self, combo_box: QComboBox) -> None:
+        combo_box.clear()
+        for label, color_code in COLOR_PRESETS:
+            combo_box.addItem(f"{label} ({color_code})", color_code)
+
+    def _set_color_combo(self, combo_box: QComboBox, color_code: str) -> None:
+        color_index = combo_box.findData(color_code)
+        if color_index == -1:
+            combo_box.insertItem(0, color_code, color_code)
+            color_index = 0
+        combo_box.setCurrentIndex(color_index)
