@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from PySide6.QtCore import QRect, QSize, Qt
 from PySide6.QtGui import (
     QColor,
@@ -16,6 +18,12 @@ from PySide6.QtWidgets import QPlainTextEdit, QTextEdit
 from editor.line_number_area import LineNumberArea
 from editor.search_marker_area import SearchMarkerArea
 from search.search_engine import SearchMatch
+
+
+@dataclass(frozen=True)
+class VisibleWhitespaceMark:
+    text_position: int
+    marker: str
 
 
 class TextEditor(QPlainTextEdit):
@@ -118,6 +126,10 @@ class TextEditor(QPlainTextEdit):
             )
         )
 
+    def paintEvent(self, event: QPaintEvent) -> None:
+        super().paintEvent(event)
+        self._paint_visible_whitespace(event)
+
     def set_search_matches(self, matches: list[SearchMatch]) -> None:
         self.search_matches = matches
         self._apply_search_highlights()
@@ -147,6 +159,122 @@ class TextEditor(QPlainTextEdit):
         self.visible_tabs_enabled = tabs_enabled
         self.visible_newlines_enabled = newlines_enabled
         self.viewport().update()
+
+    def visible_whitespace_marks(self) -> list[VisibleWhitespaceMark]:
+        source_text = self.toPlainText()
+        marks: list[VisibleWhitespaceMark] = []
+        for text_position, character in enumerate(source_text):
+            marker = self._visible_whitespace_marker(character)
+            if marker is not None:
+                marks.append(VisibleWhitespaceMark(text_position, marker))
+        return marks
+
+    def _visible_whitespace_marker(self, character: str) -> str | None:
+        if self.visible_spaces_enabled:
+            if character == " ":
+                return "·"
+            if character == "\u3000":
+                return "□"
+        if self.visible_tabs_enabled and character == "\t":
+            return "→"
+        if self.visible_newlines_enabled and character == "\n":
+            return "↵"
+        return None
+
+    def _paint_visible_whitespace(self, event: QPaintEvent) -> None:
+        if not (
+            self.visible_spaces_enabled
+            or self.visible_tabs_enabled
+            or self.visible_newlines_enabled
+        ):
+            return
+
+        source_text = self.toPlainText()
+        painter = QPainter(self.viewport())
+        painter.setPen(QColor("#9a9a9a"))
+
+        block = self.firstVisibleBlock()
+        top = round(
+            self.blockBoundingGeometry(block)
+            .translated(self.contentOffset())
+            .top()
+        )
+        bottom = top + round(self.blockBoundingRect(block).height())
+
+        while block.isValid() and top <= event.rect().bottom():
+            if block.isVisible() and bottom >= event.rect().top():
+                self._paint_block_visible_whitespace(
+                    painter,
+                    event.rect(),
+                    source_text,
+                    block.position(),
+                    block.text(),
+                )
+
+            block = block.next()
+            top = bottom
+            bottom = top + round(self.blockBoundingRect(block).height())
+
+    def _paint_block_visible_whitespace(
+        self,
+        painter: QPainter,
+        event_rect: QRect,
+        source_text: str,
+        block_position: int,
+        block_text: str,
+    ) -> None:
+        for character_index, character in enumerate(block_text):
+            marker = self._visible_whitespace_marker(character)
+            if marker is not None:
+                self._paint_visible_whitespace_marker(
+                    painter,
+                    event_rect,
+                    block_position + character_index,
+                    marker,
+                    character,
+                )
+
+        newline_position = block_position + len(block_text)
+        if (
+            newline_position < len(source_text)
+            and source_text[newline_position] == "\n"
+        ):
+            marker = self._visible_whitespace_marker("\n")
+            if marker is not None:
+                self._paint_visible_whitespace_marker(
+                    painter,
+                    event_rect,
+                    newline_position,
+                    marker,
+                    "\n",
+                )
+
+    def _paint_visible_whitespace_marker(
+        self,
+        painter: QPainter,
+        event_rect: QRect,
+        text_position: int,
+        marker: str,
+        character: str,
+    ) -> None:
+        cursor = QTextCursor(self.document())
+        cursor.setPosition(self.text_position_to_cursor_position(text_position))
+        marker_rect = self.cursorRect(cursor)
+        if not marker_rect.intersects(event_rect.adjusted(-20, -20, 20, 20)):
+            return
+
+        if character == "\t":
+            marker_rect.setWidth(
+                max(marker_rect.width(), round(self.tabStopDistance()))
+            )
+            alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        elif character == "\n":
+            marker_rect.translate(2, 0)
+            marker_rect.setWidth(max(marker_rect.width(), self.fontMetrics().height()))
+            alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        else:
+            alignment = Qt.AlignmentFlag.AlignCenter
+        painter.drawText(marker_rect, alignment, marker)
 
     def _apply_search_highlights(self) -> None:
         highlight_format = QTextCharFormat()

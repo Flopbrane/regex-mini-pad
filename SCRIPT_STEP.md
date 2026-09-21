@@ -413,17 +413,22 @@ Completed:
   - `search_marker_color`
   - `current_match_marker_color`
 - Applied View and Search settings to all open tabs.
-- Added a small foundation for future visible whitespace rendering:
+- Implemented visible whitespace rendering:
   - Options > View now has separate checkboxes for spaces, TABs, and newlines.
   - `EditorSettings` persists:
     - `visible_spaces_enabled`
     - `visible_tabs_enabled`
     - `visible_newlines_enabled`
   - `TextEditor.set_visible_whitespace_options()` stores those flags and requests a viewport update.
-  - Actual drawing of the visible whitespace marks is intentionally left for the next implementation step.
+  - `TextEditor.paintEvent()` overlays visible marks without changing document text.
+  - Half-width spaces use `·`.
+  - Full-width spaces use `□`.
+  - TABs use `→`.
+  - Newlines use `↵`.
+  - Only visible blocks are painted.
 - Fixed the main-window action initialization so Undo / Redo / Select All call the current editor lazily instead of reading `self.editor` before the first tab exists.
 - Updated Japanese and English Options text for the new visible whitespace checkboxes.
-- Updated tests for the new Options values and saved settings.
+- Updated tests for the new Options values, saved settings, visible whitespace mark detection, and the offscreen paint path.
 
 Validation:
 
@@ -438,7 +443,7 @@ Validation:
 Latest result:
 
 ```text
-pytest: 104 passed
+pytest: 108 passed
 ruff: All checks passed
 pyright: 0 errors, 0 warnings, 0 informations
 JSON validation: app_text_en.json OK, app_text_ja.json OK
@@ -446,19 +451,18 @@ JSON validation: app_text_en.json OK, app_text_ja.json OK
 
 Follow-up candidates:
 
-1. Visible whitespace drawing
-   - Draw half-width spaces without changing document text.
-   - Draw TAB marks using the existing tab width.
-   - Draw newline marks at line ends.
-   - Keep marks subtle enough not to interfere with search highlights.
+1. Visible whitespace polish
+   - Tune marker color if it feels too strong or too faint.
+   - Review behavior with very large files.
+   - Review behavior with wrapped lines and proportional fonts.
 
-2. Visible whitespace tests
-   - Add focused tests for storing and applying the three flags.
-   - If paint behavior is hard to assert directly, separate calculation of mark positions from painting.
-
-3. Ruler polish
+2. Ruler polish
    - Consider a wrap-column marker.
    - Consider click-to-set wrap column after ruler behavior stabilizes.
+
+3. Search / display interaction checks
+   - Confirm visible whitespace markers remain readable when search highlights are active.
+   - Consider user-facing presets if more display colors are added later.
 
 ## Priority Implementation Queue From 2026-09-15
 
