@@ -421,7 +421,7 @@ Completed:
     - `visible_newlines_enabled`
   - `TextEditor.set_visible_whitespace_options()` stores those flags and requests a viewport update.
   - `TextEditor.paintEvent()` overlays visible marks without changing document text.
-  - Half-width spaces use `·`.
+  - Half-width spaces use `␣`.
   - Full-width spaces use `□`.
   - TABs use `→`.
   - Newlines use `↵`.

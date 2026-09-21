@@ -227,7 +227,7 @@ class TextEditor(QPlainTextEdit):
     def _visible_whitespace_marker(self, character: str) -> str | None:
         if self.visible_spaces_enabled:
             if character == " ":
-                return "·"
+                return "␣"
             if character == "\u3000":
                 return "□"
         if self.visible_tabs_enabled and character == "\t":
