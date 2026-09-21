@@ -38,6 +38,9 @@ class TextEditor(QPlainTextEdit):
         self.visible_spaces_enabled = False
         self.visible_tabs_enabled = False
         self.visible_newlines_enabled = False
+        self.word_wrap_enabled = False
+        self.fixed_column_wrap_enabled = False
+        self.fixed_column_wrap_column = 80
 
         self.setFont(QFont("Consolas", 11))
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
@@ -48,6 +51,18 @@ class TextEditor(QPlainTextEdit):
         self.update_editor_margins()
 
     def set_word_wrap_enabled(self, enabled: bool) -> None:
+        self.word_wrap_enabled = enabled
+        self._apply_line_wrap_mode()
+
+    def set_fixed_column_wrap_options(self, *, enabled: bool, column: int) -> None:
+        self.fixed_column_wrap_enabled = enabled
+        self.fixed_column_wrap_column = max(1, column)
+        self._apply_line_wrap_mode()
+        self.update_editor_margins()
+        self.viewport().update()
+
+    def _apply_line_wrap_mode(self) -> None:
+        enabled = self.word_wrap_enabled or self.fixed_column_wrap_enabled
         wrap_mode = (
             QPlainTextEdit.LineWrapMode.WidgetWidth
             if enabled
@@ -83,12 +98,42 @@ class TextEditor(QPlainTextEdit):
         self.update_editor_margins()
 
     def update_editor_margins(self) -> None:
+        left_margin = self.line_number_area_width()
+        right_margin = self.search_marker_area_width() + self._fixed_wrap_extra_margin()
         self.setViewportMargins(
-            self.line_number_area_width(),
+            left_margin,
             0,
-            self.search_marker_area_width(),
+            right_margin,
             0,
         )
+
+    def _fixed_wrap_extra_margin(self) -> int:
+        if not self.fixed_column_wrap_enabled:
+            return 0
+
+        content_width = self.contentsRect().width()
+        available_text_width = max(
+            0,
+            content_width - self.line_number_area_width() - self.search_marker_area_width(),
+        )
+        target_text_width = self.fixed_column_wrap_pixel_width()
+        return max(0, available_text_width - target_text_width)
+
+    def fixed_column_wrap_pixel_width(self) -> int:
+        return max(
+            1,
+            self.fontMetrics().horizontalAdvance("0") * self.fixed_column_wrap_column,
+        )
+
+    def fixed_column_wrap_line_x(self) -> int | None:
+        if not self.fixed_column_wrap_enabled:
+            return None
+
+        horizontal_offset = self.horizontalScrollBar().value()
+        x_position = self.fixed_column_wrap_pixel_width() - horizontal_offset
+        if x_position < 0 or x_position > self.viewport().width():
+            return None
+        return min(x_position, max(0, self.viewport().width() - 1))
 
     def update_line_number_area(self, rect: QRect, vertical_delta: int) -> None:
         if vertical_delta:
@@ -128,7 +173,17 @@ class TextEditor(QPlainTextEdit):
 
     def paintEvent(self, event: QPaintEvent) -> None:
         super().paintEvent(event)
+        self._paint_fixed_column_wrap_guide(event)
         self._paint_visible_whitespace(event)
+
+    def _paint_fixed_column_wrap_guide(self, event: QPaintEvent) -> None:
+        line_x = self.fixed_column_wrap_line_x()
+        if line_x is None:
+            return
+
+        painter = QPainter(self.viewport())
+        painter.setPen(QColor("#1f9d55"))
+        painter.drawLine(line_x, event.rect().top(), line_x, event.rect().bottom())
 
     def set_search_matches(self, matches: list[SearchMatch]) -> None:
         self.search_matches = matches

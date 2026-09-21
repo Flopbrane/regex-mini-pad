@@ -49,13 +49,14 @@ from dialogs.options_dialog import OptionsDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
 from dialogs.user_help_dialog import UserHelpDialog
-from editor.ruler import Ruler
+from editor.editor_tab import EditorTab
 from editor.tag_insert import (
     WORDPRESS_GROUP_LABEL_KEY,
     TagSnippet,
     TagSnippetGroup,
     ordered_tag_snippet_groups,
     tag_snippet_category_key,
+    tag_snippet_groups,
     wordpress_mode_label_keys,
     wordpress_snippets_for_mode,
 )
@@ -106,7 +107,9 @@ class MainWindow(QMainWindow):
         self.file_manager = FileManager()
         self.search_engine = SearchEngine()
         self.current_save_file_path: Path | None = None
-        self.current_encoding = "utf-8"
+        self.default_encoding = settings.default_encoding
+        self.current_encoding = settings.default_encoding
+        self.newline_code = settings.newline_code
         self.find_replace_dialog: FindReplaceDialog | None = None
         self.regex_help_dialog: RegexHelpDialog | None = None
         self.tag_insert_dialog: TagInsertDialog | None = None
@@ -115,14 +118,23 @@ class MainWindow(QMainWindow):
         self.search_scope: tuple[int, int] | None = None
         self.wordpress_mode_label_key = settings.wordpress_mode_label_key
         self.hover_hints_enabled = settings.hover_hints_enabled
+        self.user_dictionary_folder = settings.user_dictionary_folder
+        self.dictionary_check_enabled = settings.dictionary_check_enabled
         self.backup_folder = settings.backup_folder
+        self.backup_retention_count = settings.backup_retention_count
+        self.backup_retention_days = settings.backup_retention_days
         self.font_family = settings.font_family
         self.font_size = settings.font_size
+        self.tab_width = settings.tab_width
+        self.startup_restore_enabled = settings.startup_restore_enabled
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
+        self.regex_lint_enabled = settings.regex_lint_enabled
         self.visible_spaces_enabled = settings.visible_spaces_enabled
         self.visible_tabs_enabled = settings.visible_tabs_enabled
         self.visible_newlines_enabled = settings.visible_newlines_enabled
+        self.fixed_column_wrap_enabled = settings.fixed_column_wrap_enabled
+        self.fixed_column_wrap_column = settings.fixed_column_wrap_column
         self.tab_file_paths: dict[TextEditor, Path | None] = {}
         self.tab_encodings: dict[TextEditor, str] = {}
         self.tab_windows: list[MainWindow] = []
@@ -140,12 +152,10 @@ class MainWindow(QMainWindow):
         self.tab_widget.tabBar().customContextMenuRequested.connect(
             self._show_tab_context_menu
         )
-        self.ruler = Ruler(self)
         central_widget = QWidget(self)
         central_layout = QVBoxLayout()
         central_layout.setContentsMargins(0, 0, 0, 0)
         central_layout.setSpacing(0)
-        central_layout.addWidget(self.ruler)
         central_layout.addWidget(self.tab_widget)
         central_widget.setLayout(central_layout)
         self.setCentralWidget(central_widget)
@@ -160,7 +170,7 @@ class MainWindow(QMainWindow):
 
         self._update_status_bar()
         self._update_window_title()
-        if restore_unsaved_backup:
+        if restore_unsaved_backup and self.startup_restore_enabled:
             self._restore_unsaved_backup_if_available()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name
@@ -337,7 +347,7 @@ class MainWindow(QMainWindow):
         self,
         text: str = "",
         save_file_path: Path | None = None,
-        encoding: str = "utf-8",
+        encoding: str | None = None,
         modified: bool = False,
     ) -> TextEditor:
         """Create a new editor tab with the specified parameters."""
@@ -364,7 +374,11 @@ class MainWindow(QMainWindow):
             newlines_enabled=self.visible_newlines_enabled,
         )
         editor.setFont(QFont(self.font_family, self.font_size))
-        editor.setTabStopDistance(editor.fontMetrics().horizontalAdvance(" ") * 4)
+        self._set_editor_tab_width(editor)
+        editor.set_fixed_column_wrap_options(
+            enabled=self.fixed_column_wrap_enabled,
+            column=self.fixed_column_wrap_column,
+        )
         editor.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         editor.customContextMenuRequested.connect(self._show_editor_context_menu)
         editor.textChanged.connect(self._update_status_bar)
@@ -376,8 +390,11 @@ class MainWindow(QMainWindow):
         editor.document().modificationChanged.connect(self._update_window_title)
 
         self.tab_file_paths[editor] = save_file_path
-        self.tab_encodings[editor] = encoding
-        tab_index = self.tab_widget.addTab(editor, self._tab_title(editor))
+        self.tab_encodings[editor] = encoding or self.default_encoding
+        editor_tab = EditorTab(editor)
+        editor_tab.set_ruler_visible(self.ruler_action.isChecked())
+        editor_tab.ruler.column_clicked.connect(self._set_fixed_wrap_column_from_ruler)
+        tab_index = self.tab_widget.addTab(editor_tab, self._tab_title(editor))
         self.tab_widget.setCurrentIndex(tab_index)
         self._sync_current_tab_state()
         return editor
@@ -386,7 +403,7 @@ class MainWindow(QMainWindow):
         self,
         text: str = "",
         save_file_path: Path | None = None,
-        encoding: str = "utf-8",
+        encoding: str | None = None,
         modified: bool = False,
     ) -> TextEditor:
         """Create an editor tab for external window operations."""
@@ -399,13 +416,11 @@ class MainWindow(QMainWindow):
 
     def _handle_current_tab_changed(self, index: int) -> None:
         """Handle the event when the current tab is changed."""
-        widget = self.tab_widget.widget(index)
-        if widget is None:
+        editor = self._editor_at(index)
+        if editor is None:
             return
-        if isinstance(widget, TextEditor):
-            self.editor = widget
-            self.ruler.set_editor(widget)
-            self._sync_current_tab_state()
+        self.editor = editor
+        self._sync_current_tab_state()
         self.search_scope = None
         self._update_status_bar()
         self._update_window_title()
@@ -414,7 +429,10 @@ class MainWindow(QMainWindow):
     def _sync_current_tab_state(self) -> None:
         """Synchronize the state of the current tab with the main window."""
         self.current_save_file_path = self.tab_file_paths.get(self.editor)
-        self.current_encoding = self.tab_encodings.get(self.editor, "utf-8")
+        self.current_encoding = self.tab_encodings.get(
+            self.editor,
+            self.default_encoding,
+        )
 
     def _set_current_file_state(
         self,
@@ -446,9 +464,9 @@ class MainWindow(QMainWindow):
     def _update_tab_titles(self) -> None:
         """Update the titles of all tabs based on their current state."""
         for index in range(self.tab_widget.count()):
-            widget = self.tab_widget.widget(index)
-            if isinstance(widget, TextEditor):
-                self.tab_widget.setTabText(index, self._tab_title(widget))
+            editor = self._editor_at(index)
+            if editor is not None:
+                self.tab_widget.setTabText(index, self._tab_title(editor))
 
     def _set_current_word_wrap_enabled(self, enabled: bool) -> None:
         """Enable or disable word wrap for all open editors."""
@@ -463,11 +481,23 @@ class MainWindow(QMainWindow):
             editor = self._editor_at(tab_index)
             if editor is not None:
                 editor.set_line_numbers_enabled(enabled)
-        self.ruler.update()
+            editor_tab = self._editor_tab_at(tab_index)
+            if editor_tab is not None:
+                editor_tab.ruler.update()
 
     def _set_ruler_enabled(self, enabled: bool) -> None:
         """Enable or disable the character ruler."""
-        self.ruler.setVisible(enabled)
+        for tab_index in range(self.tab_widget.count()):
+            editor_tab = self._editor_tab_at(tab_index)
+            if editor_tab is not None:
+                editor_tab.set_ruler_visible(enabled)
+
+    def _set_fixed_wrap_column_from_ruler(self, column: int) -> None:
+        """Set the fixed wrap column from a ruler click."""
+        self.fixed_column_wrap_column = max(1, column)
+        if self.fixed_column_wrap_enabled:
+            self._apply_fixed_column_wrap_options_to_all_tabs()
+        self._save_settings()
 
     def _show_tab_context_menu(self, position: QPoint) -> None:
         """Show the context menu for the tab at the given position."""
@@ -512,7 +542,7 @@ class MainWindow(QMainWindow):
         duplicate_editor = self._create_editor_tab(
             text=editor.toPlainText(),
             save_file_path=None,
-            encoding=self.tab_encodings.get(editor, "utf-8"),
+            encoding=self.tab_encodings.get(editor, self.default_encoding),
             modified=True,
         )
         duplicate_editor.moveCursor(QTextCursor.MoveOperation.Start)
@@ -532,7 +562,7 @@ class MainWindow(QMainWindow):
         new_window.create_editor_tab(
             text=editor.toPlainText(),
             save_file_path=self.tab_file_paths.get(editor),
-            encoding=self.tab_encodings.get(editor, "utf-8"),
+            encoding=self.tab_encodings.get(editor, self.default_encoding),
             modified=editor.document().isModified(),
         )
         new_window.show()
@@ -553,7 +583,14 @@ class MainWindow(QMainWindow):
     def _editor_at(self, tab_index: int) -> TextEditor | None:
         """Return the editor widget at the given tab index, or None if it doesn't exist."""
         widget = self.tab_widget.widget(tab_index)
+        if isinstance(widget, EditorTab):
+            return widget.editor
         return widget if isinstance(widget, TextEditor) else None
+
+    def _editor_tab_at(self, tab_index: int) -> EditorTab | None:
+        """Return the editor tab container at the given tab index, if it exists."""
+        widget = self.tab_widget.widget(tab_index)
+        return widget if isinstance(widget, EditorTab) else None
 
     def _current_editor(self) -> TextEditor | None:
         """Return the editor widget in the current tab, or None if it doesn't exist."""
@@ -579,12 +616,14 @@ class MainWindow(QMainWindow):
 
     def _remove_tab(self, tab_index: int) -> None:
         """Remove the tab at the given index and clean up its associated resources."""
+        widget = self.tab_widget.widget(tab_index)
         editor = self._editor_at(tab_index)
         self.tab_widget.removeTab(tab_index)
         if editor is not None:
             self.tab_file_paths.pop(editor, None)
             self.tab_encodings.pop(editor, None)
-            editor.deleteLater()
+        if widget is not None:
+            widget.deleteLater()
 
     def remove_tab(self, tab_index: int) -> None:
         """Remove a tab without prompting to save."""
@@ -596,6 +635,12 @@ class MainWindow(QMainWindow):
         self.word_wrap_action.setChecked(settings.word_wrap_enabled)
         self.ruler_action.setChecked(settings.ruler_enabled)
         self._set_ruler_enabled(settings.ruler_enabled)
+        self.fixed_column_wrap_enabled = settings.fixed_column_wrap_enabled
+        self.fixed_column_wrap_column = settings.fixed_column_wrap_column
+        self._apply_fixed_column_wrap_options_to_all_tabs()
+        self.startup_restore_enabled = settings.startup_restore_enabled
+        self.default_encoding = settings.default_encoding
+        self.newline_code = settings.newline_code
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
         self._apply_search_marker_colors_to_all_tabs()
@@ -618,16 +663,27 @@ class MainWindow(QMainWindow):
             visible_spaces_enabled=self.visible_spaces_enabled,
             visible_tabs_enabled=self.visible_tabs_enabled,
             visible_newlines_enabled=self.visible_newlines_enabled,
+            fixed_column_wrap_enabled=self.fixed_column_wrap_enabled,
+            fixed_column_wrap_column=self.fixed_column_wrap_column,
+            startup_restore_enabled=self.startup_restore_enabled,
             language_code=self.translator.language_code,
+            default_encoding=self.default_encoding,
+            newline_code=self.newline_code,
             window_width=self.width(),
             window_height=self.height(),
             wordpress_mode_label_key=self.wordpress_mode_label_key,
             hover_hints_enabled=self.hover_hints_enabled,
+            user_dictionary_folder=self.user_dictionary_folder,
+            dictionary_check_enabled=self.dictionary_check_enabled,
             backup_folder=self.backup_folder,
+            backup_retention_count=self.backup_retention_count,
+            backup_retention_days=self.backup_retention_days,
             font_family=self.font_family,
             font_size=self.font_size,
+            tab_width=self.tab_width,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
+            regex_lint_enabled=self.regex_lint_enabled,
         )
 
     def set_language(self, language_code: str) -> None:
@@ -697,7 +753,10 @@ class MainWindow(QMainWindow):
 
     def _populate_insert_tag_menu(self, root_menu: QMenu) -> None:
         """Populate the insert tag menu with tag snippet groups."""
-        for group in ordered_tag_snippet_groups(self.current_save_file_path):
+        for group in ordered_tag_snippet_groups(
+            self.current_save_file_path,
+            self._tag_dictionaries_path(),
+        ):
             group_menu = root_menu.addMenu(self.translator.text(group.label_key))
             assert group_menu is not None
             if group.label_key == WORDPRESS_GROUP_LABEL_KEY:
@@ -784,7 +843,10 @@ class MainWindow(QMainWindow):
             self.tag_insert_dialog = TagInsertDialog(self.translator, self)
 
         self.tag_insert_dialog.set_snippet_groups(
-            ordered_tag_snippet_groups(self.current_save_file_path)
+            ordered_tag_snippet_groups(
+                self.current_save_file_path,
+                self._tag_dictionaries_path(),
+            )
         )
         self.tag_insert_dialog.search_edit.clear()
         self.tag_insert_dialog.selected_snippet = None
@@ -803,43 +865,97 @@ class MainWindow(QMainWindow):
             visible_spaces_enabled=self.visible_spaces_enabled,
             visible_tabs_enabled=self.visible_tabs_enabled,
             visible_newlines_enabled=self.visible_newlines_enabled,
+            fixed_column_wrap_enabled=self.fixed_column_wrap_enabled,
+            fixed_column_wrap_column=self.fixed_column_wrap_column,
+            startup_restore_enabled=self.startup_restore_enabled,
             language_code=self.translator.language_code,
+            default_encoding=self.default_encoding,
+            newline_code=self.newline_code,
             window_width=self.width(),
             window_height=self.height(),
             wordpress_mode_label_key=self.wordpress_mode_label_key,
             hover_hints_enabled=self.hover_hints_enabled,
+            user_dictionary_folder=self.user_dictionary_folder,
+            dictionary_check_enabled=self.dictionary_check_enabled,
             backup_folder=self.backup_folder,
+            backup_retention_count=self.backup_retention_count,
+            backup_retention_days=self.backup_retention_days,
             font_family=self.font_family,
             font_size=self.font_size,
+            tab_width=self.tab_width,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
+            regex_lint_enabled=self.regex_lint_enabled,
         )
         dialog = OptionsDialog(self.translator, settings, self)
         self.options_dialog = dialog
         if dialog.exec() != OptionsDialog.DialogCode.Accepted:
             return
         values = dialog.values()
+        if not self._validate_user_dictionaries(
+            values.user_dictionary_folder,
+            values.dictionary_check_enabled,
+        ):
+            return
         self.line_numbers_action.setChecked(values.line_numbers_enabled)
         self.word_wrap_action.setChecked(values.word_wrap_enabled)
         self.ruler_action.setChecked(values.ruler_enabled)
+        if values.language_code != self.translator.language_code:
+            self.set_language(values.language_code)
+        self.default_encoding = values.default_encoding
+        self.newline_code = values.newline_code
         self.wordpress_mode_label_key = values.wordpress_mode_label_key
         self.hover_hints_enabled = values.hover_hints_enabled
+        self.user_dictionary_folder = values.user_dictionary_folder
+        self.dictionary_check_enabled = values.dictionary_check_enabled
         self.backup_folder = values.backup_folder
+        self.backup_retention_count = values.backup_retention_count
+        self.backup_retention_days = values.backup_retention_days
         self.font_family = values.font_family
         self.font_size = values.font_size
         self.search_marker_color = values.search_marker_color
         self.current_match_marker_color = values.current_match_marker_color
+        self.regex_lint_enabled = values.regex_lint_enabled
         self.visible_spaces_enabled = values.visible_spaces_enabled
         self.visible_tabs_enabled = values.visible_tabs_enabled
         self.visible_newlines_enabled = values.visible_newlines_enabled
+        self.fixed_column_wrap_enabled = values.fixed_column_wrap_enabled
+        self.fixed_column_wrap_column = values.fixed_column_wrap_column
+        self.startup_restore_enabled = values.startup_restore_enabled
+        self.tab_width = values.tab_width
         self.unsaved_backup_manager = UnsavedBackupManager(
             self._unsaved_backup_path_for_folder(self.backup_folder)
         )
         self._apply_editor_font_to_all_tabs()
         self._apply_search_marker_colors_to_all_tabs()
         self._apply_visible_whitespace_options_to_all_tabs()
+        self._apply_fixed_column_wrap_options_to_all_tabs()
+        self._apply_regex_lint_option_to_find_dialog()
         self._rebuild_insert_tag_menu()
         self._save_settings()
+
+    def _validate_user_dictionaries(
+        self,
+        user_dictionary_folder: str,
+        dictionary_check_enabled: bool,
+    ) -> bool:
+        if not dictionary_check_enabled or not user_dictionary_folder:
+            return True
+        try:
+            tag_snippet_groups(Path(user_dictionary_folder))
+        except (OSError, TypeError, ValueError) as error:
+            QMessageBox.critical(
+                self,
+                self.translator.text("dialog.dictionary_check_failed.title"),
+                str(error),
+            )
+            return False
+        return True
+
+    def _tag_dictionaries_path(self) -> Path | None:
+        if not self.user_dictionary_folder:
+            return None
+        return Path(self.user_dictionary_folder)
 
     def _unsaved_backup_path_for_folder(self, backup_folder: str) -> Path:
         """Return the path to the unsaved backup file for the given backup folder."""
@@ -855,9 +971,17 @@ class MainWindow(QMainWindow):
             if editor is None:
                 continue
             editor.setFont(editor_font)
-            editor.setTabStopDistance(editor.fontMetrics().horizontalAdvance(" ") * 4)
+            self._set_editor_tab_width(editor)
             editor.update_line_number_area_width()
-        self.ruler.set_editor(self.editor)
+            editor_tab = self._editor_tab_at(tab_index)
+            if editor_tab is not None:
+                editor_tab.ruler.set_editor(editor)
+                editor_tab.ruler.update()
+
+    def _set_editor_tab_width(self, editor: TextEditor) -> None:
+        """Apply the configured TAB width to one editor."""
+        space_width = editor.fontMetrics().horizontalAdvance(" ")
+        editor.setTabStopDistance(space_width * self.tab_width)
 
     def _apply_search_marker_colors_to_all_tabs(self) -> None:
         """Apply the current search marker colors to all open tabs."""
@@ -879,6 +1003,25 @@ class MainWindow(QMainWindow):
                     tabs_enabled=self.visible_tabs_enabled,
                     newlines_enabled=self.visible_newlines_enabled,
                 )
+
+    def _apply_fixed_column_wrap_options_to_all_tabs(self) -> None:
+        """Apply fixed-column wrap options to all open tabs."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is None:
+                continue
+            editor.set_fixed_column_wrap_options(
+                enabled=self.fixed_column_wrap_enabled,
+                column=self.fixed_column_wrap_column,
+            )
+            editor_tab = self._editor_tab_at(tab_index)
+            if editor_tab is not None:
+                editor_tab.ruler.update()
+
+    def _apply_regex_lint_option_to_find_dialog(self) -> None:
+        """Apply the regex lint display option to the existing Find/Replace dialog."""
+        if self.find_replace_dialog is not None:
+            self.find_replace_dialog.set_regex_lint_enabled(self.regex_lint_enabled)
 
     def insert_tag_snippet(self, snippet: TagSnippet) -> None:
         """Insert the given tag snippet into the current editor at the cursor position."""
@@ -977,7 +1120,7 @@ class MainWindow(QMainWindow):
             return
 
         load_file_path = Path(selected_path)
-        selected_encoding = encoding or "utf-8"
+        selected_encoding = encoding or self.default_encoding
         try:
             load_data = self.file_manager.load_text(load_file_path, selected_encoding)
         except (OSError, UnicodeError) as error:
@@ -1090,7 +1233,12 @@ class MainWindow(QMainWindow):
         """Save the current editor content to the specified file path, returning True if successful."""
         save_data = self.editor.toPlainText()
         try:
-            self.file_manager.save_text(save_file_path, save_data, self.current_encoding)
+            self.file_manager.save_text(
+                save_file_path,
+                save_data,
+                self.current_encoding,
+                self.newline_code,
+            )
         except OSError as error:
             QMessageBox.critical(
                 self,
@@ -1161,6 +1309,7 @@ class MainWindow(QMainWindow):
         """Show the find and replace dialog, initializing it with the current selection if available."""
         if self.find_replace_dialog is None:
             self.find_replace_dialog = FindReplaceDialog(self.translator, self)
+            self.find_replace_dialog.set_regex_lint_enabled(self.regex_lint_enabled)
             self.find_replace_dialog.find_requested.connect(self.find_next)
             self.find_replace_dialog.find_previous_requested.connect(self.find_previous)
             self.find_replace_dialog.replace_requested.connect(self.replace_current)

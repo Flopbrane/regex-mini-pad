@@ -36,6 +36,7 @@ class FindReplaceDialog(QDialog):
         self.translator = translator
         self.setModal(False)
         self.regex_lint = RegexLint()
+        self.regex_lint_enabled = True
 
         self.find_text_edit = QLineEdit(self)
         self.replace_text_edit = QLineEdit(self)
@@ -102,6 +103,10 @@ class FindReplaceDialog(QDialog):
 
     def current_search_options(self) -> SearchOptions:
         return self._search_options()
+
+    def set_regex_lint_enabled(self, enabled: bool) -> None:
+        self.regex_lint_enabled = enabled
+        self._update_regex_lint()
 
     def set_search_recipe(self, search_text: str, replace_text: str) -> None:
         self.find_text_edit.setText(search_text)
@@ -325,7 +330,10 @@ class FindReplaceDialog(QDialog):
         )
 
     def _update_regex_lint(self) -> None:
-        if not self.regular_expression_check_box.isChecked():
+        if (
+            not self.regex_lint_enabled
+            or not self.regular_expression_check_box.isChecked()
+        ):
             self.warning_label.clear()
             return
 

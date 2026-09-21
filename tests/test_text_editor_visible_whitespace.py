@@ -5,7 +5,7 @@ import sys
 
 import pytest
 from PySide6.QtGui import QImage
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPlainTextEdit
 
 from editor.text_editor import TextEditor
 
@@ -93,3 +93,25 @@ def test_visible_whitespace_paint_path_renders(app: QApplication) -> None:
     editor.viewport().render(image)
 
     assert editor.toPlainText() == source_text
+
+
+def test_fixed_column_wrap_overrides_wrap_mode_without_modifying_text(
+    app: QApplication,
+) -> None:
+    _ = app
+    editor = TextEditor()
+    source_text = "abcdefghijklmnopqrstuvwxyz"
+    editor.setPlainText(source_text)
+
+    editor.set_word_wrap_enabled(False)
+    editor.set_fixed_column_wrap_options(enabled=True, column=12)
+
+    assert editor.toPlainText() == source_text
+    assert editor.fixed_column_wrap_enabled is True
+    assert editor.fixed_column_wrap_column == 12
+    assert editor.lineWrapMode() == QPlainTextEdit.LineWrapMode.WidgetWidth
+    assert editor.fixed_column_wrap_pixel_width() > 0
+
+    editor.set_fixed_column_wrap_options(enabled=False, column=12)
+
+    assert editor.lineWrapMode() == QPlainTextEdit.LineWrapMode.NoWrap

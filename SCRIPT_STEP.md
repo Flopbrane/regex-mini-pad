@@ -429,6 +429,32 @@ Completed:
 - Fixed the main-window action initialization so Undo / Redo / Select All call the current editor lazily instead of reading `self.editor` before the first tab exists.
 - Updated Japanese and English Options text for the new visible whitespace checkboxes.
 - Updated tests for the new Options values, saved settings, visible whitespace mark detection, and the offscreen paint path.
+- Moved the character ruler into each editor tab:
+  - The ruler now appears below the tab bar and above the editor area.
+  - Each tab owns its own `EditorTab` container with a `Ruler` and `TextEditor`.
+  - Existing tab operations still address the underlying `TextEditor`.
+- Added fixed-column wrap support:
+  - Options > View now has `Wrap at ruler column` / `設定文字数で折り返す`.
+  - Clicking the ruler stores the selected wrap column.
+  - When fixed-column wrap is enabled, the editor wraps at the selected ruler column.
+  - A thin green guide line marks the selected wrap column.
+  - The source text is not modified; wrapping is display-only.
+  - `EditorSettings` persists:
+    - `fixed_column_wrap_enabled`
+    - `fixed_column_wrap_column`
+- Added `editor/editor_tab.py` for the per-tab ruler/editor layout.
+- Updated tests for fixed-column wrap settings and editor behavior.
+- Continued Options wiring:
+  - General > Startup restore is now an editable checkbox.
+  - Font > TAB width is now an editable spin box.
+  - View > Wrap column is now an editable spin box.
+  - TAB width is applied to existing and newly created tabs.
+  - Startup restore controls whether the unsaved-backup restore prompt appears on launch.
+  - The wrap-column spin box and ruler-click behavior share the same saved column value.
+  - `EditorSettings` persists:
+    - `startup_restore_enabled`
+    - `tab_width`
+- Updated tests for startup-restore opt-out, TAB width application, saved settings, and Options values.
 
 Validation:
 
@@ -443,7 +469,7 @@ Validation:
 Latest result:
 
 ```text
-pytest: 108 passed
+pytest: 113 passed
 ruff: All checks passed
 pyright: 0 errors, 0 warnings, 0 informations
 JSON validation: app_text_en.json OK, app_text_ja.json OK
@@ -457,53 +483,147 @@ Follow-up candidates:
    - Review behavior with wrapped lines and proportional fonts.
 
 2. Ruler polish
-   - Consider a wrap-column marker.
-   - Consider click-to-set wrap column after ruler behavior stabilizes.
+   - Review visual feel of the green wrap-column guide.
+   - Review behavior with narrow windows and very large wrap columns.
 
 3. Search / display interaction checks
    - Confirm visible whitespace markers remain readable when search highlights are active.
    - Consider user-facing presets if more display colors are added later.
 
+4. Backup rotation
+   - The retention count / days values are now stored in Options.
+   - The current unsaved-backup implementation still uses a single backup file.
+   - Add pruning behavior when rotating backup files are introduced.
+
+## Step11-section9 General, Search, Backup, And Dictionary Options
+
+Implementation order:
+
+1. General > Display language
+2. General > Default encoding
+3. General > Newline code
+4. Search > Regex lint
+5. Backup > Retention count / retention days
+6. Tag Insert > User dictionary folder / Dict validation
+
+Changes:
+
+- Made General > Display language editable from the Options window.
+  - The selected language is applied immediately through the existing localization flow.
+  - The value is persisted in the local settings file.
+- Added General > Default encoding.
+  - New tabs and fallback file state now use the configured default encoding.
+  - Open-file encoding selection falls back to this setting.
+  - Save still uses the current tab encoding after a file is opened.
+- Added General > Newline code.
+  - Save output can now be normalized to LF, CRLF, or CR.
+  - The editor text itself is not rewritten when the option is changed.
+- Added Search > Regex lint.
+  - Regex lint warnings can be enabled or disabled from Options.
+  - The setting is applied to the Find / Replace dialog when it is open or newly created.
+- Added Backup > Retention count and Retention days.
+  - The settings are persisted for the backup feature.
+  - The current backup manager still stores one unsaved-backup file, so these values are not pruning multiple backup files yet.
+- Added Tag Insert > User dictionary folder.
+  - User dictionaries can be loaded in addition to bundled dictionaries.
+  - The Insert Tag menu and dialog use the configured user dictionary folder.
+- Added Tag Insert > Dict validation.
+  - When enabled, the selected user dictionary folder is validated before Options are applied.
+  - Validation errors are shown with a localized message and the setting change is stopped.
+- Updated Japanese and English option text for the new controls.
+- Updated tests for settings persistence, option values, file newline output, regex lint disabling, and main-window option wiring.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+```
+
+Latest result:
+
+```text
+pytest: 113 passed
+ruff: All checks passed
+pyright: 0 errors, 0 warnings, 0 informations
+JSON validation: app_text_en.json OK, app_text_ja.json OK
+```
+
+Follow-up candidates:
+
+1. Backup rotation behavior
+   - Introduce rotating backup files if retention count / days should actively prune old backups.
+
+2. User dictionary validation details
+   - Expand messages so each broken dictionary entry is easier to identify.
+
 ## Priority Implementation Queue From 2026-09-15
 
-Implement these items before adding large new editor features:
+Track these items before adding larger editor features.
 
-1. Dictionary safety validation
-   - Validate every dictionary JSON at load time.
-   - Detect required key omissions.
-   - Detect duplicate `label_key` values in one dictionary.
-   - Detect missing translation keys in Japanese and English resources.
-   - Detect broken `{selection}` and `{cursor}` placeholders.
-   - Add clear error messages that identify the dictionary file and snippet.
+Current status:
 
-2. Hover hint enrichment
-   - Expand hints for HTML, Markdown, and WordPress HTML snippets.
-   - Add practical attribute guidance such as `href`, `src`, `alt`, `class`, `id`, `rel`, `target`, and `style`.
-   - Consider structured parameter metadata in dictionaries so hints can later support linting.
-   - Keep hover hints optional through the Options window.
+1. Dictionary safety validation - partially completed
+   - Completed:
+     - Dictionary JSON is parsed at load time.
+     - Required `label_key`, `hint_key`, and `template` values are checked.
+     - Empty required values are rejected.
+     - Duplicate `{cursor}` placeholders are rejected.
+     - Unknown placeholders other than `{selection}` and `{cursor}` are rejected.
+     - Bundled dictionary label and hint keys are checked against Japanese and English resources by tests.
+     - User dictionary folders can be validated from Options before applying the setting.
+   - Remaining:
+     - Detect duplicate `label_key` values inside one dictionary file.
+     - Improve error messages so they identify the dictionary file and snippet more clearly.
+     - Consider running the Japanese/English translation-key check for user dictionaries too, not only bundled dictionaries.
 
-3. WordPress HTML mode refinement
-   - Define clear rules for `Normal`, `Business`, and `Hi-security` modes.
-   - Restrict risky snippets in stricter modes.
-   - Review media snippets such as image, gallery, video, audio, embed, and file blocks.
-   - Keep manual access to all groups unless a mode is explicitly intended to hide unsafe entries.
+2. Hover hint enrichment - mostly completed
+   - Completed:
+     - HTML, Markdown, and WordPress HTML hints were expanded.
+     - Practical attribute guidance such as `href`, `src`, `alt`, `class`, `id`, `rel`, and `target` was added where relevant.
+     - Hover hints remain optional through the Options window.
+   - Remaining:
+     - Add structured parameter metadata only if future linting or guided editing needs it.
 
-4. User dictionary folder
-   - Allow user-provided dictionaries separate from bundled dictionaries.
-   - Validate user dictionaries with the same safety checks.
-   - Keep bundled dictionaries read-only in normal use.
+3. WordPress HTML mode refinement - partially completed
+   - Completed:
+     - WordPress modes exist: `Normal`, `Business / Office`, and `Hi-security`.
+     - Snippets are filtered by mode.
+     - Media snippets such as image, gallery, video, audio, and layout/media blocks were categorized and reviewed in tests.
+   - Remaining:
+     - Document the exact policy for each mode in the project notes or user help.
+     - Review whether stricter modes should hide risky snippets completely or only de-prioritize them.
 
-5. PyInstaller dictionary packaging
-   - `regex-pad.spec` must include the whole `dictionaries` folder.
-   - Do not list dictionary JSON files one by one in the spec.
-   - This prevents missing newly added dictionary files during builds.
-   - After dictionary changes, run a clean build and confirm the executable can load snippets.
+4. User dictionary folder - completed for Options wiring
+   - Completed:
+     - User-provided dictionaries can be configured separately from bundled dictionaries.
+     - The Insert Tag menu and Insert Tag dialog use the configured user dictionary folder.
+     - Options has a `Dict validation` toggle.
+     - Bundled dictionaries remain separate from user-provided dictionaries.
+   - Remaining:
+     - Improve per-entry validation diagnostics as part of the dictionary safety work above.
 
-6. Then continue display features
-   - Character ruler.
-   - Click-to-set wrap column.
-   - Blue wrap-column marker.
-   - Visible half-width spaces, full-width spaces, tabs, and newlines.
+5. PyInstaller dictionary packaging - mostly completed
+   - Completed:
+     - `regex-pad.spec` includes the whole `dictionaries` folder.
+     - Dictionary JSON files are not listed one by one.
+     - A test checks that the spec includes `('dictionaries', 'dictionaries')`.
+   - Remaining:
+     - After dictionary changes stabilize, run a clean PyInstaller build and confirm the executable can load snippets.
+
+6. Display features - mostly completed
+   - Completed:
+     - Character ruler.
+     - Ruler below the tab bar.
+     - Click-to-set wrap column.
+     - Green wrap-column guide line.
+     - Visible half-width spaces, full-width spaces, tabs, and newlines.
+     - Options wiring for line numbers, word wrap, ruler, wrap-at-column, wrap column, and visible whitespace.
+   - Remaining:
+     - Review marker color and visibility with large files, search highlights, wrapped lines, and proportional fonts.
 
 ## Validation Commands
 

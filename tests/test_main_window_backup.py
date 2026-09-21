@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from main import MainWindow
+from settings.settings_manager import SettingsManager
 
 
 @pytest.fixture(scope="session")
@@ -70,6 +71,48 @@ def test_main_window_clears_unsaved_backup_when_declined(
 
     assert window.editor.toPlainText() == ""
     assert not backup_path.exists()
+
+
+def test_main_window_skips_unsaved_backup_restore_when_option_is_disabled(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    backup_path = tmp_path / "autosave" / "unsaved_backup.json"
+    settings_path = tmp_path / "settings.json"
+    UnsavedBackupManager(backup_path).save(
+        UnsavedBackup(text="draft text", encoding="utf-8")
+    )
+    SettingsManager(settings_path).save(
+        word_wrap_enabled=False,
+        line_numbers_enabled=True,
+        ruler_enabled=False,
+        visible_spaces_enabled=False,
+        visible_tabs_enabled=False,
+        visible_newlines_enabled=False,
+        fixed_column_wrap_enabled=False,
+        fixed_column_wrap_column=80,
+        startup_restore_enabled=False,
+        language_code="ja",
+        default_encoding="utf-8",
+        newline_code="lf",
+        window_width=900,
+        window_height=650,
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: pytest.fail("restore dialog should not open"),
+    )
+
+    window = MainWindow(
+        settings_path=settings_path,
+        unsaved_backup_path=backup_path,
+    )
+
+    assert window.editor.toPlainText() == ""
+    assert backup_path.exists()
 
 
 def test_main_window_saves_and_clears_unsaved_backup(

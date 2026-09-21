@@ -18,3 +18,11 @@ def test_save_text_uses_requested_encoding(tmp_path) -> None:
     FileManager().save_text(save_file_path, "日本語", "cp932")
 
     assert save_file_path.read_text(encoding="cp932") == "日本語"
+
+
+def test_save_text_uses_requested_newline_code(tmp_path) -> None:
+    save_file_path = tmp_path / "crlf.txt"
+
+    FileManager().save_text(save_file_path, "a\nb\n", "utf-8", "crlf")
+
+    assert save_file_path.read_bytes() == b"a\r\nb\r\n"

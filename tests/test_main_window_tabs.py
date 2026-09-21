@@ -11,6 +11,7 @@ import pytest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from main import MainWindow
+from settings.settings_manager import SettingsManager
 
 
 @pytest.fixture(scope="session")
@@ -65,6 +66,39 @@ def test_duplicate_tab_copies_text_as_unsaved_tab(
     assert duplicate_editor.toPlainText() == "backup draft\nbody"
     assert duplicate_editor.document().isModified()
     assert window.tab_widget.tabText(1) == "*backup draft"
+
+
+def test_tab_width_setting_is_applied_to_new_tabs(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    settings_path = tmp_path / "settings.json"
+    SettingsManager(settings_path).save(
+        word_wrap_enabled=False,
+        line_numbers_enabled=True,
+        ruler_enabled=False,
+        visible_spaces_enabled=False,
+        visible_tabs_enabled=False,
+        visible_newlines_enabled=False,
+        fixed_column_wrap_enabled=False,
+        fixed_column_wrap_column=80,
+        startup_restore_enabled=True,
+        language_code="ja",
+        default_encoding="utf-8",
+        newline_code="lf",
+        window_width=900,
+        window_height=650,
+        tab_width=8,
+    )
+    window = MainWindow(settings_path=settings_path)
+
+    expected_width = window.editor.fontMetrics().horizontalAdvance(" ") * 8
+    assert window.editor.tabStopDistance() == expected_width
+
+    window.new_file()
+
+    assert window.editor.tabStopDistance() == expected_width
 
 
 def test_close_tab_can_discard_unsaved_changes(

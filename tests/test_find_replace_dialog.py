@@ -114,3 +114,17 @@ def test_regex_insert_menu_is_grouped(app: QApplication) -> None:
         "Repetition",
         "Groups",
     ]
+
+
+def test_regex_lint_can_be_disabled(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    dialog.regular_expression_check_box.setChecked(True)
+    dialog.find_text_edit.setText("example.com")
+
+    assert dialog.warning_label.text()
+
+    dialog.set_regex_lint_enabled(False)
+
+    assert dialog.warning_label.text() == ""

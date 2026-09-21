@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPaintEvent
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QFontMetrics, QMouseEvent, QPainter, QPaintEvent
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class Ruler(QWidget):
+    column_clicked = Signal(int)
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.editor: TextEditor | None = None
@@ -30,6 +32,25 @@ class Ruler(QWidget):
             self.editor.horizontalScrollBar().valueChanged.connect(self.update)
             self.editor.cursorPositionChanged.connect(self.update)
         self.update()
+
+    def column_at_x(self, x_position: int) -> int | None:
+        if self.editor is None:
+            return None
+
+        metrics = QFontMetrics(self.editor.font())
+        character_width = max(1, metrics.horizontalAdvance("0"))
+        horizontal_offset = self.editor.horizontalScrollBar().value()
+        left_margin = self.editor.line_number_area_width()
+        text_x_position = x_position - left_margin + horizontal_offset
+        if text_x_position < 0:
+            return 1
+        return max(1, round(text_x_position / character_width))
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:  # pylint: disable=invalid-name
+        column = self.column_at_x(round(event.position().x()))
+        if column is not None:
+            self.column_clicked.emit(column)
+        super().mousePressEvent(event)
 
     def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)
@@ -52,6 +73,13 @@ class Ruler(QWidget):
             x_position = left_margin + (column * character_width) - horizontal_offset
             if x_position < left_margin:
                 continue
+            if (
+                self.editor.fixed_column_wrap_enabled
+                and column == self.editor.fixed_column_wrap_column
+            ):
+                painter.setPen(QColor("#1f9d55"))
+                painter.drawLine(x_position, 0, x_position, self.height() - 1)
+                painter.setPen(QColor("#606060"))
             tick_height = 10 if column % 10 == 0 else 5
             painter.drawLine(
                 x_position,
