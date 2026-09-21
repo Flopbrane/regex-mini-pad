@@ -1,5 +1,5 @@
 # pylint: disable=C0302,C0301,C0411,C0413
-# ruff: noqa:E402
+# ruff: noqa:E402,RUF100
 """Main window class for the Regex Pad application."""
 #########################
 # Author: F.Kurokawa
@@ -225,17 +225,17 @@ class MainWindow(QMainWindow):
 
         self.undo_action = QAction("&Undo", self)
         self.undo_action.setShortcut("Ctrl+Z")
-        self.undo_action.triggered.connect(self.editor.undo())
+        self.undo_action.triggered.connect(self._undo_current_editor)
 
         self.redo_action = QAction("&Redo", self)
         self.redo_action.setShortcuts(
             [QKeySequence("Ctrl+Y"), QKeySequence("Ctrl+Shift+Z")]
         )
-        self.redo_action.triggered.connect(self.editor.redo())
+        self.redo_action.triggered.connect(self._redo_current_editor)
 
         self.select_all_action = QAction("Select &All", self)
         self.select_all_action.setShortcut("Ctrl+A")
-        self.select_all_action.triggered.connect(self.editor.selectAll())
+        self.select_all_action.triggered.connect(self._select_all_current_editor)
 
         self.insert_tag_menu = QMenu(self)
         self.insert_tag_picker_action = QAction(self)
@@ -554,6 +554,28 @@ class MainWindow(QMainWindow):
         """Return the editor widget at the given tab index, or None if it doesn't exist."""
         widget = self.tab_widget.widget(tab_index)
         return widget if isinstance(widget, TextEditor) else None
+
+    def _current_editor(self) -> TextEditor | None:
+        """Return the editor widget in the current tab, or None if it doesn't exist."""
+        return self._editor_at(self.tab_widget.currentIndex())
+
+    def _undo_current_editor(self) -> None:
+        """Undo in the current editor tab if one exists."""
+        editor = self._current_editor()
+        if editor is not None:
+            editor.undo()
+
+    def _redo_current_editor(self) -> None:
+        """Redo in the current editor tab if one exists."""
+        editor = self._current_editor()
+        if editor is not None:
+            editor.redo()
+
+    def _select_all_current_editor(self) -> None:
+        """Select all text in the current editor tab if one exists."""
+        editor = self._current_editor()
+        if editor is not None:
+            editor.selectAll()
 
     def _remove_tab(self, tab_index: int) -> None:
         """Remove the tab at the given index and clean up its associated resources."""
