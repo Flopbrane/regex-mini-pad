@@ -560,7 +560,7 @@ Follow-up candidates:
 2. User dictionary validation details
    - Expand messages so each broken dictionary entry is easier to identify.
 
-## Priority Implementation Queue From 2026-09-15
+## Priority Implementation Queue From 2026-09-21
 
 Track these items before adding larger editor features.
 
@@ -606,13 +606,19 @@ Current status:
    - Remaining:
      - Improve per-entry validation diagnostics as part of the dictionary safety work above.
 
-5. PyInstaller dictionary packaging - mostly completed
+5. PyInstaller dictionary packaging - completed
    - Completed:
      - `regex-pad.spec` includes the whole `dictionaries` folder.
      - Dictionary JSON files are not listed one by one.
      - A test checks that the spec includes `('dictionaries', 'dictionaries')`.
-   - Remaining:
-     - After dictionary changes stabilize, run a clean PyInstaller build and confirm the executable can load snippets.
+     - `regex-pad.spec` includes `resources/app_text_*.json` and `resources/regex_help_*.json`.
+     - Clean PyInstaller build completed successfully.
+     - Built executable startup smoke test completed without the previous `resources/app_text_en.json` `FileNotFoundError`.
+   - Validation:
+     - `.\build.ps1`
+     - `Test-Path .\dist\regex-pad\_internal\resources\app_text_en.json`
+     - `Test-Path .\dist\regex-pad\_internal\dictionaries\html_dict.json`
+     - `dist\regex-pad\regex-pad.exe` stayed running for 3 seconds and was then stopped for the smoke test.
 
 6. Display features - mostly completed
    - Completed:
