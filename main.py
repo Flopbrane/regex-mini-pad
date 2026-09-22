@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import sys
 import uuid
+from html import escape
 from pathlib import Path
 from re import error as RegexError
 
@@ -749,16 +750,19 @@ class MainWindow(QMainWindow):
         """Rebuild the insert tag menu based on the current language and available tag snippets."""
         self.insert_tag_menu.clear()
         self.insert_tag_menu.setTitle(self.translator.text("action.insert_tag"))
+        self._set_tag_menu_tooltips_visible(self.insert_tag_menu)
         self._populate_insert_tag_menu(self.insert_tag_menu)
 
     def _populate_insert_tag_menu(self, root_menu: QMenu) -> None:
         """Populate the insert tag menu with tag snippet groups."""
+        self._set_tag_menu_tooltips_visible(root_menu)
         for group in ordered_tag_snippet_groups(
             self.current_save_file_path,
             self._tag_dictionaries_path(),
         ):
             group_menu = root_menu.addMenu(self.translator.text(group.label_key))
             assert group_menu is not None
+            self._set_tag_menu_tooltips_visible(group_menu)
             if group.label_key == WORDPRESS_GROUP_LABEL_KEY:
                 self._populate_wordpress_tag_mode_menus(group_menu, group)
             else:
@@ -783,6 +787,7 @@ class MainWindow(QMainWindow):
         for mode_label_key in mode_label_keys:
             mode_menu = group_menu.addMenu(self.translator.text(mode_label_key))
             assert mode_menu is not None
+            self._set_tag_menu_tooltips_visible(mode_menu)
             self._populate_tag_category_menu(
                 mode_menu,
                 group.label_key,
@@ -803,8 +808,12 @@ class MainWindow(QMainWindow):
             if category_menu is None:
                 category_menu = root_menu.addMenu(self.translator.text(category_key))
                 assert category_menu is not None
+                self._set_tag_menu_tooltips_visible(category_menu)
                 category_menus[category_key] = category_menu
             category_menu.addAction(self._create_tag_snippet_action(snippet))
+
+    def _set_tag_menu_tooltips_visible(self, menu: QMenu) -> None:
+        menu.setToolTipsVisible(self.hover_hints_enabled)
 
     def _create_tag_snippet_action(self, snippet: TagSnippet) -> QAction:
         """Create a QAction for the given tag snippet, including its label, hint, and triggered behavior."""
@@ -813,7 +822,7 @@ class MainWindow(QMainWindow):
         action = QAction(label, self)
         if self.hover_hints_enabled:
             action.setStatusTip(hint)
-            action.setToolTip(hint)
+            action.setToolTip(escape(hint, quote=False))
             action.hovered.connect(
                 lambda hint_text=hint: self.statusBar().showMessage(hint_text)
             )
@@ -833,6 +842,7 @@ class MainWindow(QMainWindow):
         context_menu.addSeparator()
         context_menu.addAction(self.insert_tag_picker_action)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
+        self._set_tag_menu_tooltips_visible(insert_tag_menu)
         self._populate_insert_tag_menu(insert_tag_menu)
         context_menu.addMenu(insert_tag_menu)
         return context_menu

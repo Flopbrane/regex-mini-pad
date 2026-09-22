@@ -63,6 +63,8 @@ def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> No
         "Markdown",
         "WordPress HTML",
     ]
+    assert window.insert_tag_menu.toolTipsVisible()
+    assert all(menu.toolTipsVisible() for menu in group_menus)
     html_category_menus = child_menus(group_menus[0])
     assert [menu.title() for menu in html_category_menus] == [
         "基本",
@@ -80,6 +82,7 @@ def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> No
     assert image_action.text() == "画像 <img>"
     assert "src" in image_action.statusTip()
     assert "alt" in image_action.toolTip()
+    assert "&lt;img&gt;" in image_action.toolTip()
 
     markdown_category_menus = child_menus(group_menus[1])
     assert [menu.title() for menu in markdown_category_menus] == [
@@ -106,6 +109,25 @@ def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> No
         "企業・事業所",
         "Hi-security",
     ]
+
+
+def test_insert_tag_menu_hides_tooltips_when_hover_hints_are_disabled(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+
+    window.hover_hints_enabled = False
+    window._rebuild_insert_tag_menu()
+
+    group_menus = child_menus(window.insert_tag_menu)
+    html_category_menus = child_menus(group_menus[0])
+    first_html_action = html_category_menus[0].actions()[0]
+
+    assert not window.insert_tag_menu.toolTipsVisible()
+    assert not group_menus[0].toolTipsVisible()
+    assert "必須パラメータ" not in first_html_action.toolTip()
+    assert first_html_action.statusTip() == ""
 
 
 def test_insert_tag_picker_shortcut_is_available(app: QApplication) -> None:
@@ -188,6 +210,24 @@ def test_tag_insert_dialog_filters_and_accepts_with_keyboard(
     selected_snippet = dialog.selected_choice()
     assert selected_snippet is not None
     assert selected_snippet.label_key.startswith("tag.markdown.code_block")
+
+
+def test_tag_insert_dialog_updates_hint_on_hover(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    dialog = TagInsertDialog(window.translator)
+    dialog.set_snippet_groups(ordered_tag_snippet_groups(Path("sample.html")))
+
+    item = dialog.snippet_list.item(0)
+    assert item is not None
+    assert dialog.hint_label.textFormat() == Qt.TextFormat.PlainText
+    assert "&lt;p&gt;" in item.toolTip()
+
+    dialog.hint_label.clear()
+    dialog._handle_hovered_item(item)
+
+    assert "<p>" in dialog.hint_label.text()
+    assert "必須パラメータ" in dialog.hint_label.text()
 
 
 def test_tag_group_order_prefers_current_file_extension(app: QApplication) -> None:

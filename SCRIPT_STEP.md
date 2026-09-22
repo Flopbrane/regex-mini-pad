@@ -585,6 +585,9 @@ Current status:
      - HTML, Markdown, and WordPress HTML hints were expanded.
      - Practical attribute guidance such as `href`, `src`, `alt`, `class`, `id`, `rel`, and `target` was added where relevant.
      - Hover hints remain optional through the Options window.
+     - Tag menus now enable Qt menu tooltips when hover hints are enabled.
+     - The Insert Tag dialog now updates its hint text when the mouse hovers over a snippet row.
+     - Help now includes an HTML attribute guide for `href`, `src`, `alt`, `class`, `id`, `style`, link safety attributes, CSS requirements, and common inline style properties.
    - Remaining:
      - Add structured parameter metadata only if future linting or guided editing needs it.
 

@@ -62,6 +62,90 @@ HELP_TOPICS = {
 """,
         ),
         (
+            "HTML Attribute Guide",
+            """# HTML Attribute Guide
+
+Use this topic as a small reference for tag hover hints and tag snippets.
+
+## Common Attributes
+
+| Attribute | Where it is used | Example | Notes |
+| --- | --- | --- | --- |
+| `href` | Links such as `<a>` | `href="https://www.example.com"` | Destination URL. Use `https://` for ordinary web links. |
+| `src` | Images, video, audio | `src="images/photo.jpg"` | File path or URL to the media. The file must exist or the browser cannot show it. |
+| `alt` | Images | `alt="Product photo"` | Alternative text for users who cannot see the image. Also useful when the image fails to load. |
+| `class` | Most HTML tags | `class="note-box"` | A class does not change appearance by itself. It needs matching CSS such as `.note-box { ... }`. |
+| `id` | Most HTML tags | `id="section-1"` | Should be unique on the page. Useful for links like `#section-1` and CSS selectors. |
+| `style` | Most HTML tags | `style="color: red;"` | Inline CSS. Works without a separate CSS file, but can become hard to maintain. |
+| `target` | Links | `target="_blank"` | Opens the link in a new tab/window. |
+| `rel` | Links | `rel="noopener noreferrer"` | Recommended with `target="_blank"` for safety. |
+| `title` | Most HTML tags | `title="Supplemental note"` | Browser tooltip text. Do not rely on it for important content. |
+| `data-*` | Most HTML tags | `data-role="warning"` | Custom data for scripts or CSS selectors. |
+
+## Writing Examples
+
+```html
+<a href="https://www.example.com">Example site</a>
+<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">Open in a new tab</a>
+<img src="images/photo.jpg" alt="Product photo">
+<p class="lead-text">Opening paragraph</p>
+<section id="overview">Overview</section>
+```
+
+## CSS Needed
+
+`class` and many layout-oriented values do not work visually unless CSS exists.
+
+```html
+<p class="lead-text">Opening paragraph</p>
+```
+
+This needs CSS such as:
+
+```css
+.lead-text {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+```
+
+Without that CSS, `class="lead-text"` is only a label.
+
+## Common `style` Properties
+
+| CSS property | Example | Effect |
+| --- | --- | --- |
+| `color` | `color: #333;` | Text color. |
+| `background-color` | `background-color: #fff3cd;` | Background color. |
+| `font-size` | `font-size: 16px;` | Text size. |
+| `font-weight` | `font-weight: bold;` | Text weight. |
+| `text-align` | `text-align: center;` | Text alignment. |
+| `line-height` | `line-height: 1.6;` | Line spacing. |
+| `margin` | `margin: 1em 0;` | Outer spacing. |
+| `padding` | `padding: 12px;` | Inner spacing. |
+| `border` | `border: 1px solid #999;` | Border line. |
+| `border-radius` | `border-radius: 4px;` | Rounded corners. |
+| `display` | `display: inline-block;` | Display behavior. |
+| `max-width` | `max-width: 100%;` | Maximum width. |
+
+Inline style example:
+
+```html
+<p style="color: #333; background-color: #fff3cd; padding: 12px;">
+  Important note
+</p>
+```
+
+## Practical Notes
+
+- Prefer `class` when the same design is used repeatedly.
+- Prefer `style` only for one-off small adjustments.
+- Always write meaningful `alt` text for images.
+- Use `target="_blank"` together with `rel="noopener noreferrer"`.
+- CSS class names are case-sensitive in practice. Keep them simple, such as `note-box` or `lead-text`.
+""",
+        ),
+        (
             "View",
             """# View
 
@@ -125,6 +209,90 @@ HELP_TOPICS = {
 - Enter で選択中のスニペットを挿入します。
 - スニペットが対応している場合、選択中の文字列を囲みます。
 - .md、.html、.wp.html では拡張子に応じた候補グループが先頭になります。
+""",
+        ),
+        (
+            "HTML属性図鑑",
+            """# HTML属性図鑑
+
+タグのホバーヒントやタグ挿入スニペットで出てくる属性の小さな図鑑です。
+
+## よく使う属性
+
+| 属性 | 主な使用場所 | 記述例 | 補足 |
+| --- | --- | --- | --- |
+| `href` | `<a>` などのリンク | `href="https://www.example.com"` | リンク先URLです。通常のWebリンクでは `https://` から書きます。 |
+| `src` | 画像、動画、音声 | `src="images/photo.jpg"` | 表示・再生するファイルパスまたはURLです。ファイルが無いと表示できません。 |
+| `alt` | 画像 | `alt="商品写真"` | 画像が見えない場合の代替テキストです。画像読み込み失敗時にも役立ちます。 |
+| `class` | 多くのHTMLタグ | `class="note-box"` | class だけでは見た目は変わりません。別途 `.note-box { ... }` のようなCSSが必要です。 |
+| `id` | 多くのHTMLタグ | `id="section-1"` | ページ内で一意にします。`#section-1` のリンクやCSS指定に使えます。 |
+| `style` | 多くのHTMLタグ | `style="color: red;"` | タグへ直接書くCSSです。別CSSなしで効きますが、多用すると管理しづらくなります。 |
+| `target` | リンク | `target="_blank"` | リンクを新しいタブまたはウィンドウで開きます。 |
+| `rel` | リンク | `rel="noopener noreferrer"` | `target="_blank"` と一緒に使う安全対策です。 |
+| `title` | 多くのHTMLタグ | `title="補足説明"` | ブラウザ上の簡単な補足表示です。重要な説明は本文に書く方が安全です。 |
+| `data-*` | 多くのHTMLタグ | `data-role="warning"` | スクリプトやCSS用の独自データです。 |
+
+## 記述方法
+
+```html
+<a href="https://www.example.com">サンプルサイト</a>
+<a href="https://www.example.com" target="_blank" rel="noopener noreferrer">新しいタブで開く</a>
+<img src="images/photo.jpg" alt="商品写真">
+<p class="lead-text">導入文</p>
+<section id="overview">概要</section>
+```
+
+## CSSファイルが必要なもの
+
+`class` やレイアウト目的の指定は、対応するCSSがないと見た目には反映されません。
+
+```html
+<p class="lead-text">導入文</p>
+```
+
+この場合は、別途CSS側に次のような指定が必要です。
+
+```css
+.lead-text {
+  font-size: 1.2em;
+  font-weight: 600;
+}
+```
+
+CSSが無い場合、`class="lead-text"` は名前を付けているだけで、文字サイズや太字にはなりません。
+
+## `style` でよく使うCSSプロパティ
+
+| CSSプロパティ | 記述例 | 効果 |
+| --- | --- | --- |
+| `color` | `color: #333;` | 文字色を変えます。 |
+| `background-color` | `background-color: #fff3cd;` | 背景色を変えます。 |
+| `font-size` | `font-size: 16px;` | 文字サイズを変えます。 |
+| `font-weight` | `font-weight: bold;` | 文字の太さを変えます。 |
+| `text-align` | `text-align: center;` | 文字揃えを変えます。 |
+| `line-height` | `line-height: 1.6;` | 行間を変えます。 |
+| `margin` | `margin: 1em 0;` | 外側の余白を付けます。 |
+| `padding` | `padding: 12px;` | 内側の余白を付けます。 |
+| `border` | `border: 1px solid #999;` | 枠線を付けます。 |
+| `border-radius` | `border-radius: 4px;` | 角を少し丸めます。 |
+| `display` | `display: inline-block;` | 表示形式を変えます。 |
+| `max-width` | `max-width: 100%;` | 最大幅を指定します。 |
+
+style の記述例:
+
+```html
+<p style="color: #333; background-color: #fff3cd; padding: 12px;">
+  重要なお知らせ
+</p>
+```
+
+## 実用メモ
+
+- 同じ見た目を何度も使うなら `class` が向いています。
+- その場限りの小さな調整なら `style` が使いやすいです。
+- 画像には、内容が分かる `alt` を入れておくと安全です。
+- `target="_blank"` を使う場合は、`rel="noopener noreferrer"` も一緒に入れるのがおすすめです。
+- class 名は、`note-box` や `lead-text` のように短く分かりやすくすると管理しやすくなります。
 """,
         ),
         (

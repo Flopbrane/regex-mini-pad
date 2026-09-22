@@ -32,12 +32,14 @@ def test_user_help_dialog_uses_application_language(app: QApplication) -> None:
     assert dialog.topic_list.item(0).text() == "ファイル"
     dialog.topic_list.setCurrentRow(3)
     assert "タグ挿入" in dialog.help_browser.toPlainText()
+    assert dialog.topic_list.item(4).text() == "HTML属性図鑑"
 
     translator.set_language("en")
     dialog.apply_language()
 
     assert dialog.windowTitle() == "Help"
     assert dialog.topic_list.item(3).text() == "Tag Insertion"
+    assert dialog.topic_list.item(4).text() == "HTML Attribute Guide"
     assert "Tag Insertion" in dialog.help_browser.toPlainText()
 
 
@@ -52,7 +54,33 @@ def test_user_help_dialog_can_navigate_topics(app: QApplication) -> None:
 
     dialog.topic_list.setCurrentRow(4)
 
+    help_text = dialog.help_browser.toPlainText()
+
+    assert "HTML属性図鑑" in help_text
+    assert 'href="https://www.example.com"' in help_text
+    assert "CSSが無い場合" in help_text
+    assert "class=\"lead-text\"" in help_text
+    assert "style=\"color: #333;" in help_text
+
+    dialog.topic_list.setCurrentRow(5)
+
     assert "ステータスバー" in dialog.help_browser.toPlainText()
+
+
+def test_user_help_dialog_has_english_attribute_guide(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = UserHelpDialog(translator)
+
+    dialog.topic_list.setCurrentRow(4)
+
+    help_text = dialog.help_browser.toPlainText()
+
+    assert "HTML Attribute Guide" in help_text
+    assert 'href="https://www.example.com"' in help_text
+    assert "Without that CSS" in help_text
+    assert "class=\"lead-text\"" in help_text
+    assert "style=\"color: #333;" in help_text
 
 
 def test_main_window_has_user_help_action(app: QApplication) -> None:

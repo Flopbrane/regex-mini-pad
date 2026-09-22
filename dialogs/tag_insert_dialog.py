@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal
 from PySide6.QtGui import QKeyEvent
@@ -45,6 +46,7 @@ class TagInsertDialog(QDialog):
         self.search_edit = QLineEdit(self)
         self.snippet_list = QListWidget(self)
         self.hint_label = QLabel(self)
+        self.hint_label.setTextFormat(Qt.TextFormat.PlainText)
         self.hint_label.setWordWrap(True)
         self.insert_button = QPushButton(self)
         self.close_button = QPushButton(self)
@@ -107,7 +109,9 @@ class TagInsertDialog(QDialog):
         self.search_edit.textChanged.connect(self._refresh_list)
         self.search_edit.installEventFilter(self)
         self.snippet_list.installEventFilter(self)
+        self.snippet_list.setMouseTracking(True)
         self.snippet_list.currentItemChanged.connect(self._handle_current_item_changed)
+        self.snippet_list.itemEntered.connect(self._handle_hovered_item)
         self.snippet_list.itemDoubleClicked.connect(lambda _item: self._accept_current())
         self.insert_button.clicked.connect(self._accept_current)
         self.close_button.clicked.connect(self.reject)
@@ -146,7 +150,7 @@ class TagInsertDialog(QDialog):
             if filter_text and filter_text not in choice.search_text:
                 continue
             item = QListWidgetItem(choice.label)
-            item.setToolTip(choice.hint)
+            item.setToolTip(escape(choice.hint, quote=False))
             item.setData(Qt.ItemDataRole.UserRole, choice)
             self.snippet_list.addItem(item)
 
@@ -160,10 +164,17 @@ class TagInsertDialog(QDialog):
         current: QListWidgetItem | None,
         _previous: QListWidgetItem | None,
     ) -> None:
-        if current is None:
+        self._show_item_hint(current)
+
+    def _handle_hovered_item(self, item: QListWidgetItem) -> None:
+        self._show_item_hint(item)
+
+    def _show_item_hint(self, item: QListWidgetItem | None) -> None:
+        """Show the hint for the selected or hovered snippet list item."""
+        if item is None:
             self.hint_label.clear()
             return
-        choice = current.data(Qt.ItemDataRole.UserRole)
+        choice = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(choice, TagSnippetChoice):
             self.hint_label.setText(choice.hint)
 
