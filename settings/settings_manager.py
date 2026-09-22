@@ -35,6 +35,7 @@ class EditorSettings:
     search_marker_color: str = "#ffff00"
     current_match_marker_color: str = "#ff9900"
     regex_lint_enabled: bool = True
+    html_typo_lint_enabled: bool = True
 
 
 class SettingsManager:
@@ -103,6 +104,9 @@ class SettingsManager:
                 load_data.get("current_match_marker_color", "#ff9900")
             ),
             regex_lint_enabled=bool(load_data.get("regex_lint_enabled", True)),
+            html_typo_lint_enabled=bool(
+                load_data.get("html_typo_lint_enabled", True)
+            ),
         )
 
     def save(
@@ -135,6 +139,7 @@ class SettingsManager:
         search_marker_color: str = "#ffff00",
         current_match_marker_color: str = "#ff9900",
         regex_lint_enabled: bool = True,
+        html_typo_lint_enabled: bool = True,
     ) -> None:
         save_data = {
             "word_wrap_enabled": word_wrap_enabled,
@@ -164,6 +169,7 @@ class SettingsManager:
             "search_marker_color": search_marker_color,
             "current_match_marker_color": current_match_marker_color,
             "regex_lint_enabled": regex_lint_enabled,
+            "html_typo_lint_enabled": html_typo_lint_enabled,
         }
         self.settings_path.write_text(
             json.dumps(save_data, indent=2),

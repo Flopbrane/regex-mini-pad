@@ -46,10 +46,19 @@ WORDPRESS_HIGH_SECURITY_LABEL_KEYS = {
 
 
 @dataclass(frozen=True)
+class TagSnippetParameter:
+    name: str
+    required: bool = False
+    kind: str = "text"
+    description_key: str = ""
+
+
+@dataclass(frozen=True)
 class TagSnippet:
     label_key: str
     hint_key: str
     template: str
+    parameters: tuple[TagSnippetParameter, ...] = ()
 
     def render(self, selected_text: str) -> tuple[str, int]:
         rendered_text = self.template.replace(SELECTION_PLACEHOLDER, selected_text)
@@ -343,8 +352,69 @@ def _snippet_from_dict(
             "Dictionary item requires non-empty label_key, hint_key, and template: "
             f"{context}"
         )
+    parameters = _parameters_from_dict(item, context)
     _validate_template_placeholders(template, context)
-    return TagSnippet(label_key, hint_key, template)
+    return TagSnippet(label_key, hint_key, template, parameters)
+
+
+def _parameters_from_dict(
+    item: dict[str, Any],
+    context: str,
+) -> tuple[TagSnippetParameter, ...]:
+    raw_parameters = item.get("parameters", [])
+    if not isinstance(raw_parameters, list):
+        raise TypeError(f"Dictionary item parameters must be a list: {context}")
+
+    parameters: list[TagSnippetParameter] = []
+    seen_names: set[str] = set()
+    for index, raw_parameter in enumerate(raw_parameters, start=1):
+        parameter_context = f"{context} parameter #{index}"
+        if not isinstance(raw_parameter, dict):
+            raise TypeError(f"Dictionary parameter must be an object: {parameter_context}")
+
+        name = raw_parameter.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(
+                "Dictionary parameter requires non-empty name: "
+                f"{parameter_context}"
+            )
+        clean_name = name.strip()
+        if clean_name in seen_names:
+            raise ValueError(
+                "Dictionary parameter has duplicated name "
+                f"{clean_name!r}: {parameter_context}"
+            )
+        seen_names.add(clean_name)
+
+        required = raw_parameter.get("required", False)
+        if not isinstance(required, bool):
+            raise TypeError(
+                "Dictionary parameter required must be true or false: "
+                f"{parameter_context}"
+            )
+
+        kind = raw_parameter.get("kind", "text")
+        description_key = raw_parameter.get("description_key", "")
+        if not isinstance(kind, str) or not kind.strip():
+            raise ValueError(
+                "Dictionary parameter kind must be a non-empty string: "
+                f"{parameter_context}"
+            )
+        if not isinstance(description_key, str):
+            raise TypeError(
+                "Dictionary parameter description_key must be a string: "
+                f"{parameter_context}"
+            )
+
+        parameters.append(
+            TagSnippetParameter(
+                name=clean_name,
+                required=required,
+                kind=kind.strip(),
+                description_key=description_key.strip(),
+            )
+        )
+    return tuple(parameters)
 
 
 def _validate_template_placeholders(template: str, context: str) -> None:
@@ -396,6 +466,12 @@ def _validate_translation_keys(
         for group in groups
         for snippet in group.snippets
         for key in (snippet.label_key, snippet.hint_key)
+    } | {
+        parameter.description_key
+        for group in groups
+        for snippet in group.snippets
+        for parameter in snippet.parameters
+        if parameter.description_key
     }
     for language_code in ("ja", "en"):
         resource_path = resources_path / f"app_text_{language_code}.json"

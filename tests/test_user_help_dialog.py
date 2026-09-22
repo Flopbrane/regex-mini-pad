@@ -32,6 +32,8 @@ def test_user_help_dialog_uses_application_language(app: QApplication) -> None:
     assert dialog.topic_list.item(0).text() == "ファイル"
     dialog.topic_list.setCurrentRow(3)
     assert "タグ挿入" in dialog.help_browser.toPlainText()
+    assert "WordPress HTML モード" in dialog.help_browser.toPlainText()
+    assert "候補から隠します" in dialog.help_browser.toPlainText()
     assert dialog.topic_list.item(4).text() == "HTML属性図鑑"
 
     translator.set_language("en")
@@ -41,6 +43,8 @@ def test_user_help_dialog_uses_application_language(app: QApplication) -> None:
     assert dialog.topic_list.item(3).text() == "Tag Insertion"
     assert dialog.topic_list.item(4).text() == "HTML Attribute Guide"
     assert "Tag Insertion" in dialog.help_browser.toPlainText()
+    assert "WordPress HTML Modes" in dialog.help_browser.toPlainText()
+    assert "hide risky snippets" in dialog.help_browser.toPlainText()
 
 
 def test_user_help_dialog_can_navigate_topics(app: QApplication) -> None:

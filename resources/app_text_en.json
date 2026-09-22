@@ -334,6 +334,7 @@
   "options.item.search_marker_color": "Search marker color",
   "options.item.current_match_color": "Current match marker color",
   "options.item.regex_lint": "Regex check",
+  "options.item.html_typo_lint": "HTML/WP typo check",
   "help.title": "Help",
   "help.close": "Close",
   "tab.close": "Close",

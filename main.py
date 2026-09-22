@@ -132,6 +132,7 @@ class MainWindow(QMainWindow):
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
         self.regex_lint_enabled = settings.regex_lint_enabled
+        self.html_typo_lint_enabled = settings.html_typo_lint_enabled
         self.visible_spaces_enabled = settings.visible_spaces_enabled
         self.visible_tabs_enabled = settings.visible_tabs_enabled
         self.visible_newlines_enabled = settings.visible_newlines_enabled
@@ -697,6 +698,7 @@ class MainWindow(QMainWindow):
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
             regex_lint_enabled=self.regex_lint_enabled,
+            html_typo_lint_enabled=self.html_typo_lint_enabled,
         )
 
     def set_language(self, language_code: str) -> None:
@@ -922,6 +924,7 @@ class MainWindow(QMainWindow):
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
             regex_lint_enabled=self.regex_lint_enabled,
+            html_typo_lint_enabled=self.html_typo_lint_enabled,
         )
         dialog = OptionsDialog(self.translator, settings, self)
         self.options_dialog = dialog
@@ -952,6 +955,7 @@ class MainWindow(QMainWindow):
         self.search_marker_color = values.search_marker_color
         self.current_match_marker_color = values.current_match_marker_color
         self.regex_lint_enabled = values.regex_lint_enabled
+        self.html_typo_lint_enabled = values.html_typo_lint_enabled
         self.visible_spaces_enabled = values.visible_spaces_enabled
         self.visible_tabs_enabled = values.visible_tabs_enabled
         self.visible_newlines_enabled = values.visible_newlines_enabled

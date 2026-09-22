@@ -428,6 +428,82 @@ def test_tag_dictionary_rejects_broken_placeholder(tmp_path: Path) -> None:
         tag_snippet_groups(tmp_path)
 
 
+def test_tag_dictionary_accepts_structured_parameters(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.link",
+                "hint_key": "tag.hint.html.link",
+                "template": '<a href="{cursor}">{selection}</a>',
+                "parameters": [
+                    {
+                        "name": "href",
+                        "required": True,
+                        "kind": "url",
+                        "description_key": "tag.parameter.href",
+                    }
+                ],
+            }
+        ],
+    )
+
+    resources_path = tmp_path / "resources"
+    resources_path.mkdir()
+    write_app_text_files(
+        resources_path,
+        {
+            "tag.html.link": "Link",
+            "tag.hint.html.link": "Link hint",
+            "tag.parameter.href": "Destination URL",
+        },
+    )
+
+    snippet = tag_snippet_groups(tmp_path, resources_path)[0].snippets[0]
+
+    assert snippet.parameters[0].name == "href"
+    assert snippet.parameters[0].required is True
+    assert snippet.parameters[0].kind == "url"
+    assert snippet.parameters[0].description_key == "tag.parameter.href"
+
+
+def test_tag_dictionary_rejects_invalid_parameters(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.paragraph",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{selection}{cursor}</p>",
+                "parameters": [{"required": True}],
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match=r"parameter requires non-empty name"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_rejects_duplicated_parameter_names(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.image",
+                "hint_key": "tag.hint.html.image",
+                "template": '<img src="{cursor}" alt="{selection}">',
+                "parameters": [
+                    {"name": "src", "required": True},
+                    {"name": "src", "required": False},
+                ],
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match=r"duplicated name 'src'"):
+        tag_snippet_groups(tmp_path)
+
+
 def test_tag_dictionary_translation_keys_exist() -> None:
     snippets = [
         snippet

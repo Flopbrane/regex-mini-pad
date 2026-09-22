@@ -35,6 +35,7 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.search_marker_color == "#ffff00"
     assert settings.current_match_marker_color == "#ff9900"
     assert settings.regex_lint_enabled is True
+    assert settings.html_typo_lint_enabled is True
 
 
 def test_save_and_load_settings(tmp_path) -> None:
@@ -68,6 +69,7 @@ def test_save_and_load_settings(tmp_path) -> None:
         search_marker_color="#9ed8ff",
         current_match_marker_color="#ffb3d9",
         regex_lint_enabled=False,
+        html_typo_lint_enabled=False,
     )
     settings = settings_manager.load()
 
@@ -98,3 +100,4 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.search_marker_color == "#9ed8ff"
     assert settings.current_match_marker_color == "#ffb3d9"
     assert settings.regex_lint_enabled is False
+    assert settings.html_typo_lint_enabled is False

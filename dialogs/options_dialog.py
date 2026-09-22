@@ -75,6 +75,7 @@ class OptionsDialogValues:
     search_marker_color: str
     current_match_marker_color: str
     regex_lint_enabled: bool
+    html_typo_lint_enabled: bool
 
 
 class OptionsDialog(QDialog):
@@ -116,6 +117,7 @@ class OptionsDialog(QDialog):
         self.search_marker_color_combo = QComboBox(self)
         self.current_match_marker_color_combo = QComboBox(self)
         self.regex_lint_checkbox = QCheckBox(self)
+        self.html_typo_lint_checkbox = QCheckBox(self)
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok
             | QDialogButtonBox.StandardButton.Cancel,
@@ -174,6 +176,9 @@ class OptionsDialog(QDialog):
         self.regex_lint_checkbox.setText(
             self.translator.text("options.item.regex_lint")
         )
+        self.html_typo_lint_checkbox.setText(
+            self.translator.text("options.item.html_typo_lint")
+        )
 
     def set_values(self, settings: EditorSettings) -> None:
         self.line_numbers_checkbox.setChecked(settings.line_numbers_enabled)
@@ -227,6 +232,7 @@ class OptionsDialog(QDialog):
             settings.current_match_marker_color,
         )
         self.regex_lint_checkbox.setChecked(settings.regex_lint_enabled)
+        self.html_typo_lint_checkbox.setChecked(settings.html_typo_lint_enabled)
 
     def values(self) -> OptionsDialogValues:
         return OptionsDialogValues(
@@ -257,6 +263,7 @@ class OptionsDialog(QDialog):
                 self.current_match_marker_color_combo.currentData()
             ),
             regex_lint_enabled=self.regex_lint_checkbox.isChecked(),
+            html_typo_lint_enabled=self.html_typo_lint_checkbox.isChecked(),
         )
 
     def _create_tabs(self) -> None:
@@ -370,6 +377,7 @@ class OptionsDialog(QDialog):
             self.current_match_marker_color_combo,
         )
         layout.addRow(self.regex_lint_checkbox)
+        layout.addRow(self.html_typo_lint_checkbox)
         tab.setLayout(layout)
         return tab
 

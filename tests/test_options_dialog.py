@@ -40,6 +40,7 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.startup_restore_checkbox.text() == "起動時の復元"
     assert dialog.dictionary_check_checkbox.text() == "Dict 検証"
     assert dialog.regex_lint_checkbox.text() == "正規表現チェック"
+    assert dialog.html_typo_lint_checkbox.text() == "HTML/WP表記チェック"
     assert dialog.line_numbers_checkbox.text() == "行番号"
     assert dialog.word_wrap_checkbox.text() == "折り返し"
     assert dialog.fixed_column_wrap_checkbox.text() == "設定文字数で折り返す"
@@ -79,6 +80,7 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             search_marker_color="#9ed8ff",
             current_match_marker_color="#ffb3d9",
             regex_lint_enabled=False,
+            html_typo_lint_enabled=False,
         ),
     )
 
@@ -108,3 +110,4 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.search_marker_color == "#9ed8ff"
     assert values.current_match_marker_color == "#ffb3d9"
     assert values.regex_lint_enabled is False
+    assert values.html_typo_lint_enabled is False

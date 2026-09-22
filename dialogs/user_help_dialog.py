@@ -59,6 +59,13 @@ HELP_TOPICS = {
 - Press Enter to insert the selected snippet.
 - Selected text is wrapped when the snippet supports it.
 - The first snippet group is prioritized by file extension: .md, .html, or .wp.html.
+
+## WordPress HTML Modes
+
+- Normal shows the broadest WordPress HTML snippet set for ordinary editing.
+- Business / Office hides snippets that are likely to depend on custom HTML, complex image rows, or float-based layouts.
+- Hi-security shows only the stricter snippet set intended for safer standard WordPress blocks.
+- Stricter modes hide risky snippets instead of merely moving them lower in the menu. This keeps accidental insertion less likely.
 """,
         ),
         (
@@ -209,6 +216,13 @@ Inline style example:
 - Enter で選択中のスニペットを挿入します。
 - スニペットが対応している場合、選択中の文字列を囲みます。
 - .md、.html、.wp.html では拡張子に応じた候補グループが先頭になります。
+
+## WordPress HTML モード
+
+- Normal は通常編集向けに、もっとも広い WordPress HTML スニペット候補を表示します。
+- 企業・事業所は、独自HTML、複雑な画像横並び、float系レイアウトに依存しやすい候補を隠します。
+- Hi-security は、安全寄りの標準 WordPress ブロックとして扱いやすい候補だけを表示します。
+- 厳しいモードでは、危険になりやすい候補を下位表示するだけでなく、候補から隠します。誤挿入を減らすためです。
 """,
         ),
         (

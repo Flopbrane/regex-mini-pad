@@ -334,6 +334,7 @@
   "options.item.search_marker_color": "検索マーカー色",
   "options.item.current_match_color": "現在一致マーカー色",
   "options.item.regex_lint": "正規表現チェック",
+  "options.item.html_typo_lint": "HTML/WP表記チェック",
   "help.title": "使い方",
   "help.close": "閉じる",
   "tab.close": "閉じる",
