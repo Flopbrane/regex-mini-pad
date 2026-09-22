@@ -34,6 +34,9 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.tab_width == 4
     assert settings.search_marker_color == "#ffff00"
     assert settings.current_match_marker_color == "#ff9900"
+    assert settings.visible_space_marker_color == "#9a9a9a"
+    assert settings.visible_tab_marker_color == "#9ed8ff"
+    assert settings.visible_newline_marker_color == "#ff9900"
     assert settings.regex_lint_enabled is True
     assert settings.html_typo_lint_enabled is True
 
@@ -68,6 +71,9 @@ def test_save_and_load_settings(tmp_path) -> None:
         tab_width=8,
         search_marker_color="#9ed8ff",
         current_match_marker_color="#ffb3d9",
+        visible_space_marker_color="#d9d9d9",
+        visible_tab_marker_color="#b6f2a5",
+        visible_newline_marker_color="#ff9900",
         regex_lint_enabled=False,
         html_typo_lint_enabled=False,
     )
@@ -99,5 +105,8 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.tab_width == 8
     assert settings.search_marker_color == "#9ed8ff"
     assert settings.current_match_marker_color == "#ffb3d9"
+    assert settings.visible_space_marker_color == "#d9d9d9"
+    assert settings.visible_tab_marker_color == "#b6f2a5"
+    assert settings.visible_newline_marker_color == "#ff9900"
     assert settings.regex_lint_enabled is False
     assert settings.html_typo_lint_enabled is False

@@ -48,6 +48,9 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.visible_spaces_checkbox.text() == "空白を表示"
     assert dialog.visible_tabs_checkbox.text() == "TABを表示"
     assert dialog.visible_newlines_checkbox.text() == "改行を表示"
+    assert dialog.visible_space_marker_color_combo.count() > 0
+    assert dialog.visible_tab_marker_color_combo.count() > 0
+    assert dialog.visible_newline_marker_color_combo.count() > 0
 
 
 def test_options_dialog_returns_editable_values(app: QApplication) -> None:
@@ -79,6 +82,9 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             tab_width=8,
             search_marker_color="#9ed8ff",
             current_match_marker_color="#ffb3d9",
+            visible_space_marker_color="#d9d9d9",
+            visible_tab_marker_color="#b6f2a5",
+            visible_newline_marker_color="#ff9900",
             regex_lint_enabled=False,
             html_typo_lint_enabled=False,
         ),
@@ -109,5 +115,8 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.tab_width == 8
     assert values.search_marker_color == "#9ed8ff"
     assert values.current_match_marker_color == "#ffb3d9"
+    assert values.visible_space_marker_color == "#d9d9d9"
+    assert values.visible_tab_marker_color == "#b6f2a5"
+    assert values.visible_newline_marker_color == "#ff9900"
     assert values.regex_lint_enabled is False
     assert values.html_typo_lint_enabled is False

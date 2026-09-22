@@ -738,6 +738,34 @@ pyright: 0 errors, 0 warnings, 0 informations
 lint_reference.json validation: OK
 ```
 
+## Step11-section16 Visible Whitespace Marker Colors
+
+Changes:
+
+- Added separate color settings for visible whitespace markers:
+  - `visible_space_marker_color`
+  - `visible_tab_marker_color`
+  - `visible_newline_marker_color`
+- Added View-tab Options controls for space, TAB, and newline marker colors.
+- Existing tabs and new tabs now receive the configured marker colors.
+- Visible whitespace painting now selects marker color by character type instead of using one shared color.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_text_editor_visible_whitespace.py tests\test_settings_manager.py tests\test_options_dialog.py -q
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check editor\text_editor.py settings\settings_manager.py dialogs\options_dialog.py main.py tests\test_text_editor_visible_whitespace.py tests\test_settings_manager.py tests\test_options_dialog.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright editor\text_editor.py settings\settings_manager.py dialogs\options_dialog.py main.py tests\test_text_editor_visible_whitespace.py tests\test_settings_manager.py tests\test_options_dialog.py
+```
+
+Latest result:
+
+```text
+targeted pytest: 10 passed
+targeted ruff: All checks passed
+targeted pyright: 0 errors, 0 warnings, 0 informations
+```
+
 ## Step11-section13 WordPress Text Column Snippets
 
 Changes:
@@ -939,7 +967,7 @@ Recommended remaining order:
      - Click-to-set wrap column.
      - Green wrap-column guide line.
      - Visible half-width spaces, full-width spaces, tabs, and newlines.
-     - Options wiring for line numbers, word wrap, ruler, wrap-at-column, wrap column, and visible whitespace.
+     - Options wiring for line numbers, word wrap, ruler, wrap-at-column, wrap column, visible whitespace, and separate whitespace marker colors.
      - Display review checklist was added below for the remaining manual/visual checks.
    - Remaining:
      - No code change is queued. Run the display review checklist on the actual GUI before changing marker colors or rendering behavior.

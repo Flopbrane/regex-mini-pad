@@ -74,6 +74,9 @@ class OptionsDialogValues:
     tab_width: int
     search_marker_color: str
     current_match_marker_color: str
+    visible_space_marker_color: str
+    visible_tab_marker_color: str
+    visible_newline_marker_color: str
     regex_lint_enabled: bool
     html_typo_lint_enabled: bool
 
@@ -116,6 +119,9 @@ class OptionsDialog(QDialog):
         self.tab_width_spin = QSpinBox(self)
         self.search_marker_color_combo = QComboBox(self)
         self.current_match_marker_color_combo = QComboBox(self)
+        self.visible_space_marker_color_combo = QComboBox(self)
+        self.visible_tab_marker_color_combo = QComboBox(self)
+        self.visible_newline_marker_color_combo = QComboBox(self)
         self.regex_lint_checkbox = QCheckBox(self)
         self.html_typo_lint_checkbox = QCheckBox(self)
         self.button_box = QDialogButtonBox(
@@ -231,6 +237,18 @@ class OptionsDialog(QDialog):
             self.current_match_marker_color_combo,
             settings.current_match_marker_color,
         )
+        self._set_color_combo(
+            self.visible_space_marker_color_combo,
+            settings.visible_space_marker_color,
+        )
+        self._set_color_combo(
+            self.visible_tab_marker_color_combo,
+            settings.visible_tab_marker_color,
+        )
+        self._set_color_combo(
+            self.visible_newline_marker_color_combo,
+            settings.visible_newline_marker_color,
+        )
         self.regex_lint_checkbox.setChecked(settings.regex_lint_enabled)
         self.html_typo_lint_checkbox.setChecked(settings.html_typo_lint_enabled)
 
@@ -261,6 +279,15 @@ class OptionsDialog(QDialog):
             search_marker_color=str(self.search_marker_color_combo.currentData()),
             current_match_marker_color=str(
                 self.current_match_marker_color_combo.currentData()
+            ),
+            visible_space_marker_color=str(
+                self.visible_space_marker_color_combo.currentData()
+            ),
+            visible_tab_marker_color=str(
+                self.visible_tab_marker_color_combo.currentData()
+            ),
+            visible_newline_marker_color=str(
+                self.visible_newline_marker_color_combo.currentData()
             ),
             regex_lint_enabled=self.regex_lint_checkbox.isChecked(),
             html_typo_lint_enabled=self.html_typo_lint_checkbox.isChecked(),
@@ -311,8 +338,23 @@ class OptionsDialog(QDialog):
         )
         layout.addRow(self.ruler_checkbox)
         layout.addRow(self.visible_spaces_checkbox)
+        self._populate_color_combo(self.visible_space_marker_color_combo)
+        layout.addRow(
+            self.translator.text("options.item.visible_space_marker_color"),
+            self.visible_space_marker_color_combo,
+        )
         layout.addRow(self.visible_tabs_checkbox)
+        self._populate_color_combo(self.visible_tab_marker_color_combo)
+        layout.addRow(
+            self.translator.text("options.item.visible_tab_marker_color"),
+            self.visible_tab_marker_color_combo,
+        )
         layout.addRow(self.visible_newlines_checkbox)
+        self._populate_color_combo(self.visible_newline_marker_color_combo)
+        layout.addRow(
+            self.translator.text("options.item.visible_newline_marker_color"),
+            self.visible_newline_marker_color_combo,
+        )
         layout.addRow(self._disabled_checkbox("options.item.theme"))
         tab.setLayout(layout)
         return tab

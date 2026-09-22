@@ -73,6 +73,24 @@ def test_visible_whitespace_options_do_not_modify_text(app: QApplication) -> Non
     ]
 
 
+def test_visible_whitespace_marker_colors_are_configurable(
+    app: QApplication,
+) -> None:
+    _ = app
+    editor = TextEditor()
+
+    editor.set_visible_whitespace_marker_colors(
+        space_color="#d9d9d9",
+        tab_color="#b6f2a5",
+        newline_color="#ff9900",
+    )
+
+    assert editor._visible_whitespace_marker_color(" ") == "#d9d9d9"
+    assert editor._visible_whitespace_marker_color("\u3000") == "#d9d9d9"
+    assert editor._visible_whitespace_marker_color("\t") == "#b6f2a5"
+    assert editor._visible_whitespace_marker_color("\n") == "#ff9900"
+
+
 def test_visible_whitespace_paint_path_renders(app: QApplication) -> None:
     editor = TextEditor()
     source_text = "a b\tc\n"

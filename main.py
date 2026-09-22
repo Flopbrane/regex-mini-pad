@@ -131,6 +131,9 @@ class MainWindow(QMainWindow):
         self.startup_restore_enabled = settings.startup_restore_enabled
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
+        self.visible_space_marker_color = settings.visible_space_marker_color
+        self.visible_tab_marker_color = settings.visible_tab_marker_color
+        self.visible_newline_marker_color = settings.visible_newline_marker_color
         self.regex_lint_enabled = settings.regex_lint_enabled
         self.html_typo_lint_enabled = settings.html_typo_lint_enabled
         self.visible_spaces_enabled = settings.visible_spaces_enabled
@@ -386,6 +389,11 @@ class MainWindow(QMainWindow):
             spaces_enabled=self.visible_spaces_enabled,
             tabs_enabled=self.visible_tabs_enabled,
             newlines_enabled=self.visible_newlines_enabled,
+        )
+        editor.set_visible_whitespace_marker_colors(
+            space_color=self.visible_space_marker_color,
+            tab_color=self.visible_tab_marker_color,
+            newline_color=self.visible_newline_marker_color,
         )
         editor.setFont(QFont(self.font_family, self.font_size))
         self._set_editor_tab_width(editor)
@@ -658,6 +666,10 @@ class MainWindow(QMainWindow):
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
         self._apply_search_marker_colors_to_all_tabs()
+        self.visible_space_marker_color = settings.visible_space_marker_color
+        self.visible_tab_marker_color = settings.visible_tab_marker_color
+        self.visible_newline_marker_color = settings.visible_newline_marker_color
+        self._apply_visible_whitespace_marker_colors_to_all_tabs()
         self.visible_spaces_enabled = settings.visible_spaces_enabled
         self.visible_tabs_enabled = settings.visible_tabs_enabled
         self.visible_newlines_enabled = settings.visible_newlines_enabled
@@ -697,6 +709,9 @@ class MainWindow(QMainWindow):
             tab_width=self.tab_width,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
+            visible_space_marker_color=self.visible_space_marker_color,
+            visible_tab_marker_color=self.visible_tab_marker_color,
+            visible_newline_marker_color=self.visible_newline_marker_color,
             regex_lint_enabled=self.regex_lint_enabled,
             html_typo_lint_enabled=self.html_typo_lint_enabled,
         )
@@ -923,6 +938,9 @@ class MainWindow(QMainWindow):
             tab_width=self.tab_width,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
+            visible_space_marker_color=self.visible_space_marker_color,
+            visible_tab_marker_color=self.visible_tab_marker_color,
+            visible_newline_marker_color=self.visible_newline_marker_color,
             regex_lint_enabled=self.regex_lint_enabled,
             html_typo_lint_enabled=self.html_typo_lint_enabled,
         )
@@ -954,6 +972,9 @@ class MainWindow(QMainWindow):
         self.font_size = values.font_size
         self.search_marker_color = values.search_marker_color
         self.current_match_marker_color = values.current_match_marker_color
+        self.visible_space_marker_color = values.visible_space_marker_color
+        self.visible_tab_marker_color = values.visible_tab_marker_color
+        self.visible_newline_marker_color = values.visible_newline_marker_color
         self.regex_lint_enabled = values.regex_lint_enabled
         self.html_typo_lint_enabled = values.html_typo_lint_enabled
         self.visible_spaces_enabled = values.visible_spaces_enabled
@@ -969,6 +990,7 @@ class MainWindow(QMainWindow):
         self._apply_editor_font_to_all_tabs()
         self._apply_search_marker_colors_to_all_tabs()
         self._apply_visible_whitespace_options_to_all_tabs()
+        self._apply_visible_whitespace_marker_colors_to_all_tabs()
         self._apply_fixed_column_wrap_options_to_all_tabs()
         self._apply_regex_lint_option_to_find_dialog()
         self._rebuild_insert_tag_menu()
@@ -1042,6 +1064,17 @@ class MainWindow(QMainWindow):
                     spaces_enabled=self.visible_spaces_enabled,
                     tabs_enabled=self.visible_tabs_enabled,
                     newlines_enabled=self.visible_newlines_enabled,
+                )
+
+    def _apply_visible_whitespace_marker_colors_to_all_tabs(self) -> None:
+        """Apply visible whitespace marker colors to all open tabs."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None:
+                editor.set_visible_whitespace_marker_colors(
+                    space_color=self.visible_space_marker_color,
+                    tab_color=self.visible_tab_marker_color,
+                    newline_color=self.visible_newline_marker_color,
                 )
 
     def _apply_fixed_column_wrap_options_to_all_tabs(self) -> None:

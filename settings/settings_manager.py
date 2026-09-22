@@ -34,6 +34,9 @@ class EditorSettings:
     tab_width: int = 4
     search_marker_color: str = "#ffff00"
     current_match_marker_color: str = "#ff9900"
+    visible_space_marker_color: str = "#9a9a9a"
+    visible_tab_marker_color: str = "#9ed8ff"
+    visible_newline_marker_color: str = "#ff9900"
     regex_lint_enabled: bool = True
     html_typo_lint_enabled: bool = True
 
@@ -103,6 +106,15 @@ class SettingsManager:
             current_match_marker_color=str(
                 load_data.get("current_match_marker_color", "#ff9900")
             ),
+            visible_space_marker_color=str(
+                load_data.get("visible_space_marker_color", "#9a9a9a")
+            ),
+            visible_tab_marker_color=str(
+                load_data.get("visible_tab_marker_color", "#9ed8ff")
+            ),
+            visible_newline_marker_color=str(
+                load_data.get("visible_newline_marker_color", "#ff9900")
+            ),
             regex_lint_enabled=bool(load_data.get("regex_lint_enabled", True)),
             html_typo_lint_enabled=bool(
                 load_data.get("html_typo_lint_enabled", True)
@@ -138,6 +150,9 @@ class SettingsManager:
         tab_width: int = 4,
         search_marker_color: str = "#ffff00",
         current_match_marker_color: str = "#ff9900",
+        visible_space_marker_color: str = "#9a9a9a",
+        visible_tab_marker_color: str = "#9ed8ff",
+        visible_newline_marker_color: str = "#ff9900",
         regex_lint_enabled: bool = True,
         html_typo_lint_enabled: bool = True,
     ) -> None:
@@ -168,6 +183,9 @@ class SettingsManager:
             "tab_width": max(1, tab_width),
             "search_marker_color": search_marker_color,
             "current_match_marker_color": current_match_marker_color,
+            "visible_space_marker_color": visible_space_marker_color,
+            "visible_tab_marker_color": visible_tab_marker_color,
+            "visible_newline_marker_color": visible_newline_marker_color,
             "regex_lint_enabled": regex_lint_enabled,
             "html_typo_lint_enabled": html_typo_lint_enabled,
         }

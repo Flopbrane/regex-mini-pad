@@ -38,6 +38,9 @@ class TextEditor(QPlainTextEdit):
         self.visible_spaces_enabled = False
         self.visible_tabs_enabled = False
         self.visible_newlines_enabled = False
+        self.visible_space_marker_color = "#9a9a9a"
+        self.visible_tab_marker_color = "#9ed8ff"
+        self.visible_newline_marker_color = "#ff9900"
         self.word_wrap_enabled = False
         self.fixed_column_wrap_enabled = False
         self.fixed_column_wrap_column = 80
@@ -215,6 +218,18 @@ class TextEditor(QPlainTextEdit):
         self.visible_newlines_enabled = newlines_enabled
         self.viewport().update()
 
+    def set_visible_whitespace_marker_colors(
+        self,
+        *,
+        space_color: str,
+        tab_color: str,
+        newline_color: str,
+    ) -> None:
+        self.visible_space_marker_color = space_color
+        self.visible_tab_marker_color = tab_color
+        self.visible_newline_marker_color = newline_color
+        self.viewport().update()
+
     def visible_whitespace_marks(self) -> list[VisibleWhitespaceMark]:
         source_text = self.toPlainText()
         marks: list[VisibleWhitespaceMark] = []
@@ -246,7 +261,6 @@ class TextEditor(QPlainTextEdit):
 
         source_text = self.toPlainText()
         painter = QPainter(self.viewport())
-        painter.setPen(QColor("#9a9a9a"))
 
         block = self.firstVisibleBlock()
         top = round(
@@ -318,6 +332,8 @@ class TextEditor(QPlainTextEdit):
         if not marker_rect.intersects(event_rect.adjusted(-20, -20, 20, 20)):
             return
 
+        painter.setPen(QColor(self._visible_whitespace_marker_color(character)))
+
         if character == "\t":
             marker_rect.setWidth(
                 max(marker_rect.width(), round(self.tabStopDistance()))
@@ -330,6 +346,13 @@ class TextEditor(QPlainTextEdit):
         else:
             alignment = Qt.AlignmentFlag.AlignCenter
         painter.drawText(marker_rect, alignment, marker)
+
+    def _visible_whitespace_marker_color(self, character: str) -> str:
+        if character == "\t":
+            return self.visible_tab_marker_color
+        if character == "\n":
+            return self.visible_newline_marker_color
+        return self.visible_space_marker_color
 
     def _apply_search_highlights(self) -> None:
         highlight_format = QTextCharFormat()
