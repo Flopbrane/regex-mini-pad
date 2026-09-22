@@ -37,7 +37,7 @@
   {
     "label_key": "tag.wordpress.html_code_box",
     "hint_key": "tag.hint.wordpress.html_code_box",
-    "template": "<!-- wp:html -->\n<pre class=\"wp-block-code\" style=\"display:inline-block; border:1px solid #999; padding:16px; border-radius:8px; background-color:#f9f9f9;\"><code>{selection}{cursor}</code></pre>\n<!-- /wp:html -->"
+    "template": "<!-- wp:html -->\n<pre\n    class=\"wp-block-code\"\n    style=\"display: inline-block; border: 1px solid #999; padding: 16px; border-radius: 8px; background-color: #f9f9f9;\"\n><code>{selection}{cursor}</code></pre>\n<!-- /wp:html -->"
   },
   {
     "label_key": "tag.wordpress.separator_block",
@@ -53,6 +53,31 @@
     "label_key": "tag.wordpress.buttons_block",
     "hint_key": "tag.hint.wordpress.buttons_block",
     "template": "<!-- wp:buttons -->\n<div class=\"wp-block-buttons\">\n<!-- wp:button -->\n<div class=\"wp-block-button\"><a class=\"wp-block-button__link wp-element-button\" href=\"{cursor}\">{selection}</a></div>\n<!-- /wp:button -->\n</div>\n<!-- /wp:buttons -->"
+  },
+  {
+    "label_key": "tag.wordpress.link_block",
+    "hint_key": "tag.hint.wordpress.link_block",
+    "template": "<!-- wp:paragraph -->\n<p><a href=\"{cursor}\">{selection}</a></p>\n<!-- /wp:paragraph -->"
+  },
+  {
+    "label_key": "tag.wordpress.custom_frame_block",
+    "hint_key": "tag.hint.wordpress.custom_frame_block",
+    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 2px solid #2f80ed; background-color: #f5f9ff; color: #111111; padding: 16px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+  },
+  {
+    "label_key": "tag.wordpress.notice_frame_block",
+    "hint_key": "tag.hint.wordpress.notice_frame_block",
+    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 2px solid #f2c94c; background-color: #fff8e1; color: #3a2a00; padding: 16px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+  },
+  {
+    "label_key": "tag.wordpress.info_frame_block",
+    "hint_key": "tag.hint.wordpress.info_frame_block",
+    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 2px solid #2f80ed; background-color: #eef6ff; color: #102a43; padding: 16px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+  },
+  {
+    "label_key": "tag.wordpress.important_frame_block",
+    "hint_key": "tag.hint.wordpress.important_frame_block",
+    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 3px solid #d64545; background-color: #fff1f1; color: #4a1111; padding: 18px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
   },
   {
     "label_key": "tag.wordpress.image_block",
@@ -78,6 +103,16 @@
     "label_key": "tag.wordpress.columns_3_images_block",
     "hint_key": "tag.hint.wordpress.columns_3_images_block",
     "template": "<!-- wp:columns -->\n<div class=\"wp-block-columns\">\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:image {\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-full\"><img src=\"https://example.com/image-01.jpg\" alt=\"画像1\"/></figure>\n<!-- /wp:image -->\n</div>\n<!-- /wp:column -->\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:image {\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-full\"><img src=\"https://example.com/image-02.jpg\" alt=\"画像2\"/></figure>\n<!-- /wp:image -->\n</div>\n<!-- /wp:column -->\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:image {\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-full\"><img src=\"https://example.com/image-03.jpg\" alt=\"画像3\"/></figure>\n<!-- /wp:image -->\n</div>\n<!-- /wp:column -->\n</div>\n<!-- /wp:columns -->\n{cursor}"
+  },
+  {
+    "label_key": "tag.wordpress.columns_2_text_block",
+    "hint_key": "tag.hint.wordpress.columns_2_text_block",
+    "template": "<!-- wp:columns -->\n<div class=\"wp-block-columns\">\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:column -->\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:paragraph -->\n<p>ここに2段目の文章を入力します。</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:column -->\n</div>\n<!-- /wp:columns -->"
+  },
+  {
+    "label_key": "tag.wordpress.columns_3_text_block",
+    "hint_key": "tag.hint.wordpress.columns_3_text_block",
+    "template": "<!-- wp:columns -->\n<div class=\"wp-block-columns\">\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:column -->\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:paragraph -->\n<p>ここに2段目の文章を入力します。</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:column -->\n<!-- wp:column -->\n<div class=\"wp-block-column\">\n<!-- wp:paragraph -->\n<p>ここに3段目の文章を入力します。</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:column -->\n</div>\n<!-- /wp:columns -->"
   },
   {
     "label_key": "tag.wordpress.image_row_html_block",

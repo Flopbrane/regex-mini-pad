@@ -1,0 +1,8 @@
+{
+  "language_id": "css",
+  "display_name": "CSS",
+  "status": "placeholder",
+  "extensions": [".css"],
+  "allowed_placeholders": ["selection", "cursor"],
+  "snippet_fields": ["label", "label_key", "hint", "hint_key", "template", "category"]
+}

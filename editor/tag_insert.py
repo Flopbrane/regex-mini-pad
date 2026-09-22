@@ -35,6 +35,13 @@ WORDPRESS_HIGH_SECURITY_LABEL_KEYS = {
     "tag.wordpress.preformatted_block",
     "tag.wordpress.separator_block",
     "tag.wordpress.spacer_block",
+    "tag.wordpress.link_block",
+    "tag.wordpress.custom_frame_block",
+    "tag.wordpress.notice_frame_block",
+    "tag.wordpress.info_frame_block",
+    "tag.wordpress.important_frame_block",
+    "tag.wordpress.columns_2_text_block",
+    "tag.wordpress.columns_3_text_block",
 }
 
 
@@ -58,11 +65,15 @@ class TagSnippetGroup:
     snippets: tuple[TagSnippet, ...]
 
 
-def tag_snippet_groups(dictionaries_path: Path | None = None) -> tuple[TagSnippetGroup, ...]:
+def tag_snippet_groups(
+    dictionaries_path: Path | None = None,
+    resources_path: Path | None = None,
+) -> tuple[TagSnippetGroup, ...]:
     dictionaries_path = (
         dictionaries_path or Path(__file__).resolve().parent.parent / "dictionaries"
     )
-    return (
+    resources_path = resources_path or Path(__file__).resolve().parent.parent / "resources"
+    groups = (
         TagSnippetGroup(
             "tag.group.html",
             _load_snippets_from_json(dictionaries_path / "html_dict.json"),
@@ -76,6 +87,8 @@ def tag_snippet_groups(dictionaries_path: Path | None = None) -> tuple[TagSnippe
             _load_snippets_from_json(dictionaries_path / "wordpress_html_dict.json"),
         ),
     )
+    _validate_translation_keys(groups, resources_path)
+    return groups
 
 
 def ordered_tag_snippet_groups(
@@ -236,6 +249,10 @@ def _wordpress_category_key(label_key: str) -> str:
     }:
         return "tag.category.text"
     if label_key in {
+        "tag.wordpress.link_block",
+    }:
+        return "tag.category.link_image"
+    if label_key in {
         "tag.wordpress.image_block",
         "tag.wordpress.media_text_left_block",
         "tag.wordpress.media_text_right_block",
@@ -258,6 +275,12 @@ def _wordpress_category_key(label_key: str) -> str:
         "tag.wordpress.separator_block",
         "tag.wordpress.spacer_block",
         "tag.wordpress.buttons_block",
+        "tag.wordpress.custom_frame_block",
+        "tag.wordpress.notice_frame_block",
+        "tag.wordpress.info_frame_block",
+        "tag.wordpress.important_frame_block",
+        "tag.wordpress.columns_2_text_block",
+        "tag.wordpress.columns_3_text_block",
     }:
         return "tag.category.layout"
     return "tag.category.utility"
@@ -269,14 +292,40 @@ def _load_snippets_from_json(load_file_path: Path) -> tuple[TagSnippet, ...]:
         raise TypeError(f"Dictionary must contain a list: {load_file_path}")
 
     snippets: list[TagSnippet] = []
-    for item in load_data:
+    seen_label_keys: dict[str, int] = {}
+    for index, item in enumerate(load_data, start=1):
         if not isinstance(item, dict):
-            raise TypeError(f"Dictionary item must be an object: {load_file_path}")
-        snippets.append(_snippet_from_dict(item, load_file_path))
+            raise TypeError(
+                "Dictionary item must be an object: "
+                f"{_dictionary_item_context(load_file_path, index)}"
+            )
+        snippet = _snippet_from_dict(item, load_file_path, index)
+        if snippet.label_key in seen_label_keys:
+            raise ValueError(
+                "Dictionary item has duplicated label_key "
+                f"{snippet.label_key!r}: "
+                f"{_dictionary_item_context(load_file_path, index)} "
+                f"(first seen at item #{seen_label_keys[snippet.label_key]})"
+            )
+        seen_label_keys[snippet.label_key] = index
+        snippets.append(snippet)
     return tuple(snippets)
 
 
-def _snippet_from_dict(item: dict[str, Any], load_file_path: Path) -> TagSnippet:
+def _snippet_from_dict(
+    item: dict[str, Any],
+    load_file_path: Path,
+    index: int,
+) -> TagSnippet:
+    context = _dictionary_item_context(load_file_path, index)
+    missing_keys = [
+        key for key in ("label_key", "hint_key", "template") if key not in item
+    ]
+    if missing_keys:
+        raise ValueError(
+            "Dictionary item is missing required key(s) "
+            f"{', '.join(missing_keys)}: {context}"
+        )
     label_key = item.get("label_key")
     hint_key = item.get("hint_key")
     template = item.get("template")
@@ -287,18 +336,40 @@ def _snippet_from_dict(item: dict[str, Any], load_file_path: Path) -> TagSnippet
     ):
         raise TypeError(
             "Dictionary item requires string label_key, hint_key, and template: "
-            f"{load_file_path}"
+            f"{context}"
         )
     if not label_key.strip() or not hint_key.strip() or not template:
         raise ValueError(
             "Dictionary item requires non-empty label_key, hint_key, and template: "
-            f"{load_file_path}"
+            f"{context}"
         )
+    _validate_template_placeholders(template, context)
+    return TagSnippet(label_key, hint_key, template)
+
+
+def _validate_template_placeholders(template: str, context: str) -> None:
     cursor_count = template.count(CURSOR_PLACEHOLDER)
     if cursor_count > 1:
-        raise ValueError(
-            f"Dictionary item has duplicated cursor placeholder: {load_file_path}"
+        raise ValueError(f"Dictionary item has duplicated cursor placeholder: {context}")
+
+    broken_placeholders = [
+        placeholder
+        for placeholder in ("selection", "cursor")
+        if (
+            f"{{{placeholder}" in template
+            and f"{{{placeholder}}}" not in template
         )
+        or (
+            f"{placeholder}}}" in template
+            and f"{{{placeholder}}}" not in template
+        )
+    ]
+    if broken_placeholders:
+        raise ValueError(
+            "Dictionary item has broken placeholder(s) "
+            f"{', '.join(broken_placeholders)}: {context}"
+        )
+
     unknown_placeholders = sorted(
         {
             placeholder
@@ -309,6 +380,35 @@ def _snippet_from_dict(item: dict[str, Any], load_file_path: Path) -> TagSnippet
     if unknown_placeholders:
         raise ValueError(
             "Dictionary item has unknown placeholder(s) "
-            f"{', '.join(unknown_placeholders)}: {load_file_path}"
+            f"{', '.join(unknown_placeholders)}: {context}"
         )
-    return TagSnippet(label_key, hint_key, template)
+
+
+def _validate_translation_keys(
+    groups: tuple[TagSnippetGroup, ...],
+    resources_path: Path,
+) -> None:
+    required_keys = {
+        group.label_key
+        for group in groups
+    } | {
+        key
+        for group in groups
+        for snippet in group.snippets
+        for key in (snippet.label_key, snippet.hint_key)
+    }
+    for language_code in ("ja", "en"):
+        resource_path = resources_path / f"app_text_{language_code}.json"
+        resource_data = json.loads(resource_path.read_text(encoding="utf-8"))
+        if not isinstance(resource_data, dict):
+            raise TypeError(f"Translation resource must contain an object: {resource_path}")
+        missing_keys = sorted(key for key in required_keys if key not in resource_data)
+        if missing_keys:
+            raise ValueError(
+                "Dictionary translation key(s) are missing from "
+                f"{resource_path}: {', '.join(missing_keys)}"
+            )
+
+
+def _dictionary_item_context(load_file_path: Path, index: int) -> str:
+    return f"{load_file_path} item #{index}"

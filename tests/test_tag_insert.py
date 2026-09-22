@@ -335,7 +335,46 @@ def test_tag_dictionary_rejects_empty_required_values(tmp_path: Path) -> None:
         ],
     )
 
-    with pytest.raises(ValueError, match="non-empty"):
+    with pytest.raises(ValueError, match=r"non-empty.*html_dict\.json item #1"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_rejects_missing_required_key(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.paragraph",
+                "template": "<p>{selection}{cursor}</p>",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match=r"missing required key.*hint_key"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_rejects_duplicated_label_key(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.paragraph",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{selection}{cursor}</p>",
+            },
+            {
+                "label_key": "tag.html.paragraph",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{selection}</p>",
+            },
+        ],
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"duplicated label_key.*tag\.html\.paragraph.*item #2.*item #1",
+    ):
         tag_snippet_groups(tmp_path)
 
 
@@ -353,7 +392,7 @@ def test_tag_dictionary_rejects_duplicated_cursor_placeholder(
         ],
     )
 
-    with pytest.raises(ValueError, match="duplicated cursor"):
+    with pytest.raises(ValueError, match=r"duplicated cursor.*html_dict\.json item #1"):
         tag_snippet_groups(tmp_path)
 
 
@@ -369,7 +408,23 @@ def test_tag_dictionary_rejects_unknown_placeholder(tmp_path: Path) -> None:
         ],
     )
 
-    with pytest.raises(ValueError, match="unknown placeholder"):
+    with pytest.raises(ValueError, match=r"unknown placeholder.*html_dict\.json item #1"):
+        tag_snippet_groups(tmp_path)
+
+
+def test_tag_dictionary_rejects_broken_placeholder(tmp_path: Path) -> None:
+    write_tag_dictionary_files(
+        tmp_path,
+        html_items=[
+            {
+                "label_key": "tag.html.paragraph",
+                "hint_key": "tag.hint.html.paragraph",
+                "template": "<p>{selection</p>",
+            }
+        ],
+    )
+
+    with pytest.raises(ValueError, match=r"broken placeholder.*selection"):
         tag_snippet_groups(tmp_path)
 
 
@@ -396,9 +451,38 @@ def test_tag_dictionary_translation_keys_exist() -> None:
         assert missing_keys == []
 
 
+def test_tag_dictionary_rejects_missing_translation_key(tmp_path: Path) -> None:
+    dictionaries_path = tmp_path / "dictionaries"
+    resources_path = tmp_path / "resources"
+    dictionaries_path.mkdir()
+    resources_path.mkdir()
+    write_tag_dictionary_files(
+        dictionaries_path,
+        html_items=[
+            {
+                "label_key": "tag.html.custom_missing",
+                "hint_key": "tag.hint.html.custom_missing",
+                "template": "<p>{selection}{cursor}</p>",
+            }
+        ],
+    )
+    write_app_text_files(
+        resources_path,
+        extra_keys={
+            "tag.html.custom_missing": "Custom",
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match=r"app_text_ja\.json.*tag\.hint\.html\.custom_missing",
+    ):
+        tag_snippet_groups(dictionaries_path, resources_path)
+
+
 def write_tag_dictionary_files(
     dictionaries_path: Path,
-    html_items: list[dict[str, str]],
+    html_items: list[dict[str, object]],
 ) -> None:
     valid_item = {
         "label_key": "tag.html.paragraph",
@@ -417,6 +501,26 @@ def write_tag_dictionary_files(
         json.dumps([valid_item]),
         encoding="utf-8",
     )
+
+
+def write_app_text_files(
+    resources_path: Path,
+    extra_keys: dict[str, str] | None = None,
+) -> None:
+    texts = {
+        "tag.group.html": "HTML",
+        "tag.group.markdown": "Markdown",
+        "tag.group.wordpress_html": "WordPress HTML",
+        "tag.html.paragraph": "Paragraph",
+        "tag.hint.html.paragraph": "Paragraph hint",
+    }
+    if extra_keys:
+        texts.update(extra_keys)
+    for language_code in ("ja", "en"):
+        (resources_path / f"app_text_{language_code}.json").write_text(
+            json.dumps(texts),
+            encoding="utf-8",
+        )
 
 
 def test_insert_html_div_places_cursor_in_class_parameter(app: QApplication) -> None:
@@ -493,9 +597,22 @@ def test_wordpress_html_snippets_are_loaded_from_json() -> None:
     wordpress_group = tag_snippet_groups()[2]
 
     assert wordpress_group.label_key == "tag.group.wordpress_html"
-    assert len(wordpress_group.snippets) == 21
+    assert len(wordpress_group.snippets) == 28
     assert wordpress_group.snippets[0].label_key == "tag.wordpress.paragraph_block"
     assert wordpress_group.snippets[7].label_key == "tag.wordpress.html_code_box"
+    assert wordpress_group.snippets[11].label_key == "tag.wordpress.link_block"
+    assert wordpress_group.snippets[12].label_key == (
+        "tag.wordpress.custom_frame_block"
+    )
+    assert wordpress_group.snippets[15].label_key == (
+        "tag.wordpress.important_frame_block"
+    )
+    assert wordpress_group.snippets[21].label_key == (
+        "tag.wordpress.columns_2_text_block"
+    )
+    assert wordpress_group.snippets[22].label_key == (
+        "tag.wordpress.columns_3_text_block"
+    )
     assert wordpress_group.snippets[-2].label_key == "tag.wordpress.video_block"
     assert wordpress_group.snippets[-1].label_key == "tag.wordpress.audio_block"
 
@@ -518,6 +635,62 @@ def test_wordpress_media_snippets_use_media_category() -> None:
     assert media_categories == {"tag.category.media"}
 
 
+def test_wordpress_link_snippet_uses_link_image_category() -> None:
+    wordpress_group = tag_snippet_groups()[2]
+    link_snippet = next(
+        snippet
+        for snippet in wordpress_group.snippets
+        if snippet.label_key == "tag.wordpress.link_block"
+    )
+
+    assert tag_snippet_category_key(wordpress_group.label_key, link_snippet) == (
+        "tag.category.link_image"
+    )
+
+
+def test_wordpress_text_columns_use_layout_category() -> None:
+    wordpress_group = tag_snippet_groups()[2]
+    column_snippets = [
+        snippet
+        for snippet in wordpress_group.snippets
+        if snippet.label_key
+        in {
+            "tag.wordpress.columns_2_text_block",
+            "tag.wordpress.columns_3_text_block",
+        }
+    ]
+
+    assert [
+        tag_snippet_category_key(wordpress_group.label_key, snippet)
+        for snippet in column_snippets
+    ] == ["tag.category.layout", "tag.category.layout"]
+
+
+def test_wordpress_custom_frame_uses_layout_category() -> None:
+    wordpress_group = tag_snippet_groups()[2]
+    frame_snippets = [
+        snippet
+        for snippet in wordpress_group.snippets
+        if snippet.label_key
+        in {
+            "tag.wordpress.custom_frame_block",
+            "tag.wordpress.notice_frame_block",
+            "tag.wordpress.info_frame_block",
+            "tag.wordpress.important_frame_block",
+        }
+    ]
+
+    assert [
+        tag_snippet_category_key(wordpress_group.label_key, snippet)
+        for snippet in frame_snippets
+    ] == [
+        "tag.category.layout",
+        "tag.category.layout",
+        "tag.category.layout",
+        "tag.category.layout",
+    ]
+
+
 def test_wordpress_snippets_have_expected_mode_groups() -> None:
     snippets = {snippet.label_key: snippet for snippet in tag_snippet_groups()[2].snippets}
 
@@ -529,6 +702,41 @@ def test_wordpress_snippets_have_expected_mode_groups() -> None:
     assert wordpress_mode_keys(snippets["tag.wordpress.image_block"]) == (
         "tag.wordpress_mode.normal",
         "tag.wordpress_mode.business",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.link_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.custom_frame_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.notice_frame_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.info_frame_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.important_frame_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.columns_2_text_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.columns_3_text_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
     )
     assert wordpress_mode_keys(snippets["tag.wordpress.html_code_box"]) == (
         "tag.wordpress_mode.normal",
@@ -574,5 +782,142 @@ def test_insert_wordpress_html_code_box_uses_custom_style(
 
     assert "<!-- wp:html -->" in window.editor.toPlainText()
     assert 'class="wp-block-code"' in window.editor.toPlainText()
-    assert "display:inline-block; border:1px solid #999;" in window.editor.toPlainText()
-    assert "<code>sample</code>" in window.editor.toPlainText()
+    assert "display: inline-block; border: 1px solid #999;" in (
+        window.editor.toPlainText()
+    )
+    assert "\n><code>sample</code></pre>" in window.editor.toPlainText()
+
+
+def test_insert_wordpress_link_block_places_cursor_in_href(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("公式サイト")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    link_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.link_block"
+    )
+
+    window.insert_tag_snippet(link_snippet)
+
+    assert window.editor.toPlainText() == (
+        '<!-- wp:paragraph -->\n<p><a href="">公式サイト</a></p>\n'
+        "<!-- /wp:paragraph -->"
+    )
+    assert window.editor.textCursor().position() == len(
+        '<!-- wp:paragraph -->\n<p><a href="'
+    )
+
+
+def test_insert_wordpress_custom_frame_block_has_editable_style_parameters(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("重要なお知らせ")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    frame_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.custom_frame_block"
+    )
+
+    window.insert_tag_snippet(frame_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert "<!-- wp:group -->" in editor_text
+    assert 'class="wp-block-group"' in editor_text
+    assert "border: 2px solid #2f80ed;" in editor_text
+    assert "background-color: #f5f9ff;" in editor_text
+    assert "color: #111111;" in editor_text
+    assert "<p>重要なお知らせ</p>" in editor_text
+    assert window.editor.textCursor().position() == editor_text.index("</p>")
+
+
+def test_insert_wordpress_frame_presets_have_distinct_default_colors(
+    app: QApplication,
+) -> None:
+    _ = app
+    snippets = {snippet.label_key: snippet for snippet in tag_snippet_groups()[2].snippets}
+
+    expected_styles = {
+        "tag.wordpress.notice_frame_block": (
+            "border: 2px solid #f2c94c;",
+            "background-color: #fff8e1;",
+            "color: #3a2a00;",
+        ),
+        "tag.wordpress.info_frame_block": (
+            "border: 2px solid #2f80ed;",
+            "background-color: #eef6ff;",
+            "color: #102a43;",
+        ),
+        "tag.wordpress.important_frame_block": (
+            "border: 3px solid #d64545;",
+            "background-color: #fff1f1;",
+            "color: #4a1111;",
+        ),
+    }
+    for label_key, style_parts in expected_styles.items():
+        window = MainWindow()
+        window.editor.setPlainText("本文")
+        cursor = window.editor.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+        window.editor.setTextCursor(cursor)
+
+        window.insert_tag_snippet(snippets[label_key])
+
+        editor_text = window.editor.toPlainText()
+        assert "<p>本文</p>" in editor_text
+        for style_part in style_parts:
+            assert style_part in editor_text
+
+
+def test_insert_wordpress_two_column_text_block(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("1段目")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    two_column_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.columns_2_text_block"
+    )
+
+    window.insert_tag_snippet(two_column_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.count("<!-- wp:column -->") == 2
+    assert "<p>1段目</p>" in editor_text
+    assert "<p>ここに2段目の文章を入力します。</p>" in editor_text
+    assert window.editor.textCursor().position() == editor_text.index("</p>")
+
+
+def test_insert_wordpress_three_column_text_block(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("1段目")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    three_column_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.columns_3_text_block"
+    )
+
+    window.insert_tag_snippet(three_column_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.count("<!-- wp:column -->") == 3
+    assert "<p>1段目</p>" in editor_text
+    assert "<p>ここに2段目の文章を入力します。</p>" in editor_text
+    assert "<p>ここに3段目の文章を入力します。</p>" in editor_text

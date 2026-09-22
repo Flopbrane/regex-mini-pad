@@ -12,7 +12,8 @@ from __future__ import annotations
 import os
 import sys
 import uuid
-from html import escape
+from collections.abc import Callable
+from html import escape, unescape
 from pathlib import Path
 from re import error as RegexError
 
@@ -247,6 +248,17 @@ class MainWindow(QMainWindow):
         self.select_all_action = QAction("Select &All", self)
         self.select_all_action.setShortcut("Ctrl+A")
         self.select_all_action.triggered.connect(self._select_all_current_editor)
+
+        self.html_escape_action = QAction(self)
+        self.html_escape_action.triggered.connect(self.escape_selected_html)
+
+        self.html_unescape_action = QAction(self)
+        self.html_unescape_action.triggered.connect(self.unescape_selected_html)
+
+        self.wordpress_code_block_action = QAction(self)
+        self.wordpress_code_block_action.triggered.connect(
+            self.wrap_selected_as_wordpress_code_block
+        )
 
         self.insert_tag_menu = QMenu(self)
         self.insert_tag_picker_action = QAction(self)
@@ -720,6 +732,11 @@ class MainWindow(QMainWindow):
         self.undo_action.setText(self.translator.text("action.undo"))
         self.redo_action.setText(self.translator.text("action.redo"))
         self.select_all_action.setText(self.translator.text("action.select_all"))
+        self.html_escape_action.setText(self.translator.text("action.html_escape"))
+        self.html_unescape_action.setText(self.translator.text("action.html_unescape"))
+        self.wordpress_code_block_action.setText(
+            self.translator.text("action.wordpress_code_block")
+        )
         self.insert_tag_picker_action.setText(
             self.translator.text("action.insert_tag_picker")
         )
@@ -840,6 +857,15 @@ class MainWindow(QMainWindow):
         """Create and return the context menu for the editor, including standard actions and the insert tag menu."""
         context_menu = self.editor.createStandardContextMenu()
         context_menu.addSeparator()
+        html_transform_menu = QMenu(
+            self.translator.text("action.html_transform"),
+            context_menu,
+        )
+        html_transform_menu.addAction(self.html_escape_action)
+        html_transform_menu.addAction(self.html_unescape_action)
+        html_transform_menu.addSeparator()
+        html_transform_menu.addAction(self.wordpress_code_block_action)
+        context_menu.addMenu(html_transform_menu)
         context_menu.addAction(self.insert_tag_picker_action)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
         self._set_tag_menu_tooltips_visible(insert_tag_menu)
@@ -1044,6 +1070,49 @@ class MainWindow(QMainWindow):
         cursor.insertText(insert_text)
         cursor.endEditBlock()
         cursor.setPosition(insert_start + cursor_offset)
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def escape_selected_html(self) -> None:
+        """HTML-escape only the selected text, preserving quote characters."""
+        self._replace_selected_text(
+            lambda selected_text: escape(selected_text, quote=False)
+        )
+
+    def unescape_selected_html(self) -> None:
+        """HTML-unescape only the selected text."""
+        self._replace_selected_text(unescape)
+
+    def wrap_selected_as_wordpress_code_block(self) -> None:
+        """Wrap the selected text in a WordPress custom HTML code block."""
+
+        def build_wordpress_code_block(selected_text: str) -> str:
+            escaped_text = escape(selected_text, quote=False)
+            return (
+                "<!-- wp:html -->\n"
+                "<pre\n"
+                '    class="wp-block-code"\n'
+                '    style="display: inline-block; border: 1px solid #999; '
+                "padding: 16px; border-radius: 8px; "
+                'background-color: #f9f9f9;"\n'
+                f"><code>{escaped_text}</code></pre>\n"
+                "<!-- /wp:html -->"
+            )
+
+        self._replace_selected_text(build_wordpress_code_block)
+
+    def _replace_selected_text(self, transform: Callable[[str], str]) -> None:
+        """Replace the current selection with transformed text if text is selected."""
+        cursor = self.editor.textCursor()
+        if not cursor.hasSelection():
+            self.statusBar().showMessage(self.translator.text("status.select_text"))
+            return
+
+        selected_text = cursor.selectedText().replace("\u2029", "\n")
+        insert_text = transform(selected_text)
+        cursor.beginEditBlock()
+        cursor.insertText(insert_text)
+        cursor.endEditBlock()
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
 

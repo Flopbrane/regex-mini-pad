@@ -1,0 +1,8 @@
+{
+  "language_id": "textscript",
+  "display_name": "TextScript",
+  "status": "placeholder",
+  "extensions": [".txts", ".textscript"],
+  "allowed_placeholders": ["selection", "cursor"],
+  "snippet_fields": ["label", "label_key", "hint", "hint_key", "template", "category"]
+}

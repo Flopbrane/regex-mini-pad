@@ -1,0 +1,8 @@
+{
+  "language_id": "javascript",
+  "display_name": "JavaScript",
+  "status": "placeholder",
+  "extensions": [".js", ".mjs", ".cjs"],
+  "allowed_placeholders": ["selection", "cursor"],
+  "snippet_fields": ["label", "label_key", "hint", "hint_key", "template", "category"]
+}

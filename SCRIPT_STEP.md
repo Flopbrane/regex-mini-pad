@@ -142,7 +142,7 @@ Completed:
 - Added commonly used WordPress HTML snippets:
   - paragraph, headings, list, quote, code, preformatted, custom HTML code box, separator, spacer, and button.
   - `wp:code` uses `<pre class="wp-block-code"><code>...</code></pre>`.
-  - `wp:html` custom code box includes the styled `<pre class="wp-block-code"><code>...</code></pre>` wrapper.
+  - `wp:html` custom code box uses a styled multi-line `<pre>` wrapper and keeps text immediately after `<code>`.
 - Added common HTML snippets:
   - paragraph, headings, links, image, figure, div, span, lists, inline code, and pre/code block.
   - HTML hints describe common parameters such as `href`, `src`, `alt`, `class`, `id`, `data-*`, `target`, `rel`, `start`, `reversed`, and `type`.
@@ -557,8 +557,245 @@ Follow-up candidates:
 1. Backup rotation behavior
    - Introduce rotating backup files if retention count / days should actively prune old backups.
 
-2. User dictionary validation details
-   - Expand messages so each broken dictionary entry is easier to identify.
+2. User dictionary folder integration
+   - Load user-provided dictionaries separately from bundled dictionaries.
+   - Keep bundled dictionaries read-only in normal use.
+
+## Step11-section10 HTML Transform Helpers
+
+Changes:
+
+- Added context-menu HTML transform commands:
+  - HTML Escape
+  - HTML Unescape
+  - WordPress Code Block
+- The commands only transform the selected text.
+  - If there is no selection, they leave the document unchanged and show a status-bar message.
+- HTML Escape uses Python's standard HTML escaping with quote characters preserved.
+  - `<` becomes `&lt;`
+  - `>` becomes `&gt;`
+  - `&` becomes `&amp;`
+  - quotes stay readable.
+- HTML Unescape converts escaped HTML entities back to literal HTML.
+- WordPress Code Block wraps the selected text in:
+  - `<!-- wp:html -->`
+  - Multi-line `<pre ...>` attributes for easier editing.
+  - `><code>...</code></pre>`
+  - `<!-- /wp:html -->`
+- The WordPress code-block helper does not add extra newlines immediately after `<code>` or before `</code>`.
+- The WordPress HTML custom code-box snippet uses the same multi-line `<pre>` style.
+- Added a WordPress HTML link block snippet:
+  - The selected text becomes the link text.
+  - The cursor is placed inside `href=""`.
+  - The snippet is available in Normal, Business / Office, and Hi-security modes.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Latest result:
+
+```text
+pytest: 125 passed
+ruff: All checks passed
+pyright: 0 errors, 0 warnings, 0 informations
+JSON validation: app_text_en.json OK, app_text_ja.json OK, wordpress_html_dict.json OK
+```
+
+## Step11-section11 Dictionary Safety Validation
+
+Changes:
+
+- Strengthened dictionary JSON validation at load time.
+- Error messages now include the dictionary file and item number where possible.
+- Added detection for:
+  - Missing required keys: `label_key`, `hint_key`, `template`.
+  - Empty required values.
+  - Duplicate `label_key` values inside one dictionary file.
+  - Duplicate `{cursor}` placeholders.
+  - Broken `{selection}` / `{cursor}` placeholders.
+  - Unknown placeholders such as `{selected_text}`.
+  - Missing dictionary label / hint translation keys in both Japanese and English resources.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_tag_insert.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check editor\tag_insert.py tests\test_tag_insert.py
+```
+
+Latest result:
+
+```text
+pytest tests\test_tag_insert.py: 33 passed
+ruff targeted: All checks passed
+```
+
+## Step11-section12 Future Multi-language Dictionary Plugins
+
+Lightweight placeholder only. Do not start the heavy implementation until the current editor display work, color work, and WordPress HTML refinements are stable.
+
+Goal:
+
+- Allow RegexPad to behave as a lightweight multi-language editing helper by loading additional user dictionary files.
+- Example future user dictionaries:
+  - `javascript.json`
+  - `textscript.json`
+  - `css.json`
+  - `php.json`
+  - Other language or workflow-specific snippet packs.
+
+Proposed future shape:
+
+- Keep bundled dictionaries read-only and stable.
+- Treat user dictionaries as plugin-like optional snippet packs.
+- A user dictionary should be able to declare:
+  - Display group name or translation key.
+  - Target extensions such as `.js`, `.css`, or custom text formats.
+  - Snippets with `label`, `hint`, `template`, and optional `category`.
+  - Optional language id for later linting or coloring.
+- The current dictionary safety validation should remain the first gate before a user dictionary is accepted.
+
+Future lint files:
+
+- Added a lightweight `json_lint.py` for validating JSON structure and readable error output.
+- Added placeholder `multi_lang_lint.py` as the future coordinator for language-specific standards.
+- Added standard reference files only as data, not executable code.
+  - Example names:
+    - `standard_javascript.json`
+    - `standard_textscript.json`
+    - `standard_css.json`
+- These standard files can define allowed snippet fields, placeholder rules, recommended categories, and later language-specific constraints.
+
+Deferred on purpose:
+
+- Syntax coloring for each language.
+- Heavy multi-language parsing.
+- Full plugin manager UI.
+- Automatic linting while typing.
+- Complex standard-file enforcement beyond dictionary validation.
+
+First small implementation entry, when ready:
+
+1. Expand standard JSON files only when the user dictionary plugin format is finalized.
+2. Decide whether direct `label` / `hint` text is allowed in addition to translation keys.
+3. Only after that, wire the lint result into Options `Dict validation`.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_multi_lang_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check json_lint.py multi_lang_lint.py tests\test_multi_lang_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\standards\standard_javascript.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\standards\standard_textscript.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\standards\standard_css.json
+```
+
+Latest result:
+
+```text
+pytest tests\test_multi_lang_lint.py: 5 passed
+ruff targeted: All checks passed
+standard JSON validation: OK
+```
+
+## Step11-section13 WordPress Text Column Snippets
+
+Changes:
+
+- Added practical WordPress multi-column text snippets:
+  - `2-column text block`
+  - `3-column text block`
+- Both snippets use WordPress standard `wp:columns` and `wp:column` wrappers.
+- The selected text is inserted into the first column.
+- The cursor is placed at the end of the first column's paragraph text.
+- Remaining columns contain editable placeholder text.
+- The snippets are categorized as Layout.
+- The snippets are available in Normal, Business / Office, and Hi-security modes.
+- Added Japanese and English labels and hover hints.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_tag_insert.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check editor\tag_insert.py tests\test_tag_insert.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\wordpress_html_dict.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+```
+
+Latest result:
+
+```text
+pytest targeted: 39 passed
+ruff targeted: All checks passed
+JSON validation: wordpress_html_dict.json OK, app_text_ja.json OK, app_text_en.json OK
+```
+
+## Step11-section14 WordPress Custom Frame Snippet
+
+Changes:
+
+- Added a practical WordPress frame snippet:
+  - `Custom frame block` / `自由枠ブロック`
+- Added frame presets with temporary practical values:
+  - `Notice frame block` / `注意枠ブロック`
+    - `border: 2px solid #f2c94c`
+    - `background-color: #fff8e1`
+    - `color: #3a2a00`
+  - `Info frame block` / `補足枠ブロック`
+    - `border: 2px solid #2f80ed`
+    - `background-color: #eef6ff`
+    - `color: #102a43`
+  - `Important frame block` / `重要枠ブロック`
+    - `border: 3px solid #d64545`
+    - `background-color: #fff1f1`
+    - `color: #4a1111`
+- The snippet uses a WordPress group wrapper and an editable inline `style`.
+- The editable visual parameters are:
+  - Border width: `border: 2px ...`
+  - Border color: `#2f80ed`
+  - Background color: `background-color: #f5f9ff`
+  - Text color: `color: #111111`
+  - Padding and border radius are included as practical defaults.
+- The selected text is inserted into the frame paragraph.
+- The cursor is placed at the end of the inserted paragraph text.
+- The snippet is categorized as Layout.
+- The snippet is available in Normal, Business / Office, and Hi-security modes.
+- Added Japanese and English labels and hover hints.
+- Future design note:
+  - Add an Options `Theme` tab later.
+  - Theme parameters should eventually manage editor colors and reusable content-frame values.
+  - Candidate frame parameters:
+    - Border width.
+    - Border color.
+    - Background color.
+    - Text color.
+    - Padding.
+    - Border radius.
+  - Keep current dictionary values as temporary defaults until theme editing exists.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_tag_insert.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check editor\tag_insert.py tests\test_tag_insert.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\wordpress_html_dict.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+```
+
+Latest result:
+
+```text
+pytest targeted: 42 passed
+ruff targeted: All checks passed
+JSON validation: wordpress_html_dict.json OK, app_text_ja.json OK, app_text_en.json OK
+```
 
 ## Priority Implementation Queue From 2026-09-21
 
@@ -566,19 +803,21 @@ Track these items before adding larger editor features.
 
 Current status:
 
-1. Dictionary safety validation - partially completed
+1. Dictionary safety validation - mostly completed
    - Completed:
      - Dictionary JSON is parsed at load time.
      - Required `label_key`, `hint_key`, and `template` values are checked.
      - Empty required values are rejected.
+     - Duplicate `label_key` values inside one dictionary file are rejected.
      - Duplicate `{cursor}` placeholders are rejected.
+     - Broken `{selection}` / `{cursor}` placeholders are rejected.
      - Unknown placeholders other than `{selection}` and `{cursor}` are rejected.
-     - Bundled dictionary label and hint keys are checked against Japanese and English resources by tests.
+     - Dictionary label and hint keys are checked against Japanese and English resources at load time.
+     - Error messages identify the dictionary file and item number where possible.
      - User dictionary folders can be validated from Options before applying the setting.
    - Remaining:
-     - Detect duplicate `label_key` values inside one dictionary file.
-     - Improve error messages so they identify the dictionary file and snippet more clearly.
-     - Consider running the Japanese/English translation-key check for user dictionaries too, not only bundled dictionaries.
+     - Decide whether user dictionaries should require translation keys or also allow direct `label` / `hint` text.
+     - Wire separate lint helpers into Options only when the multi-language dictionary plugin plan starts.
 
 2. Hover hint enrichment - mostly completed
    - Completed:
@@ -607,7 +846,8 @@ Current status:
      - Options has a `Dict validation` toggle.
      - Bundled dictionaries remain separate from user-provided dictionaries.
    - Remaining:
-     - Improve per-entry validation diagnostics as part of the dictionary safety work above.
+     - Future plugin-like dictionaries may need group metadata, extension metadata, and direct labels.
+     - Keep `json_lint.py`, `multi_lang_lint.py`, and `standard_*.json` lightweight until the plugin format is finalized.
 
 5. PyInstaller dictionary packaging - completed
    - Completed:
