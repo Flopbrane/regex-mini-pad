@@ -842,6 +842,20 @@ Changes:
     - Border radius.
   - Keep current dictionary values as temporary defaults until theme editing exists.
 
+Warning 2026-09-23:
+
+- The business WordPress environment blocked or warned on the previous frame output.
+- Temporary safety policy:
+  - Treat decorated frame snippets as Custom HTML blocks.
+  - Do not emit `wp:group` for decorated frame snippets.
+  - Keep the opening and closing decorated `<div>` inside one `<!-- wp:html -->` block.
+  - Do not split the opening `<div>` and closing `</div>` into separate `wp:html` blocks.
+- Current temporary dictionary behavior:
+  - `Custom frame block`, `Notice frame block`, `Info frame block`, and `Important frame block` now emit one `wp:html` block containing one styled `<div>`.
+  - The selected text is inserted directly inside the styled `<div>` instead of being wrapped in an inner `wp:paragraph`.
+  - This is intentionally conservative for on-site testing and may need another revision after the next saved test pattern is checked in the actual business WordPress environment.
+- If additional restrictions appear, record the rejected snippet output and the WordPress warning/error text before changing the dictionary again.
+
 Validation:
 
 ```powershell
@@ -855,9 +869,11 @@ Validation:
 Latest result:
 
 ```text
-pytest targeted: 42 passed
-ruff targeted: All checks passed
-JSON validation: wordpress_html_dict.json OK, app_text_ja.json OK, app_text_en.json OK
+pytest tests/test_tag_insert.py: 44 passed
+pytest full: 150 passed
+ruff full: All checks passed
+pyright full: 0 errors, 0 warnings, 0 informations
+JSON validation: wordpress_html_dict.json OK
 ```
 
 ## Priority Implementation Queue From 2026-09-21

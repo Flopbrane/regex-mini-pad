@@ -908,13 +908,66 @@ def test_insert_wordpress_custom_frame_block_has_editable_style_parameters(
     window.insert_tag_snippet(frame_snippet)
 
     editor_text = window.editor.toPlainText()
-    assert "<!-- wp:group -->" in editor_text
-    assert 'class="wp-block-group"' in editor_text
-    assert "border: 2px solid #2f80ed;" in editor_text
-    assert "background-color: #f5f9ff;" in editor_text
-    assert "color: #111111;" in editor_text
-    assert "<p>重要なお知らせ</p>" in editor_text
-    assert window.editor.textCursor().position() == editor_text.index("</p>")
+    assert editor_text.count("<!-- wp:html -->") == 1
+    assert editor_text.count("<!-- /wp:html -->") == 1
+    assert "<!-- wp:group -->" not in editor_text
+    assert "<!-- wp:paragraph -->" not in editor_text
+    assert "border:2px solid #2f80ed;" in editor_text
+    assert "background-color:#f5f9ff;" in editor_text
+    assert "color:#111111;" in editor_text
+    assert "max-width:720px" in editor_text
+    assert "\n重要なお知らせ\n</div>" in editor_text
+    assert window.editor.textCursor().position() == editor_text.index("\n</div>")
+
+
+def test_insert_wordpress_frame_block_keeps_multiline_selection_in_single_html_block(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("1行目\nSecond line\n三行目")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    frame_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.custom_frame_block"
+    )
+
+    window.insert_tag_snippet(frame_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.count("<!-- wp:html -->") == 1
+    assert editor_text.count("<!-- /wp:html -->") == 1
+    assert "\n1行目\nSecond line\n三行目\n</div>" in editor_text
+    assert "<!-- wp:paragraph -->" not in editor_text
+
+
+def test_insert_wordpress_frame_block_without_selection_keeps_matching_tags(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    frame_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.custom_frame_block"
+    )
+
+    window.insert_tag_snippet(frame_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text == (
+        "<!-- wp:html -->\n"
+        '<div style="border:2px solid #2f80ed;padding:16px 20px;'
+        "border-radius:8px;background-color:#f5f9ff;color:#111111;"
+        'max-width:720px">\n'
+        "\n"
+        "</div>\n"
+        "<!-- /wp:html -->"
+    )
+    assert window.editor.textCursor().position() == editor_text.index("\n</div>")
 
 
 def test_insert_wordpress_frame_presets_have_distinct_default_colors(
@@ -925,19 +978,19 @@ def test_insert_wordpress_frame_presets_have_distinct_default_colors(
 
     expected_styles = {
         "tag.wordpress.notice_frame_block": (
-            "border: 2px solid #f2c94c;",
-            "background-color: #fff8e1;",
-            "color: #3a2a00;",
+            "border:2px solid #f2c94c;",
+            "background-color:#fff8e1;",
+            "color:#3a2a00",
         ),
         "tag.wordpress.info_frame_block": (
-            "border: 2px solid #2f80ed;",
-            "background-color: #eef6ff;",
-            "color: #102a43;",
+            "border:2px solid #2f80ed;",
+            "background-color:#eef6ff;",
+            "color:#102a43",
         ),
         "tag.wordpress.important_frame_block": (
-            "border: 3px solid #d64545;",
-            "background-color: #fff1f1;",
-            "color: #4a1111;",
+            "border:3px solid #d64545;",
+            "background-color:#fff1f1;",
+            "color:#4a1111;",
         ),
     }
     for label_key, style_parts in expected_styles.items():
@@ -950,7 +1003,10 @@ def test_insert_wordpress_frame_presets_have_distinct_default_colors(
         window.insert_tag_snippet(snippets[label_key])
 
         editor_text = window.editor.toPlainText()
-        assert "<p>本文</p>" in editor_text
+        assert editor_text.count("<!-- wp:html -->") == 1
+        assert editor_text.count("<!-- /wp:html -->") == 1
+        assert "\n本文\n</div>" in editor_text
+        assert "<!-- wp:group -->" not in editor_text
         for style_part in style_parts:
             assert style_part in editor_text
 

@@ -50,6 +50,54 @@ def test_replace_all_uses_regex_groups(app: QApplication) -> None:
     assert window.editor.toPlainText() == "01:item 20:item"
 
 
+def test_replace_current_keeps_cursor_after_replaced_text(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("target 1\nkeep\ntarget 2\nkeep\ntarget 3")
+    options = SearchOptions()
+
+    window.find_next("target", options)
+    window.find_next("target", options)
+    window.replace_current("target", "done", options)
+
+    assert window.editor.toPlainText() == "target 1\nkeep\ndone 2\nkeep\ntarget 3"
+    assert window.editor.textCursor().position() == len("target 1\nkeep\ndone")
+
+
+def test_find_next_after_replace_current_continues_to_following_match(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("target 1\nkeep\ntarget 2\nkeep\ntarget 3")
+    options = SearchOptions()
+
+    window.find_next("target", options)
+    window.find_next("target", options)
+    window.replace_current("target", "done", options)
+    window.find_next("target", options)
+
+    assert window.editor.textCursor().selectedText() == "target"
+    assert window.editor.textCursor().selectionStart() == len(
+        "target 1\nkeep\ndone 2\nkeep\n"
+    )
+
+
+def test_replace_current_with_newline_keeps_cursor_at_new_line_start(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("alpha, beta, gamma")
+
+    window.find_next(",", SearchOptions())
+    window.replace_current(",", "\n", SearchOptions())
+
+    assert window.editor.toPlainText() == "alpha\n beta, gamma"
+    assert window.editor.textCursor().blockNumber() == 1
+    assert window.editor.textCursor().positionInBlock() == 0
+
+
 def test_invalid_regex_does_not_modify_document(app: QApplication) -> None:
     _ = app
     window = MainWindow()

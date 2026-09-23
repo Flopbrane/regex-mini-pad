@@ -1606,9 +1606,7 @@ class MainWindow(QMainWindow):
 
         self._replace_document_text(result.text)
         self.update_search_highlights(search_text, options)
-        replaced_end = selected_match.start + len(result.text) - (
-            len(source_text) - selected_match.end
-        )
+        replaced_end = len(result.text) - (len(source_text) - selected_match.end)
         self._set_cursor_position(replaced_end)
         self._set_search_status(self.translator.text("search.replaced_one"))
 

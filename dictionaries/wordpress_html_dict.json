@@ -62,22 +62,22 @@
   {
     "label_key": "tag.wordpress.custom_frame_block",
     "hint_key": "tag.hint.wordpress.custom_frame_block",
-    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 2px solid #2f80ed; background-color: #f5f9ff; color: #111111; padding: 16px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+    "template": "<!-- wp:html -->\n<div style=\"border:2px solid #2f80ed;padding:16px 20px;border-radius:8px;background-color:#f5f9ff;color:#111111;max-width:720px\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->"
   },
   {
     "label_key": "tag.wordpress.notice_frame_block",
     "hint_key": "tag.hint.wordpress.notice_frame_block",
-    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 2px solid #f2c94c; background-color: #fff8e1; color: #3a2a00; padding: 16px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+    "template": "<!-- wp:html -->\n<div style=\"border:2px solid #f2c94c;padding:16px;background-color:#fff8e1;color:#3a2a00\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->"
   },
   {
     "label_key": "tag.wordpress.info_frame_block",
     "hint_key": "tag.hint.wordpress.info_frame_block",
-    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 2px solid #2f80ed; background-color: #eef6ff; color: #102a43; padding: 16px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+    "template": "<!-- wp:html -->\n<div style=\"border:2px solid #2f80ed;padding:16px;background-color:#eef6ff;color:#102a43\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->"
   },
   {
     "label_key": "tag.wordpress.important_frame_block",
     "hint_key": "tag.hint.wordpress.important_frame_block",
-    "template": "<!-- wp:group -->\n<div\n    class=\"wp-block-group\"\n    style=\"border: 3px solid #d64545; background-color: #fff1f1; color: #4a1111; padding: 18px; border-radius: 8px;\"\n>\n<!-- wp:paragraph -->\n<p>{selection}{cursor}</p>\n<!-- /wp:paragraph -->\n</div>\n<!-- /wp:group -->"
+    "template": "<!-- wp:html -->\n<div style=\"border:3px solid #d64545;padding:18px;border-radius:8px;background-color:#fff1f1;color:#4a1111;max-width:720px\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->"
   },
   {
     "label_key": "tag.wordpress.image_block",
