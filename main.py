@@ -66,6 +66,7 @@ from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from localization.translator import Translator
+from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import EditorSettings, SettingsManager
 
@@ -273,6 +274,10 @@ class MainWindow(QMainWindow):
         self.find_action.setShortcut("Ctrl+F")
         self.find_action.triggered.connect(self.show_find_replace_dialog)
 
+        self.grammar_check_action = QAction(self)
+        self.grammar_check_action.setShortcut("F7")
+        self.grammar_check_action.triggered.connect(self.run_grammar_check)
+
         self.word_wrap_action = QAction(self)
         self.word_wrap_action.setCheckable(True)
         self.word_wrap_action.toggled.connect(self._set_current_word_wrap_enabled)
@@ -335,6 +340,7 @@ class MainWindow(QMainWindow):
 
         self.search_menu = QMenu(self)
         self.search_menu.addAction(self.find_action)
+        self.search_menu.addAction(self.grammar_check_action)
         menu_bar.addMenu(self.search_menu)
 
         self.view_menu = QMenu(self)
@@ -759,6 +765,7 @@ class MainWindow(QMainWindow):
         )
         self._rebuild_insert_tag_menu()
         self.find_action.setText(self.translator.text("action.find_replace"))
+        self.grammar_check_action.setText(self.translator.text("action.grammar_check"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
         self.ruler_action.setText(self.translator.text("options.item.ruler"))
@@ -1095,6 +1102,111 @@ class MainWindow(QMainWindow):
         """Apply the regex lint display option to the existing Find/Replace dialog."""
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.set_regex_lint_enabled(self.regex_lint_enabled)
+
+    def run_grammar_check(self) -> None:
+        """Run the HTML / WordPress typo grammar check for the current document."""
+        source_text = self.editor.toPlainText()
+        messages = lint_html_typos(source_text)
+        if not messages:
+            status_message = self.translator.text("grammar_check.no_issues")
+            self.statusBar().showMessage(status_message)
+            QMessageBox.information(
+                self,
+                self.translator.text("grammar_check.title"),
+                status_message,
+            )
+            return
+
+        self._set_cursor_to_line(messages[0].line_number)
+        summary = self._grammar_check_summary(messages)
+        self.statusBar().showMessage(
+            self.translator.text("grammar_check.issues_found", count=len(messages))
+        )
+        QMessageBox.warning(
+            self,
+            self.translator.text("grammar_check.title"),
+            summary,
+        )
+
+    def _grammar_check_summary(
+        self,
+        messages: list[HtmlTypoLintMessage],
+        limit: int = 20,
+    ) -> str:
+        shown_messages = messages[:limit]
+        rows = [
+            self.translator.text("grammar_check.issues_found", count=len(messages)),
+            "",
+        ]
+        rows.extend(
+            self.translator.text(
+                "grammar_check.issue_row",
+                line=message.line_number,
+                message=self._html_typo_lint_message_text(message),
+            )
+            for message in shown_messages
+        )
+        if len(messages) > limit:
+            rows.append("")
+            rows.append(
+                self.translator.text(
+                    "grammar_check.more_issues",
+                    count=len(messages) - limit,
+                )
+            )
+        return "\n".join(rows)
+
+    def _html_typo_lint_message_text(self, message: HtmlTypoLintMessage) -> str:
+        values = message.values or {}
+        if message.message_key == "html_typo_lint.unknown_wordpress_block":
+            suggestion = values.get("suggestion")
+            if suggestion:
+                return self.translator.text(
+                    "html_typo_lint.unknown_wordpress_block_with_suggestion",
+                    block=values.get("block", ""),
+                    suggestion=suggestion,
+                )
+            return self.translator.text(
+                "html_typo_lint.unknown_wordpress_block",
+                block=values.get("block", ""),
+            )
+        if message.message_key == "html_typo_lint.unknown_html_tag":
+            suggestion = values.get("suggestion")
+            if suggestion:
+                return self.translator.text(
+                    "html_typo_lint.unknown_html_tag_with_suggestion",
+                    tag=values.get("tag", ""),
+                    suggestion=suggestion,
+                )
+            return self.translator.text(
+                "html_typo_lint.unknown_html_tag",
+                tag=values.get("tag", ""),
+            )
+        if message.message_key == "html_typo_lint.unknown_html_attribute":
+            suggestion = values.get("suggestion")
+            if suggestion:
+                return self.translator.text(
+                    "html_typo_lint.unknown_html_attribute_with_suggestion",
+                    tag=values.get("tag", ""),
+                    attribute=values.get("attribute", ""),
+                    suggestion=suggestion,
+                )
+            return self.translator.text(
+                "html_typo_lint.unknown_html_attribute",
+                tag=values.get("tag", ""),
+                attribute=values.get("attribute", ""),
+            )
+        return message.message
+
+    def _set_cursor_to_line(self, line_number: int) -> None:
+        """Move the cursor to the start of the given one-based line number."""
+        block = self.editor.document().findBlockByNumber(max(0, line_number - 1))
+        if not block.isValid():
+            return
+        cursor = self.editor.textCursor()
+        cursor.setPosition(block.position())
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
 
     def insert_tag_snippet(self, snippet: TagSnippet) -> None:
         """Insert the given tag snippet into the current editor at the cursor position."""

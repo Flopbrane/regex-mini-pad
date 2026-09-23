@@ -28,6 +28,7 @@
   "action.insert_tag_picker": "Insert Tag...",
   "action.insert_tag": "Insert &Tag",
   "action.find_replace": "&Find / Replace...",
+  "action.grammar_check": "&Grammar Check",
   "action.word_wrap": "&Word Wrap",
   "action.line_numbers": "&Line Numbers",
   "action.options": "&Options...",
@@ -60,6 +61,11 @@
   "search.preview.no_matches": "No matches to preview.",
   "search.preview.matches": "Previewing {count} match(es).",
   "search.preview.limited": "Previewing first {shown} of {total} match(es).",
+  "grammar_check.title": "Grammar Check",
+  "grammar_check.no_issues": "Grammar check found no issues.",
+  "grammar_check.issues_found": "Grammar check found {count} item(s) to review.",
+  "grammar_check.issue_row": "Line {line}: {message}",
+  "grammar_check.more_issues": "{count} more item(s).",
   "status.encoding": "Encoding: {encoding}",
   "status.select_text": "Select text to transform.",
   "tag.group.html": "HTML",
@@ -352,5 +358,11 @@
   "regex_lint.backslash_n": "\\n means a line break in regex. Use it only when you want to match an actual newline.",
   "regex_lint.trailing_escape": "The pattern ends with a backslash. Escape the backslash as \\\\ if you need a literal backslash.",
   "regex_lint.invalid_replacement": "Invalid replacement text: {error}",
-  "regex_lint.backref_without_group": "The replacement uses a group reference, but the pattern has no capture group."
+  "regex_lint.backref_without_group": "The replacement uses a group reference, but the pattern has no capture group.",
+  "html_typo_lint.unknown_wordpress_block": "WordPress block `{block}` is not registered.",
+  "html_typo_lint.unknown_wordpress_block_with_suggestion": "WordPress block `{block}` is not registered. Suggestion: `{suggestion}`",
+  "html_typo_lint.unknown_html_tag": "HTML tag `<{tag}>` is not registered.",
+  "html_typo_lint.unknown_html_tag_with_suggestion": "HTML tag `<{tag}>` is not registered. Suggestion: `<{suggestion}>`",
+  "html_typo_lint.unknown_html_attribute": "Attribute `{attribute}` on `<{tag}>` is not registered.",
+  "html_typo_lint.unknown_html_attribute_with_suggestion": "Attribute `{attribute}` on `<{tag}>` is not registered. Suggestion: `{suggestion}`"
 }

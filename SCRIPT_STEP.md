@@ -717,25 +717,35 @@ Changes:
   - Unknown WordPress core block names against `wordpress_core_blocks`.
 - `aria-*` and `data-*` are accepted through `allowed_attribute_prefixes`.
 - Added tests for tag typo, attribute typo, WordPress block typo, allowed prefixes, and no JSON reread during lint calls.
+- Added a manual grammar-check action:
+  - The Search menu now includes `Grammar Check` / `文法チェック`.
+  - Shortcut: `F7`.
+  - The action runs the current document through the HTML / WordPress typo lint.
+  - Results are shown with line numbers in a dialog.
+  - When issues are found, the cursor moves to the first reported line.
+  - When no issues are found, a no-issues message is shown.
 
 Validation:
 
 ```powershell
 "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_main_window_search.py tests\test_html_typo_lint.py tests\test_app_translation.py
 "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
 "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
 "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
 "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\lint_reference.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
 ```
 
 Latest result:
 
 ```text
-pytest tests\test_html_typo_lint.py: 4 passed
-pytest: 144 passed
+pytest targeted: 33 passed
+pytest: 156 passed
 ruff: All checks passed
 pyright: 0 errors, 0 warnings, 0 informations
-lint_reference.json validation: OK
+JSON validation: lint_reference.json OK, app_text_ja.json OK, app_text_en.json OK
 ```
 
 ## Step11-section16 Visible Whitespace Marker Colors
@@ -882,7 +892,7 @@ Track these items before adding larger editor features.
 
 Current status:
 
-Resolved items from the previous remaining order:
+Resolved items from the previous next-work order:
 
 1. WordPress HTML mode policy documentation
    - Completed in User Help and this project note.
@@ -899,7 +909,7 @@ Resolved items from the previous remaining order:
    - Current decision: keep `label_key` / `hint_key` required for current user dictionaries.
    - Direct `label` / `hint` text is deferred until the plugin-like dictionary format is designed.
 
-Recommended remaining order:
+Recommended next-work order:
 
 1. Structured parameter metadata
    - Completed for the minimum schema and validation.
@@ -909,7 +919,7 @@ Recommended remaining order:
 2. Separate lint helpers in Options
    - Foundation completed for the HTML/WP typo lint toggle.
    - The Search tab now owns ON/OFF settings for both Regex lint and HTML/WP typo lint.
-   - Remaining UI work can connect this setting to editor diagnostics, save checks, and grammar-check actions.
+   - The Search menu now has a manual Grammar Check action that runs the HTML/WP typo lint against the current document.
 
 1. Dictionary safety validation - mostly completed
    - Completed:
@@ -927,8 +937,7 @@ Recommended remaining order:
      - User dictionary folders can be validated from Options before applying the setting.
      - `dictionaries/README.md` documents bundled snippet dictionary format and validation rules.
      - Current user dictionaries continue to require `label_key` / `hint_key`; direct `label` / `hint` text is deferred to the future plugin-like dictionary format.
-   - Remaining:
-     - Connect the HTML/WP typo lint toggle to the editor diagnostics workflow.
+     - HTML/WP typo lint can be run manually from Search > Grammar Check.
 
 2. Hover hint enrichment - mostly completed
    - Completed:
@@ -938,8 +947,7 @@ Recommended remaining order:
      - Tag menus now enable Qt menu tooltips when hover hints are enabled.
      - The Insert Tag dialog now updates its hint text when the mouse hovers over a snippet row.
      - Help now includes an HTML attribute guide for `href`, `src`, `alt`, `class`, `id`, `style`, link safety attributes, CSS requirements, and common inline style properties.
-   - Remaining:
-     - Use structured parameter metadata in future linting or guided editing when that workflow is built.
+     - Structured parameter metadata usage in future linting or guided editing is recorded as future workflow work, not a current blocker.
 
 3. WordPress HTML mode refinement - partially completed
    - Completed:
@@ -948,8 +956,7 @@ Recommended remaining order:
      - Media snippets such as image, gallery, video, audio, and layout/media blocks were categorized and reviewed in tests.
      - User Help documents the exact policy for each mode.
      - Stricter modes hide risky snippets rather than only de-prioritizing them.
-   - Remaining:
-     - No immediate work. Review the policy again only if users need a temporary "show all snippets" override.
+     - No immediate work remains. Review the policy again only if users need a temporary "show all snippets" override.
 
 4. User dictionary folder - completed for Options wiring
    - Completed:
@@ -958,9 +965,8 @@ Recommended remaining order:
      - Options has a `Dict validation` toggle.
      - Bundled dictionaries remain separate from user-provided dictionaries.
      - Current user dictionaries continue to require translation keys through `label_key` / `hint_key`.
-   - Remaining:
-     - Future plugin-like dictionaries may need group metadata, extension metadata, and direct labels.
-     - Keep `json_lint.py`, `multi_lang_lint.py`, and `standard_*.json` lightweight until the plugin format is finalized.
+     - Future plugin-like dictionary needs are recorded as future design work: group metadata, extension metadata, and direct labels.
+     - `json_lint.py`, `multi_lang_lint.py`, and `standard_*.json` should stay lightweight until the plugin format is finalized.
 
 5. PyInstaller dictionary packaging - completed
    - Completed:
@@ -984,9 +990,8 @@ Recommended remaining order:
      - Green wrap-column guide line.
      - Visible half-width spaces, full-width spaces, tabs, and newlines.
      - Options wiring for line numbers, word wrap, ruler, wrap-at-column, wrap column, visible whitespace, and separate whitespace marker colors.
-     - Display review checklist was added below for the remaining manual/visual checks.
-   - Remaining:
-     - No code change is queued. Run the display review checklist on the actual GUI before changing marker colors or rendering behavior.
+     - Display review checklist was added below for manual/visual checks.
+     - No code change is queued for display features. Run the display review checklist on the actual GUI before changing marker colors or rendering behavior.
 
 Display review checklist:
 

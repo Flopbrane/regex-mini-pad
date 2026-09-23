@@ -28,6 +28,7 @@
   "action.insert_tag_picker": "タグ挿入...",
   "action.insert_tag": "タグ挿入(&T)",
   "action.find_replace": "検索 / 置換(&F)...",
+  "action.grammar_check": "文法チェック(&G)",
   "action.word_wrap": "右端で折り返す(&W)",
   "action.line_numbers": "行番号(&L)",
   "action.options": "オプション(&O)...",
@@ -60,6 +61,11 @@
   "search.preview.no_matches": "プレビューできる一致箇所はありません。",
   "search.preview.matches": "{count}件の一致箇所をプレビューしています。",
   "search.preview.limited": "{total}件中、先頭{shown}件をプレビューしています。",
+  "grammar_check.title": "文法チェック",
+  "grammar_check.no_issues": "文法チェックで問題は見つかりませんでした。",
+  "grammar_check.issues_found": "文法チェックで{count}件の確認候補が見つかりました。",
+  "grammar_check.issue_row": "{line}行目: {message}",
+  "grammar_check.more_issues": "ほかに{count}件あります。",
   "status.encoding": "文字コード: {encoding}",
   "status.select_text": "変換する文字列を選択してください。",
   "tag.group.html": "HTML",
@@ -352,5 +358,11 @@
   "regex_lint.backslash_n": "\\n は改行に一致します。実際の改行を探したい場合だけ使ってください。",
   "regex_lint.trailing_escape": "パターンの末尾が \\ です。普通のバックスラッシュを探す場合は \\\\ と書きます。",
   "regex_lint.invalid_replacement": "置換後の文字列が正しくありません: {error}",
-  "regex_lint.backref_without_group": "置換後の文字列にグループ参照がありますが、検索パターン側に取り出す括弧がありません。"
+  "regex_lint.backref_without_group": "置換後の文字列にグループ参照がありますが、検索パターン側に取り出す括弧がありません。",
+  "html_typo_lint.unknown_wordpress_block": "WordPressブロック `{block}` は未登録です。",
+  "html_typo_lint.unknown_wordpress_block_with_suggestion": "WordPressブロック `{block}` は未登録です。候補: `{suggestion}`",
+  "html_typo_lint.unknown_html_tag": "HTMLタグ `<{tag}>` は未登録です。",
+  "html_typo_lint.unknown_html_tag_with_suggestion": "HTMLタグ `<{tag}>` は未登録です。候補: `<{suggestion}>`",
+  "html_typo_lint.unknown_html_attribute": "`<{tag}>` の属性 `{attribute}` は未登録です。",
+  "html_typo_lint.unknown_html_attribute_with_suggestion": "`<{tag}>` の属性 `{attribute}` は未登録です。候補: `{suggestion}`"
 }

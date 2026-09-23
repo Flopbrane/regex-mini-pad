@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
 from main import MainWindow
 from search.search_engine import SearchOptions
@@ -162,6 +162,94 @@ def test_find_previous_selects_previous_match(app: QApplication) -> None:
 
     assert window.editor.textCursor().selectedText() == "alpha"
     assert window.editor.textCursor().selectionStart() == 11
+
+
+def test_grammar_check_action_is_available_from_search_menu(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+
+    assert window.grammar_check_action.text() == "文法チェック(&G)"
+    assert window.grammar_check_action.shortcut().toString() == "F7"
+    assert window.grammar_check_action in [
+        action for action in window.search_menu.actions()
+    ]
+
+
+def test_grammar_check_reports_html_and_wordpress_typos(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    captured: dict[str, str] = {}
+
+    def capture_warning(
+        _parent: object,
+        title: str,
+        text: str,
+        *_args: object,
+        **_kwargs: object,
+    ) -> QMessageBox.StandardButton:
+        captured["title"] = title
+        captured["text"] = text
+        return QMessageBox.StandardButton.Ok
+
+    monkeypatch.setattr(QMessageBox, "warning", capture_warning)
+    window.editor.setPlainText(
+        "<p>本文</p>\n"
+        '<p clas="lead"><spna>誤字</spna></p>\n'
+        "<!-- wp:paragaph -->\n"
+    )
+
+    window.run_grammar_check()
+
+    assert captured["title"] == "文法チェック"
+    assert "文法チェックで" in captured["text"]
+    assert "2行目" in captured["text"]
+    assert "spna" in captured["text"]
+    assert "span" in captured["text"]
+    assert "clas" in captured["text"]
+    assert "class" in captured["text"]
+    assert "3行目" in captured["text"]
+    assert "paragaph" in captured["text"]
+    assert "paragraph" in captured["text"]
+    assert window.editor.textCursor().blockNumber() == 1
+
+
+def test_grammar_check_reports_no_issues(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    captured: dict[str, str] = {}
+
+    def capture_information(
+        _parent: object,
+        title: str,
+        text: str,
+        *_args: object,
+        **_kwargs: object,
+    ) -> QMessageBox.StandardButton:
+        captured["title"] = title
+        captured["text"] = text
+        return QMessageBox.StandardButton.Ok
+
+    monkeypatch.setattr(QMessageBox, "information", capture_information)
+    window.editor.setPlainText(
+        "<!-- wp:paragraph -->\n"
+        '<p class="lead">本文</p>\n'
+        "<!-- /wp:paragraph -->\n"
+    )
+
+    window.run_grammar_check()
+
+    assert captured == {
+        "title": "文法チェック",
+        "text": "文法チェックで問題は見つかりませんでした。",
+    }
 
 
 def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -> None:
