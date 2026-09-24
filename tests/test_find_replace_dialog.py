@@ -10,6 +10,7 @@ import pytest
 from PySide6.QtWidgets import QApplication, QMenu
 
 from dialogs.find_replace_dialog import FindReplaceDialog
+from dialogs.regex_input_edit import RegexInputHighlighter
 from localization.translator import Translator
 
 
@@ -128,3 +129,39 @@ def test_regex_lint_can_be_disabled(app: QApplication) -> None:
     dialog.set_regex_lint_enabled(False)
 
     assert dialog.warning_label.text() == ""
+
+
+def test_regex_mode_toggles_find_and_replace_highlighting(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+
+    dialog.regular_expression_check_box.setChecked(True)
+
+    assert dialog.find_text_edit.highlighter.enabled is True
+    assert dialog.replace_text_edit.highlighter.enabled is True
+
+    dialog.regular_expression_check_box.setChecked(False)
+
+    assert dialog.find_text_edit.highlighter.enabled is False
+    assert dialog.replace_text_edit.highlighter.enabled is False
+
+
+def test_regex_highlighter_marks_regex_tokens_without_escaped_literals(
+    app: QApplication,
+) -> None:
+    _ = app
+    highlighter = RegexInputHighlighter(FindReplaceDialog(Translator(Path("resources"), "en")).find_text_edit.document())
+    text = (
+        r'<!-- wp:heading \{"level":3\} -->'
+        r'<h3 class="wp-block-heading">(.*?)</h3>\s*'
+        r'<!-- /wp:heading -->'
+    )
+
+    ranges = highlighter._regex_token_ranges(text)
+    highlighted_text = " ".join(text[start : start + length] for start, length in ranges)
+
+    assert r"(.*?)" in highlighted_text
+    assert r"\s*" in highlighted_text
+    assert r"\{" not in highlighted_text
+    assert r"\}" not in highlighted_text

@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from re import Pattern
 
+from search.search_engine import convert_dollar_replacement_references
+
 
 @dataclass(frozen=True)
 class RegexLintMessage:
@@ -127,6 +129,7 @@ class RegexLint:
         replacement_text: str,
         messages: list[RegexLintMessage],
     ) -> None:
+        replacement_text = convert_dollar_replacement_references(replacement_text)
         try:
             pattern.sub(replacement_text, "", count=1)
         except re.error as error:

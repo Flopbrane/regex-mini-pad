@@ -59,9 +59,11 @@ class TagSnippet:
     hint_key: str
     template: str
     parameters: tuple[TagSnippetParameter, ...] = ()
+    default_selection: str = ""
 
     def render(self, selected_text: str) -> tuple[str, int]:
-        rendered_text = self.template.replace(SELECTION_PLACEHOLDER, selected_text)
+        replacement_text = selected_text if selected_text else self.default_selection
+        rendered_text = self.template.replace(SELECTION_PLACEHOLDER, replacement_text)
         cursor_position = rendered_text.find(CURSOR_PLACEHOLDER)
         if cursor_position == -1:
             return rendered_text, len(rendered_text)
@@ -353,8 +355,14 @@ def _snippet_from_dict(
             f"{context}"
         )
     parameters = _parameters_from_dict(item, context)
+    default_selection = item.get("default_selection", "")
+    if not isinstance(default_selection, str):
+        raise TypeError(
+            "Dictionary item default_selection must be a string: "
+            f"{context}"
+        )
     _validate_template_placeholders(template, context)
-    return TagSnippet(label_key, hint_key, template, parameters)
+    return TagSnippet(label_key, hint_key, template, parameters, default_selection)
 
 
 def _parameters_from_dict(

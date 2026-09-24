@@ -724,6 +724,20 @@ Changes:
   - Results are shown with line numbers in a dialog.
   - When issues are found, the cursor moves to the first reported line.
   - When no issues are found, a no-issues message is shown.
+- Added WordPress paragraph block structure checks:
+  - Detect missing `<p>` inside `<!-- wp:paragraph --> ... <!-- /wp:paragraph -->`.
+  - Detect missing `</p>` inside `<!-- wp:paragraph --> ... <!-- /wp:paragraph -->`.
+  - Detect `<!-- /wp:paragraph -->` without a matching opening block.
+  - Detect mismatched or unclosed WordPress block comments.
+  - Show a dedicated warning when `<!-- wp:html -->` is missing `<!-- /wp:html -->`, because later text may be treated as part of the HTML block.
+
+Warning 2026-09-24:
+
+- The first Grammar Check implementation only checked tag names, attribute names, and WordPress block names.
+- It did not validate the internal structure of `wp:paragraph`, so WordPress paragraph errors could be missed even when WordPress reported them after paste/save.
+- Current behavior is a practical pre-save guard for the reported cases, not a complete Gutenberg validator.
+- `wp:html` closing-block omissions are high-risk because WordPress may treat following paragraph text and block comments as part of the HTML block after draft save.
+- If WordPress reports another paragraph/block restriction, add the exact rejected snippet and WordPress error text as a regression case before broadening the checker.
 
 Validation:
 
@@ -741,11 +755,74 @@ Validation:
 Latest result:
 
 ```text
-pytest targeted: 33 passed
-pytest: 156 passed
+pytest targeted: 38 passed
+pytest: 160 passed
 ruff: All checks passed
 pyright: 0 errors, 0 warnings, 0 informations
 JSON validation: lint_reference.json OK, app_text_ja.json OK, app_text_en.json OK
+```
+
+## Step11-section17 Regex Replacement Dollar Groups
+
+Changes:
+
+- Added support for `$1`, `$2`, and other dollar-style regex replacement groups in Regex-Pad replacement text.
+- Added support for named dollar groups such as `${name}`.
+- Existing Python-style replacement groups such as `\1`, `\2`, and `\g<name>` remain supported.
+- In regex mode, `$$` now inserts a literal `$`, so `$$1` produces literal `$1`.
+- Replacement preview, Replace, Replace All, and Replace Marked all share the same search engine conversion.
+- Regex replacement lint now validates dollar-style replacement groups too.
+- Clarification:
+  - The presence or absence of `\n` in the search pattern does not decide whether replacement is regex-based.
+  - Regex-Pad uses regex behavior when the Regular expression checkbox is ON.
+  - The issue was that Python `re.sub()` does not treat `$1` as a capture-group reference unless Regex-Pad converts it first.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_search_engine.py tests\test_regex_lint.py tests\test_main_window_search.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check search\search_engine.py search\regex_lint.py tests\test_search_engine.py tests\test_regex_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright search\search_engine.py search\regex_lint.py tests\test_search_engine.py tests\test_regex_lint.py
+```
+
+Latest result:
+
+```text
+targeted pytest: 49 passed
+targeted ruff: All checks passed
+targeted pyright: 0 errors, 0 warnings, 0 informations
+```
+
+## Step11-section18 Regex Token Highlighting
+
+Changes:
+
+- Added regex-token highlighting to the Find / Replace dialog.
+- When the Regular expression checkbox is ON, regex tokens in the Find and Replace inputs are shown in brown.
+- Escaped literal HTML/WP text such as `\{` and `\}` remains unhighlighted where possible.
+- The initial practical token coverage includes:
+  - capture groups such as `(.*?)`
+  - character classes by escape such as `\s*`, `\d+`, and `\w+`
+  - anchors and alternation such as `^`, `$`, and `|`
+  - replacement references such as `\1`, `$1`, and `${name}`
+- When the checkbox is OFF, regex highlighting is disabled.
+- The color is a UI hint only; regex execution is still controlled by the checkbox state.
+- If inline highlighting is not readable enough in the actual GUI, add a one-line parsed-token preview between the Find and Replace inputs.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_find_replace_dialog.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check dialogs\find_replace_dialog.py dialogs\regex_input_edit.py tests\test_find_replace_dialog.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright dialogs\find_replace_dialog.py dialogs\regex_input_edit.py tests\test_find_replace_dialog.py
+```
+
+Latest result:
+
+```text
+targeted pytest: 9 passed
+targeted ruff: All checks passed
+targeted pyright: 0 errors, 0 warnings, 0 informations
 ```
 
 ## Step11-section16 Visible Whitespace Marker Colors

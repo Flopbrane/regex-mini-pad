@@ -47,6 +47,20 @@ def test_tag_snippet_renders_selection_and_cursor_position() -> None:
     assert cursor_position == len('<a href="')
 
 
+def test_tag_snippet_uses_default_selection_when_text_is_not_selected() -> None:
+    snippet = TagSnippet(
+        "label",
+        "hint",
+        "<div>{selection}{cursor}</div>",
+        default_selection="ここに本文を入れます。",
+    )
+
+    rendered_text, cursor_position = snippet.render("")
+
+    assert rendered_text == "<div>ここに本文を入れます。</div>"
+    assert cursor_position == len("<div>ここに本文を入れます。")
+
+
 def test_insert_tag_menu_has_groups_and_parameter_hints(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -912,10 +926,10 @@ def test_insert_wordpress_custom_frame_block_has_editable_style_parameters(
     assert editor_text.count("<!-- /wp:html -->") == 1
     assert "<!-- wp:group -->" not in editor_text
     assert "<!-- wp:paragraph -->" not in editor_text
-    assert "border:2px solid #2f80ed;" in editor_text
-    assert "background-color:#f5f9ff;" in editor_text
-    assert "color:#111111;" in editor_text
-    assert "max-width:720px" in editor_text
+    assert "border: 2px solid #8bc34a;" in editor_text
+    assert "background-color: #f7fff2;" in editor_text
+    assert "padding: 14px 16px;" in editor_text
+    assert "border-radius: 8px;" in editor_text
     assert "\n重要なお知らせ\n</div>" in editor_text
     assert window.editor.textCursor().position() == editor_text.index("\n</div>")
 
@@ -960,10 +974,9 @@ def test_insert_wordpress_frame_block_without_selection_keeps_matching_tags(
     editor_text = window.editor.toPlainText()
     assert editor_text == (
         "<!-- wp:html -->\n"
-        '<div style="border:2px solid #2f80ed;padding:16px 20px;'
-        "border-radius:8px;background-color:#f5f9ff;color:#111111;"
-        'max-width:720px">\n'
-        "\n"
+        '<div style="border: 2px solid #8bc34a; background-color: #f7fff2; '
+        'padding: 14px 16px; border-radius: 8px;">\n'
+        "ここに本文を入れます。\n"
         "</div>\n"
         "<!-- /wp:html -->"
     )
@@ -978,19 +991,19 @@ def test_insert_wordpress_frame_presets_have_distinct_default_colors(
 
     expected_styles = {
         "tag.wordpress.notice_frame_block": (
-            "border:2px solid #f2c94c;",
-            "background-color:#fff8e1;",
-            "color:#3a2a00",
+            "border: 2px solid #f0b84a;",
+            "background-color: #fffaf0;",
+            "border-radius: 8px;",
         ),
         "tag.wordpress.info_frame_block": (
-            "border:2px solid #2f80ed;",
-            "background-color:#eef6ff;",
-            "color:#102a43",
+            "border: 2px solid #5aa7d8;",
+            "background-color: #f0f9ff;",
+            "padding: 14px 16px;",
         ),
         "tag.wordpress.important_frame_block": (
-            "border:3px solid #d64545;",
-            "background-color:#fff1f1;",
-            "color:#4a1111;",
+            "background-color: #eef8f2;",
+            "border-left: 4px solid #6abf8f;",
+            "font-weight: bold;",
         ),
     }
     for label_key, style_parts in expected_styles.items():

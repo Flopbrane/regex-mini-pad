@@ -27,6 +27,16 @@ def test_lint_reports_invalid_replacement_reference() -> None:
     assert any(message.severity == "error" for message in messages)
 
 
+def test_lint_reports_invalid_dollar_replacement_reference() -> None:
+    messages = RegexLint().lint(
+        r"item-(\d+)",
+        "$2",
+        check_replacement=True,
+    )
+
+    assert any(message.severity == "error" for message in messages)
+
+
 def test_lint_warns_about_unescaped_dot() -> None:
     messages = RegexLint().lint("example.com")
 

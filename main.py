@@ -1196,7 +1196,7 @@ class MainWindow(QMainWindow):
                 tag=values.get("tag", ""),
                 attribute=values.get("attribute", ""),
             )
-        return message.message
+        return self.translator.text(message.message_key, **values)
 
     def _set_cursor_to_line(self, line_number: int) -> None:
         """Move the cursor to the start of the given one-based line number."""

@@ -108,8 +108,10 @@ class SearchEngine:
         if not search_text:
             return ReplaceResult(source_text, 0)
 
-        pattern = self._compile_pattern(search_text, options or SearchOptions())
-        replaced_text, count = pattern.subn(replace_text, source_text)
+        search_options = options or SearchOptions()
+        pattern = self._compile_pattern(search_text, search_options)
+        replacement_text = self._replacement_text_for_options(replace_text, search_options)
+        replaced_text, count = pattern.subn(replacement_text, source_text)
         return ReplaceResult(replaced_text, count)
 
     def replace_match(
@@ -120,9 +122,11 @@ class SearchEngine:
         search_text: str,
         options: SearchOptions | None = None,
     ) -> ReplaceResult:
-        pattern = self._compile_pattern(search_text, options or SearchOptions())
+        search_options = options or SearchOptions()
+        pattern = self._compile_pattern(search_text, search_options)
+        replacement_text = self._replacement_text_for_options(replace_text, search_options)
         target_text = source_text[match.start : match.end]
-        replaced_text, count = pattern.subn(replace_text, target_text, count=1)
+        replaced_text, count = pattern.subn(replacement_text, target_text, count=1)
         if count == 0:
             return ReplaceResult(source_text, 0)
 
@@ -141,8 +145,10 @@ class SearchEngine:
         if not search_text:
             return ReplaceResult(match_text, 0)
 
-        pattern = self._compile_pattern(search_text, options or SearchOptions())
-        replaced_text, count = pattern.subn(replace_text, match_text, count=1)
+        search_options = options or SearchOptions()
+        pattern = self._compile_pattern(search_text, search_options)
+        replacement_text = self._replacement_text_for_options(replace_text, search_options)
+        replaced_text, count = pattern.subn(replacement_text, match_text, count=1)
         return ReplaceResult(replaced_text, count)
 
     def _compile_pattern(
@@ -158,6 +164,15 @@ class SearchEngine:
         if not options.case_sensitive:
             flags |= re.IGNORECASE
         return re.compile(pattern_text, flags)
+
+    def _replacement_text_for_options(
+        self,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> str:
+        if not options.regular_expression:
+            return replace_text
+        return convert_dollar_replacement_references(replace_text)
 
     def _first_non_empty_match(
         self,
@@ -182,3 +197,47 @@ class SearchEngine:
             if match.start() != match.end():
                 last_match = match
         return last_match
+
+
+def convert_dollar_replacement_references(replace_text: str) -> str:
+    converted: list[str] = []
+    index = 0
+    while index < len(replace_text):
+        character = replace_text[index]
+        if character != "$":
+            converted.append(character)
+            index += 1
+            continue
+
+        next_index = index + 1
+        if next_index >= len(replace_text):
+            converted.append(character)
+            index += 1
+            continue
+
+        next_character = replace_text[next_index]
+        if next_character == "$":
+            converted.append("$")
+            index += 2
+            continue
+
+        if next_character.isdigit():
+            group_end = next_index + 1
+            while group_end < len(replace_text) and replace_text[group_end].isdigit():
+                group_end += 1
+            converted.append(rf"\g<{replace_text[next_index:group_end]}>")
+            index = group_end
+            continue
+
+        if next_character == "{":
+            closing_index = replace_text.find("}", next_index + 1)
+            if closing_index != -1:
+                group_name = replace_text[next_index + 1 : closing_index]
+                if group_name.isidentifier() or group_name.isdigit():
+                    converted.append(rf"\g<{group_name}>")
+                    index = closing_index + 1
+                    continue
+
+        converted.append(character)
+        index += 1
+    return "".join(converted)

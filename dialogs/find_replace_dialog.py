@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QGridLayout,
     QLabel,
-    QLineEdit,
     QMenu,
     QPushButton,
     QTableWidget,
@@ -16,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from dialogs.regex_input_edit import REGEX_TOKEN_COLOR, RegexInputEdit
 from localization.translator import Translator
 from search.regex_lint import RegexLint, RegexLintMessage
 from search.search_engine import SearchOptions
@@ -30,6 +30,7 @@ class FindReplaceDialog(QDialog):
     preview_requested = Signal(str, str, SearchOptions)
     search_parameters_changed = Signal(str, SearchOptions)
     regex_help_requested = Signal()
+    REGEX_INPUT_TEXT_COLOR = REGEX_TOKEN_COLOR
 
     def __init__(self, translator: Translator, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -38,8 +39,8 @@ class FindReplaceDialog(QDialog):
         self.regex_lint = RegexLint()
         self.regex_lint_enabled = True
 
-        self.find_text_edit = QLineEdit(self)
-        self.replace_text_edit = QLineEdit(self)
+        self.find_text_edit = RegexInputEdit(self)
+        self.replace_text_edit = RegexInputEdit(self)
         self.find_text_label = QLabel(self)
         self.replace_text_label = QLabel(self)
 
@@ -78,6 +79,7 @@ class FindReplaceDialog(QDialog):
         self._create_recipe_menu()
         self._connect_signals()
         self.apply_language()
+        self._update_regex_input_colors()
 
     def set_find_text(self, text: str) -> None:
         self.find_text_edit.setText(text)
@@ -353,6 +355,11 @@ class FindReplaceDialog(QDialog):
         else:
             self.warning_label.clear()
 
+    def _update_regex_input_colors(self) -> None:
+        regex_enabled = self.regular_expression_check_box.isChecked()
+        self.find_text_edit.set_regex_highlighting_enabled(regex_enabled)
+        self.replace_text_edit.set_regex_highlighting_enabled(regex_enabled)
+
     def _lint_message_text(self, message: RegexLintMessage) -> str:
         return self.translator.text(message.message_key, **(message.values or {}))
 
@@ -394,6 +401,7 @@ class FindReplaceDialog(QDialog):
         )
 
     def _handle_search_option_changed(self, *_args: object) -> None:
+        self._update_regex_input_colors()
         self._update_regex_lint()
         self._emit_search_parameters_changed()
 

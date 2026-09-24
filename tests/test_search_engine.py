@@ -86,6 +86,48 @@ def test_replace_all_supports_regex_groups() -> None:
     assert result.count == 2
 
 
+def test_replace_all_supports_dollar_regex_groups() -> None:
+    engine = SearchEngine()
+
+    result = engine.replace_all(
+        "item-01 item-20",
+        r"(\w+)-(\d+)",
+        "$2:$1",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert result.text == "01:item 20:item"
+    assert result.count == 2
+
+
+def test_replace_all_supports_dollar_named_regex_groups() -> None:
+    engine = SearchEngine()
+
+    result = engine.replace_all(
+        "item-01",
+        r"(?P<name>\w+)-(?P<number>\d+)",
+        "${number}:${name}",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert result.text == "01:item"
+    assert result.count == 1
+
+
+def test_replace_all_uses_double_dollar_as_literal_dollar() -> None:
+    engine = SearchEngine()
+
+    result = engine.replace_all(
+        "item-01",
+        r"item-(\d+)",
+        "$$1",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert result.text == "$1"
+    assert result.count == 1
+
+
 def test_replace_all_supports_literal_search_text() -> None:
     engine = SearchEngine()
 
@@ -127,6 +169,20 @@ def test_preview_replacement_returns_single_match_result() -> None:
     assert result.count == 1
 
 
+def test_preview_replacement_supports_dollar_regex_groups() -> None:
+    engine = SearchEngine()
+
+    result = engine.preview_replacement(
+        "2026-09-11",
+        r"(\d{4})-(\d{2})-(\d{2})",
+        "$1/$2/$3",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert result.text == "2026/09/11"
+    assert result.count == 1
+
+
 def test_invalid_replacement_reference_is_reported() -> None:
     engine = SearchEngine()
 
@@ -135,6 +191,18 @@ def test_invalid_replacement_reference_is_reported() -> None:
             "item-01",
             r"item-(\d+)",
             r"\2",
+            SearchOptions(regular_expression=True),
+        )
+
+
+def test_invalid_dollar_replacement_reference_is_reported() -> None:
+    engine = SearchEngine()
+
+    with pytest.raises(re.error):
+        engine.replace_all(
+            "item-01",
+            r"item-(\d+)",
+            "$2",
             SearchOptions(regular_expression=True),
         )
 

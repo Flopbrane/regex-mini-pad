@@ -128,6 +128,7 @@ class LintReferenceCache:
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     messages.extend(_lint_wordpress_block_typos(load_data))
+    messages.extend(_lint_wordpress_block_structure(load_data))
     parser = HtmlTypoLintParser()
     parser.feed(load_data)
     parser.close()
@@ -220,6 +221,122 @@ def _lint_wordpress_block_typos(load_data: str) -> list[HtmlTypoLintMessage]:
                 )
             )
     return messages
+
+
+def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    line_starts = _line_start_positions(load_data)
+    block_stack: list[tuple[str, int, int]] = []
+
+    for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
+        is_closing = bool(block_match.group(1))
+        block_name = _normalize_block_name(block_match.group(2))
+        line_number = _line_number_at(block_match.start(), line_starts)
+
+        if not is_closing:
+            if block_stack and block_stack[-1][0] == "html":
+                messages.append(
+                    HtmlTypoLintMessage(
+                        "warning",
+                        "html_typo_lint.wordpress_html_contains_block_comment",
+                        line_number,
+                    )
+                )
+            block_stack.append((block_name, block_match.end(), line_number))
+            continue
+
+        if not block_stack:
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.unexpected_wordpress_closing_block",
+                    line_number,
+                    {"block": block_name},
+                )
+            )
+            continue
+
+        open_block_name, open_end, open_line_number = block_stack.pop()
+        if open_block_name != block_name:
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.mismatched_wordpress_block",
+                    line_number,
+                    {"open_block": open_block_name, "close_block": block_name},
+                )
+            )
+            continue
+
+        if block_name == "paragraph":
+            messages.extend(
+                _lint_wordpress_paragraph_body(
+                    load_data[open_end : block_match.start()],
+                    open_line_number,
+                )
+            )
+
+    for block_name, _open_end, open_line_number in block_stack:
+        message_key = "html_typo_lint.missing_wordpress_closing_block"
+        if block_name == "html":
+            message_key = "html_typo_lint.missing_wordpress_html_closing_block"
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                message_key,
+                open_line_number,
+                {"block": block_name},
+            )
+        )
+    return messages
+
+
+def _lint_wordpress_paragraph_body(
+    block_body: str,
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    if not re.search(r"<p(?:\s|>)", block_body, re.IGNORECASE):
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.wordpress_paragraph_missing_p_open",
+                line_number,
+            )
+        )
+    if not re.search(r"</p\s*>", block_body, re.IGNORECASE):
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.wordpress_paragraph_missing_p_close",
+                line_number,
+            )
+        )
+    if re.search(r"<div(?:\s|>)", block_body, re.IGNORECASE):
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.wordpress_paragraph_contains_div",
+                line_number,
+            )
+        )
+    return messages
+
+
+def _line_start_positions(load_data: str) -> list[int]:
+    return [0] + [
+        match.end()
+        for match in re.finditer(r"\n", load_data)
+    ]
+
+
+def _line_number_at(position: int, line_starts: list[int]) -> int:
+    line_number = 1
+    for index, line_start in enumerate(line_starts, start=1):
+        if line_start > position:
+            break
+        line_number = index
+    return line_number
 
 
 def _normalize_block_name(block_name: str) -> str:
