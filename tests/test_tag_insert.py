@@ -1030,10 +1030,15 @@ def test_insert_wordpress_custom_frame_block_has_editable_style_parameters(
     assert editor_text.count("<!-- /wp:html -->") == 1
     assert "<!-- wp:group -->" not in editor_text
     assert "<!-- wp:paragraph -->" not in editor_text
-    assert "border: 2px solid #8bc34a;" in editor_text
-    assert "background-color: #f7fff2;" in editor_text
+    assert 'text-align: left; margin: 1.5em 0 2em 0;">' in editor_text
+    assert "display: inline-block;" in editor_text
+    assert "max-width: 100%;" in editor_text
+    assert "border: 2px solid #f0b84a;" in editor_text
+    assert "background-color: #fffaf0;" in editor_text
+    assert "color: #333333;" in editor_text
     assert "padding: 14px 16px;" in editor_text
     assert "border-radius: 8px;" in editor_text
+    assert "text-align: left;" in editor_text
     assert "\n重要なお知らせ\n</div>" in editor_text
     assert window.editor.textCursor().position() == editor_text.index("\n</div>")
 
@@ -1078,16 +1083,20 @@ def test_insert_wordpress_frame_block_without_selection_keeps_matching_tags(
     editor_text = window.editor.toPlainText()
     assert editor_text == (
         "<!-- wp:html -->\n"
-        '<div style="border: 2px solid #8bc34a; background-color: #f7fff2; '
-        'padding: 14px 16px; border-radius: 8px;">\n'
+        '<div style="text-align: left; margin: 1.5em 0 2em 0;">\n'
+        '<div style="display: inline-block; max-width: 100%; '
+        'border: 2px solid #f0b84a; padding: 14px 16px; '
+        'border-radius: 8px; background-color: #fffaf0; '
+        'color: #333333; text-align: left;">\n'
         "ここに本文を入れます。\n"
+        "</div>\n"
         "</div>\n"
         "<!-- /wp:html -->"
     )
     assert window.editor.textCursor().position() == editor_text.index("\n</div>")
 
 
-def test_insert_wordpress_frame_presets_have_distinct_default_colors(
+def test_insert_wordpress_frame_presets_keep_distinct_border_styles(
     app: QApplication,
 ) -> None:
     _ = app
@@ -1095,17 +1104,26 @@ def test_insert_wordpress_frame_presets_have_distinct_default_colors(
 
     expected_styles = {
         "tag.wordpress.notice_frame_block": (
+            "display: inline-block;",
+            "max-width: 100%;",
             "border: 2px solid #f0b84a;",
             "background-color: #fffaf0;",
+            "color: #333333;",
             "border-radius: 8px;",
         ),
         "tag.wordpress.info_frame_block": (
+            "display: inline-block;",
+            "max-width: 100%;",
             "border: 2px solid #5aa7d8;",
-            "background-color: #f0f9ff;",
+            "background-color: #fffaf0;",
+            "color: #333333;",
             "padding: 14px 16px;",
         ),
         "tag.wordpress.important_frame_block": (
-            "background-color: #eef8f2;",
+            "display: inline-block;",
+            "max-width: 100%;",
+            "background-color: #fffaf0;",
+            "color: #333333;",
             "border-left: 4px solid #6abf8f;",
             "font-weight: bold;",
         ),
@@ -1124,8 +1142,42 @@ def test_insert_wordpress_frame_presets_have_distinct_default_colors(
         assert editor_text.count("<!-- /wp:html -->") == 1
         assert "\n本文\n</div>" in editor_text
         assert "<!-- wp:group -->" not in editor_text
+        assert 'text-align: left; margin: 1.5em 0 2em 0;">' in editor_text
         for style_part in style_parts:
             assert style_part in editor_text
+
+
+def test_insert_wordpress_frame_uses_configured_alignment_and_display(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.frame_alignment = "right"
+    window.frame_display = "grid"
+    window.frame_outer_spacing = "2em 0 3em 0"
+    window.frame_background_color = "#f0f9ff"
+    window.frame_text_color = "#14384f"
+    window.editor.setPlainText("中央に置く短い枠")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    frame_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.custom_frame_block"
+    )
+
+    window.insert_tag_snippet(frame_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert '<div style="text-align: right; margin: 2em 0 3em 0;">' in editor_text
+    assert "display: grid;" in editor_text
+    assert "width: 100%;" in editor_text
+    assert "box-sizing: border-box;" in editor_text
+    assert "background-color: #f0f9ff;" in editor_text
+    assert "color: #14384f;" in editor_text
+    assert "text-align: left;" in editor_text
+    assert "\n中央に置く短い枠\n</div>\n</div>" in editor_text
 
 
 def test_insert_wordpress_two_column_text_block(app: QApplication) -> None:

@@ -36,6 +36,25 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
         "検索",
     ]
     assert dialog.wordpress_mode_combo.count() == 3
+    assert dialog.frame_alignment_combo.count() == 3
+    assert dialog.frame_display_combo.count() == 4
+    assert dialog.frame_outer_spacing_combo.count() == 4
+    assert dialog.frame_background_color_combo.count() == 6
+    assert dialog.frame_text_color_combo.count() == 6
+    assert dialog.frame_alignment_combo.currentText() == "左寄せ"
+    assert dialog.frame_display_combo.currentText() == (
+        "文字幅に合わせる（inline-block）"
+    )
+    assert dialog.frame_outer_spacing_combo.currentText() == (
+        "標準（1.5em 0 2em 0）"
+    )
+    assert dialog.frame_background_color_combo.currentText() == (
+        "やさしいオレンジ（#fffaf0）"
+    )
+    assert dialog.frame_text_color_combo.currentText() == "濃いグレー（#333333）"
+    assert dialog.frame_display_description_label.text() == (
+        "文章の長さに合わせて枠幅を縮めます。通常の補足枠向けです。"
+    )
     assert dialog.hover_hints_checkbox.text() == "ホーバーヒントを表示する"
     assert dialog.startup_restore_checkbox.text() == "起動時の復元"
     assert dialog.dictionary_check_checkbox.text() == "Dict 検証"
@@ -91,6 +110,11 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             regex_lint_enabled=False,
             html_typo_lint_enabled=False,
             reduced_error_check_enabled=True,
+            frame_alignment="right",
+            frame_display="grid",
+            frame_outer_spacing="2em 0 3em 0",
+            frame_background_color="#f0f9ff",
+            frame_text_color="#14384f",
         ),
     )
 
@@ -125,3 +149,8 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.regex_lint_enabled is False
     assert values.html_typo_lint_enabled is False
     assert values.reduced_error_check_enabled is True
+    assert values.frame_alignment == "right"
+    assert values.frame_display == "grid"
+    assert values.frame_outer_spacing == "2em 0 3em 0"
+    assert values.frame_background_color == "#f0f9ff"
+    assert values.frame_text_color == "#14384f"

@@ -40,6 +40,11 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.regex_lint_enabled is True
     assert settings.html_typo_lint_enabled is True
     assert settings.reduced_error_check_enabled is False
+    assert settings.frame_alignment == "left"
+    assert settings.frame_display == "inline-block"
+    assert settings.frame_outer_spacing == "1.5em 0 2em 0"
+    assert settings.frame_background_color == "#fffaf0"
+    assert settings.frame_text_color == "#333333"
 
 
 def test_save_and_load_settings(tmp_path) -> None:
@@ -78,6 +83,11 @@ def test_save_and_load_settings(tmp_path) -> None:
         regex_lint_enabled=False,
         html_typo_lint_enabled=False,
         reduced_error_check_enabled=True,
+        frame_alignment="center",
+        frame_display="inline-grid",
+        frame_outer_spacing="2em 0 3em 0",
+        frame_background_color="#f0f9ff",
+        frame_text_color="#14384f",
     )
     settings = settings_manager.load()
 
@@ -113,3 +123,8 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.regex_lint_enabled is False
     assert settings.html_typo_lint_enabled is False
     assert settings.reduced_error_check_enabled is True
+    assert settings.frame_alignment == "center"
+    assert settings.frame_display == "inline-grid"
+    assert settings.frame_outer_spacing == "2em 0 3em 0"
+    assert settings.frame_background_color == "#f0f9ff"
+    assert settings.frame_text_color == "#14384f"

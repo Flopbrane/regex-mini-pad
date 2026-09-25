@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSpinBox,
@@ -46,6 +47,39 @@ NEWLINE_PRESETS: tuple[tuple[str, str], ...] = (
     ("CRLF", "crlf"),
     ("CR", "cr"),
 )
+FRAME_ALIGNMENT_PRESETS: tuple[tuple[str, str], ...] = (
+    ("options.frame_alignment.left", "left"),
+    ("options.frame_alignment.center", "center"),
+    ("options.frame_alignment.right", "right"),
+)
+FRAME_DISPLAY_PRESETS: tuple[tuple[str, str], ...] = (
+    ("options.frame_display.inline_block", "inline-block"),
+    ("options.frame_display.inline_grid", "inline-grid"),
+    ("options.frame_display.block", "block"),
+    ("options.frame_display.grid", "grid"),
+)
+FRAME_OUTER_SPACING_PRESETS: tuple[tuple[str, str], ...] = (
+    ("options.frame_outer_spacing.none", "0"),
+    ("options.frame_outer_spacing.narrow", "0.75em 0 1em 0"),
+    ("options.frame_outer_spacing.standard", "1.5em 0 2em 0"),
+    ("options.frame_outer_spacing.wide", "2em 0 3em 0"),
+)
+FRAME_BACKGROUND_COLOR_PRESETS: tuple[tuple[str, str], ...] = (
+    ("options.frame_background_color.orange", "#fffaf0"),
+    ("options.frame_background_color.white", "#ffffff"),
+    ("options.frame_background_color.blue", "#f0f9ff"),
+    ("options.frame_background_color.green", "#f7fff2"),
+    ("options.frame_background_color.gray", "#f7f7f7"),
+    ("options.frame_background_color.transparent", "transparent"),
+)
+FRAME_TEXT_COLOR_PRESETS: tuple[tuple[str, str], ...] = (
+    ("options.frame_text_color.dark", "#333333"),
+    ("options.frame_text_color.black", "#000000"),
+    ("options.frame_text_color.brown", "#5c3b00"),
+    ("options.frame_text_color.blue", "#14384f"),
+    ("options.frame_text_color.green", "#214c32"),
+    ("options.frame_text_color.gray", "#666666"),
+)
 
 
 @dataclass(frozen=True)
@@ -80,6 +114,11 @@ class OptionsDialogValues:
     regex_lint_enabled: bool
     html_typo_lint_enabled: bool
     reduced_error_check_enabled: bool
+    frame_alignment: str
+    frame_display: str
+    frame_outer_spacing: str
+    frame_background_color: str
+    frame_text_color: str
 
 
 class OptionsDialog(QDialog):
@@ -107,6 +146,12 @@ class OptionsDialog(QDialog):
         self.default_encoding_combo = QComboBox(self)
         self.newline_combo = QComboBox(self)
         self.wordpress_mode_combo = QComboBox(self)
+        self.frame_alignment_combo = QComboBox(self)
+        self.frame_display_combo = QComboBox(self)
+        self.frame_outer_spacing_combo = QComboBox(self)
+        self.frame_background_color_combo = QComboBox(self)
+        self.frame_text_color_combo = QComboBox(self)
+        self.frame_display_description_label = QLabel(self)
         self.hover_hints_checkbox = QCheckBox(self)
         self.user_dictionary_folder_edit = QLineEdit(self)
         self.user_dictionary_folder_button = QPushButton(self)
@@ -221,6 +266,35 @@ class OptionsDialog(QDialog):
             )
         mode_index = self.wordpress_mode_combo.findData(settings.wordpress_mode_label_key)
         self.wordpress_mode_combo.setCurrentIndex(max(mode_index, 0))
+        self._set_translation_combo(
+            self.frame_alignment_combo,
+            FRAME_ALIGNMENT_PRESETS,
+            settings.frame_alignment,
+        )
+        self._set_translation_combo(
+            self.frame_display_combo,
+            FRAME_DISPLAY_PRESETS,
+            settings.frame_display,
+        )
+        self._set_translation_combo(
+            self.frame_outer_spacing_combo,
+            FRAME_OUTER_SPACING_PRESETS,
+            settings.frame_outer_spacing,
+            allow_custom=True,
+        )
+        self._set_translation_combo(
+            self.frame_background_color_combo,
+            FRAME_BACKGROUND_COLOR_PRESETS,
+            settings.frame_background_color,
+            allow_custom=True,
+        )
+        self._set_translation_combo(
+            self.frame_text_color_combo,
+            FRAME_TEXT_COLOR_PRESETS,
+            settings.frame_text_color,
+            allow_custom=True,
+        )
+        self._set_frame_display_description()
         self.hover_hints_checkbox.setChecked(settings.hover_hints_enabled)
         self.user_dictionary_folder_edit.setText(settings.user_dictionary_folder)
         self.dictionary_check_checkbox.setChecked(settings.dictionary_check_enabled)
@@ -302,6 +376,13 @@ class OptionsDialog(QDialog):
             reduced_error_check_enabled=(
                 self.reduced_error_check_checkbox.isChecked()
             ),
+            frame_alignment=str(self.frame_alignment_combo.currentData()),
+            frame_display=str(self.frame_display_combo.currentData()),
+            frame_outer_spacing=str(self.frame_outer_spacing_combo.currentData()),
+            frame_background_color=str(
+                self.frame_background_color_combo.currentData()
+            ),
+            frame_text_color=str(self.frame_text_color_combo.currentData()),
         )
 
     def _create_tabs(self) -> None:
@@ -376,6 +457,31 @@ class OptionsDialog(QDialog):
         layout.addRow(
             self.translator.text("options.wordpress_mode"),
             self.wordpress_mode_combo,
+        )
+        layout.addRow(
+            self.translator.text("options.frame_alignment"),
+            self.frame_alignment_combo,
+        )
+        layout.addRow(
+            self.translator.text("options.frame_display"),
+            self.frame_display_combo,
+        )
+        self.frame_display_description_label.setWordWrap(True)
+        layout.addRow(
+            self.translator.text("options.frame_display_description"),
+            self.frame_display_description_label,
+        )
+        layout.addRow(
+            self.translator.text("options.frame_outer_spacing"),
+            self.frame_outer_spacing_combo,
+        )
+        layout.addRow(
+            self.translator.text("options.frame_background_color"),
+            self.frame_background_color_combo,
+        )
+        layout.addRow(
+            self.translator.text("options.frame_text_color"),
+            self.frame_text_color_combo,
         )
         layout.addRow(self.hover_hints_checkbox)
         folder_layout = QHBoxLayout()
@@ -456,6 +562,9 @@ class OptionsDialog(QDialog):
         self.user_dictionary_folder_button.clicked.connect(
             self._choose_user_dictionary_folder
         )
+        self.frame_display_combo.currentIndexChanged.connect(
+            self._set_frame_display_description
+        )
 
     def _choose_backup_folder(self) -> None:
         selected_folder = QFileDialog.getExistingDirectory(
@@ -496,6 +605,33 @@ class OptionsDialog(QDialog):
             combo_box.insertItem(0, current_value, current_value)
             current_index = 0
         combo_box.setCurrentIndex(current_index)
+
+    def _set_translation_combo(
+        self,
+        combo_box: QComboBox,
+        presets: tuple[tuple[str, str], ...],
+        current_value: str,
+        *,
+        allow_custom: bool = False,
+    ) -> None:
+        combo_box.clear()
+        for label_key, value in presets:
+            combo_box.addItem(self.translator.text(label_key), value)
+        current_index = combo_box.findData(current_value)
+        if current_index == -1:
+            if allow_custom:
+                combo_box.insertItem(0, current_value, current_value)
+                current_index = 0
+            else:
+                current_index = 0
+        combo_box.setCurrentIndex(current_index)
+
+    def _set_frame_display_description(self) -> None:
+        display_value = str(self.frame_display_combo.currentData())
+        key_suffix = display_value.replace("-", "_")
+        self.frame_display_description_label.setText(
+            self.translator.text(f"options.frame_display.description.{key_suffix}")
+        )
 
     def _set_font_families(self, current_font_family: str) -> None:
         font_families = sorted(QFontDatabase.families())

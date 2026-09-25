@@ -80,6 +80,34 @@ ENCODING_OPTIONS: dict[str, str] = {
     "UTF-16 LE": "utf-16-le",
     "UTF-16 BE": "utf-16-be",
 }
+FRAME_BLOCK_LABEL_KEYS = {
+    "tag.wordpress.custom_frame_block",
+    "tag.wordpress.notice_frame_block",
+    "tag.wordpress.info_frame_block",
+    "tag.wordpress.important_frame_block",
+}
+DEFAULT_FRAME_OUTER_SPACING = "1.5em 0 2em 0"
+FRAME_ALIGNMENT_VALUES = {"left", "center", "right"}
+FRAME_DISPLAY_STYLES = {
+    "block": "display: block; width: 100%; box-sizing: border-box;",
+    "grid": "display: grid; width: 100%; box-sizing: border-box;",
+    "inline-block": "display: inline-block; max-width: 100%;",
+    "inline-grid": "display: inline-grid; max-width: 100%;",
+}
+FRAME_STYLE_PREFIXES_REPLACED_BY_SETTINGS = (
+    "display:",
+    "margin:",
+    "width:",
+    "max-width:",
+    "box-sizing:",
+    "text-align:",
+    "background-color:",
+    "color:",
+)
+
+
+def _split_style_parts(style_text: str) -> list[str]:
+    return [part.strip() for part in style_text.split(";") if part.strip()]
 
 
 class MainWindow(QMainWindow):
@@ -138,6 +166,11 @@ class MainWindow(QMainWindow):
         self.regex_lint_enabled = settings.regex_lint_enabled
         self.html_typo_lint_enabled = settings.html_typo_lint_enabled
         self.reduced_error_check_enabled = settings.reduced_error_check_enabled
+        self.frame_alignment = settings.frame_alignment
+        self.frame_display = settings.frame_display
+        self.frame_outer_spacing = settings.frame_outer_spacing
+        self.frame_background_color = settings.frame_background_color
+        self.frame_text_color = settings.frame_text_color
         self.visible_spaces_enabled = settings.visible_spaces_enabled
         self.visible_tabs_enabled = settings.visible_tabs_enabled
         self.visible_newlines_enabled = settings.visible_newlines_enabled
@@ -735,6 +768,11 @@ class MainWindow(QMainWindow):
             regex_lint_enabled=self.regex_lint_enabled,
             html_typo_lint_enabled=self.html_typo_lint_enabled,
             reduced_error_check_enabled=self.reduced_error_check_enabled,
+            frame_alignment=self.frame_alignment,
+            frame_display=self.frame_display,
+            frame_outer_spacing=self.frame_outer_spacing,
+            frame_background_color=self.frame_background_color,
+            frame_text_color=self.frame_text_color,
         )
 
     def set_language(self, language_code: str) -> None:
@@ -968,6 +1006,11 @@ class MainWindow(QMainWindow):
             regex_lint_enabled=self.regex_lint_enabled,
             html_typo_lint_enabled=self.html_typo_lint_enabled,
             reduced_error_check_enabled=self.reduced_error_check_enabled,
+            frame_alignment=self.frame_alignment,
+            frame_display=self.frame_display,
+            frame_outer_spacing=self.frame_outer_spacing,
+            frame_background_color=self.frame_background_color,
+            frame_text_color=self.frame_text_color,
         )
         dialog = OptionsDialog(self.translator, settings, self)
         self.options_dialog = dialog
@@ -1003,6 +1046,11 @@ class MainWindow(QMainWindow):
         self.regex_lint_enabled = values.regex_lint_enabled
         self.html_typo_lint_enabled = values.html_typo_lint_enabled
         self.reduced_error_check_enabled = values.reduced_error_check_enabled
+        self.frame_alignment = values.frame_alignment
+        self.frame_display = values.frame_display
+        self.frame_outer_spacing = values.frame_outer_spacing
+        self.frame_background_color = values.frame_background_color
+        self.frame_text_color = values.frame_text_color
         self.visible_spaces_enabled = values.visible_spaces_enabled
         self.visible_tabs_enabled = values.visible_tabs_enabled
         self.visible_newlines_enabled = values.visible_newlines_enabled
@@ -1235,7 +1283,7 @@ class MainWindow(QMainWindow):
         cursor = self.editor.textCursor()
         insert_start = cursor.selectionStart()
         selected_text = cursor.selectedText().replace("\u2029", "\n")
-        insert_text, cursor_offset = snippet.render(selected_text)
+        insert_text, cursor_offset = self._render_tag_snippet(snippet, selected_text)
 
         cursor.beginEditBlock()
         cursor.insertText(insert_text)
@@ -1243,6 +1291,94 @@ class MainWindow(QMainWindow):
         cursor.setPosition(insert_start + cursor_offset)
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
+
+    def _render_tag_snippet(
+        self,
+        snippet: TagSnippet,
+        selected_text: str,
+    ) -> tuple[str, int]:
+        if snippet.label_key not in FRAME_BLOCK_LABEL_KEYS:
+            return snippet.render(selected_text)
+
+        adjusted_template = self._frame_block_template_for_settings(snippet.template)
+        return TagSnippet(
+            snippet.label_key,
+            snippet.hint_key,
+            adjusted_template,
+            snippet.parameters,
+            snippet.default_selection,
+        ).render(selected_text)
+
+    def _frame_block_template_for_settings(self, template: str) -> str:
+        style_marker = '<div style="'
+        div_start = template.find(style_marker)
+        if div_start == -1:
+            return template
+
+        style_start = div_start + len(style_marker)
+        style_end = template.find('">', style_start)
+        if style_end == -1:
+            return template
+
+        original_style = template[style_start:style_end]
+        original_body_start = style_end + len('">')
+        original_close_start = template.rfind("\n</div>\n<!-- /wp:html -->")
+        if original_close_start == -1 or original_close_start <= original_body_start:
+            return template
+
+        alignment = self._frame_alignment_value()
+        inner_style = self._frame_inner_style(original_style)
+        outer_open = (
+            f'<div style="text-align: {alignment}; '
+            f'margin: {self._frame_outer_spacing_value()};">\n'
+            f'<div style="{inner_style}">'
+        )
+        return (
+            template[:div_start]
+            + outer_open
+            + template[original_body_start:original_close_start]
+            + "\n</div>"
+            + template[original_close_start:]
+        )
+
+    def _frame_inner_style(self, original_style: str) -> str:
+        display_style = FRAME_DISPLAY_STYLES.get(
+            self.frame_display,
+            FRAME_DISPLAY_STYLES["inline-block"],
+        )
+        preserved_parts = [
+            part
+            for part in _split_style_parts(original_style)
+            if not part.lower().startswith(FRAME_STYLE_PREFIXES_REPLACED_BY_SETTINGS)
+        ]
+        style_parts = [
+            *_split_style_parts(display_style),
+            *preserved_parts,
+            f"background-color: {self._frame_background_color_value()}",
+            f"color: {self._frame_text_color_value()}",
+            "text-align: left",
+        ]
+        return "; ".join(style_parts) + ";"
+
+    def _frame_alignment_value(self) -> str:
+        if self.frame_alignment in FRAME_ALIGNMENT_VALUES:
+            return self.frame_alignment
+        return "left"
+
+    def _frame_outer_spacing_value(self) -> str:
+        if self.frame_outer_spacing.strip():
+            return self.frame_outer_spacing.strip()
+        return DEFAULT_FRAME_OUTER_SPACING
+
+    def _frame_background_color_value(self) -> str:
+        if self.frame_background_color.strip():
+            return self.frame_background_color.strip()
+        return "#fffaf0"
+
+    def _frame_text_color_value(self) -> str:
+        if self.frame_text_color.strip():
+            return self.frame_text_color.strip()
+        return "#333333"
 
     def insert_text_at_cursor(self, insert_text: str) -> None:
         """Insert fixed text into the current editor at the cursor position."""

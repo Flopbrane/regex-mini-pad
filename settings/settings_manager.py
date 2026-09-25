@@ -40,6 +40,11 @@ class EditorSettings:
     regex_lint_enabled: bool = True
     html_typo_lint_enabled: bool = True
     reduced_error_check_enabled: bool = False
+    frame_alignment: str = "left"
+    frame_display: str = "inline-block"
+    frame_outer_spacing: str = "1.5em 0 2em 0"
+    frame_background_color: str = "#fffaf0"
+    frame_text_color: str = "#333333"
 
 
 class SettingsManager:
@@ -123,6 +128,15 @@ class SettingsManager:
             reduced_error_check_enabled=bool(
                 load_data.get("reduced_error_check_enabled", False)
             ),
+            frame_alignment=str(load_data.get("frame_alignment", "left")),
+            frame_display=str(load_data.get("frame_display", "inline-block")),
+            frame_outer_spacing=str(
+                load_data.get("frame_outer_spacing", "1.5em 0 2em 0")
+            ),
+            frame_background_color=str(
+                load_data.get("frame_background_color", "#fffaf0")
+            ),
+            frame_text_color=str(load_data.get("frame_text_color", "#333333")),
         )
 
     def save(
@@ -160,6 +174,11 @@ class SettingsManager:
         regex_lint_enabled: bool = True,
         html_typo_lint_enabled: bool = True,
         reduced_error_check_enabled: bool = False,
+        frame_alignment: str = "left",
+        frame_display: str = "inline-block",
+        frame_outer_spacing: str = "1.5em 0 2em 0",
+        frame_background_color: str = "#fffaf0",
+        frame_text_color: str = "#333333",
     ) -> None:
         save_data = {
             "word_wrap_enabled": word_wrap_enabled,
@@ -194,6 +213,11 @@ class SettingsManager:
             "regex_lint_enabled": regex_lint_enabled,
             "html_typo_lint_enabled": html_typo_lint_enabled,
             "reduced_error_check_enabled": reduced_error_check_enabled,
+            "frame_alignment": frame_alignment,
+            "frame_display": frame_display,
+            "frame_outer_spacing": frame_outer_spacing,
+            "frame_background_color": frame_background_color,
+            "frame_text_color": frame_text_color,
         }
         self.settings_path.write_text(
             json.dumps(save_data, indent=2),

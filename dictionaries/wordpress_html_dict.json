@@ -67,25 +67,25 @@
   {
     "label_key": "tag.wordpress.custom_frame_block",
     "hint_key": "tag.hint.wordpress.custom_frame_block",
-    "template": "<!-- wp:html -->\n<div style=\"border: 2px solid #8bc34a; background-color: #f7fff2; padding: 14px 16px; border-radius: 8px;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
+    "template": "<!-- wp:html -->\n<div style=\"display: grid; border: 2px solid #f0b84a; background-color: #fffaf0; padding: 14px 16px; margin: 1.5em 0 2em 0; border-radius: 8px;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
     "default_selection": "ここに本文を入れます。"
   },
   {
     "label_key": "tag.wordpress.notice_frame_block",
     "hint_key": "tag.hint.wordpress.notice_frame_block",
-    "template": "<!-- wp:html -->\n<div style=\"border: 2px solid #f0b84a; background-color: #fffaf0; padding: 14px 16px; border-radius: 8px;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
+    "template": "<!-- wp:html -->\n<div style=\"display: grid; border: 2px solid #f0b84a; background-color: #fffaf0; padding: 14px 16px; margin: 1.5em 0 2em 0; border-radius: 8px;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
     "default_selection": "ここに本文を入れます。"
   },
   {
     "label_key": "tag.wordpress.info_frame_block",
     "hint_key": "tag.hint.wordpress.info_frame_block",
-    "template": "<!-- wp:html -->\n<div style=\"border: 2px solid #5aa7d8; background-color: #f0f9ff; padding: 14px 16px; border-radius: 8px;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
+    "template": "<!-- wp:html -->\n<div style=\"display: grid; border: 2px solid #5aa7d8; background-color: #f0f9ff; padding: 14px 16px; margin: 1.5em 0 2em 0; border-radius: 8px;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
     "default_selection": "ここに本文を入れます。"
   },
   {
     "label_key": "tag.wordpress.important_frame_block",
     "hint_key": "tag.hint.wordpress.important_frame_block",
-    "template": "<!-- wp:html -->\n<div style=\"background-color: #eef8f2; padding: 10px 12px; border-left: 4px solid #6abf8f; font-weight: bold;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
+    "template": "<!-- wp:html -->\n<div style=\"display: grid; background-color: #eef8f2; padding: 10px 12px; margin: 1.5em 0 2em 0; border-left: 4px solid #6abf8f; font-weight: bold;\">\n{selection}{cursor}\n</div>\n<!-- /wp:html -->",
     "default_selection": "ここに本文を入れます。"
   },
   {
