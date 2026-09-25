@@ -39,6 +39,7 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.visible_newline_marker_color == "#ff9900"
     assert settings.regex_lint_enabled is True
     assert settings.html_typo_lint_enabled is True
+    assert settings.reduced_error_check_enabled is False
 
 
 def test_save_and_load_settings(tmp_path) -> None:
@@ -76,6 +77,7 @@ def test_save_and_load_settings(tmp_path) -> None:
         visible_newline_marker_color="#ff9900",
         regex_lint_enabled=False,
         html_typo_lint_enabled=False,
+        reduced_error_check_enabled=True,
     )
     settings = settings_manager.load()
 
@@ -110,3 +112,4 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.visible_newline_marker_color == "#ff9900"
     assert settings.regex_lint_enabled is False
     assert settings.html_typo_lint_enabled is False
+    assert settings.reduced_error_check_enabled is True

@@ -50,6 +50,41 @@ def test_replace_all_uses_regex_groups(app: QApplication) -> None:
     assert window.editor.toPlainText() == "01:item 20:item"
 
 
+def test_replace_all_returns_focus_to_find_text(app: QApplication, tmp_path) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("target target")
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+    window.find_replace_dialog.find_text_edit.setText("target")
+    window.find_replace_dialog.replace_text_edit.setText("done")
+
+    window.find_replace_dialog.replace_all_button.click()
+    QApplication.processEvents()
+
+    assert window.editor.toPlainText() == "done done"
+    assert window.find_replace_dialog.find_text_edit.hasFocus()
+    assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
+        "target"
+    )
+
+
+def test_low_load_mode_skips_auto_search_highlights(
+    app: QApplication,
+    tmp_path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.reduced_error_check_enabled = True
+    window.editor.setPlainText("target target")
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+
+    window.find_replace_dialog.find_text_edit.setText("target")
+
+    assert window.editor.search_matches == []
+
+
 def test_replace_current_keeps_cursor_after_replaced_text(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -215,6 +250,9 @@ def test_grammar_check_reports_html_and_wordpress_typos(
     assert "3行目" in captured["text"]
     assert "paragaph" in captured["text"]
     assert "paragraph" in captured["text"]
+    assert "Typoです" in captured["text"]
+    assert "wp:paragraph" in captured["text"]
+    assert "修正してください" in captured["text"]
     assert window.editor.textCursor().blockNumber() == 1
 
 

@@ -163,6 +163,22 @@ def test_undo_redo_shortcuts_are_available(app: QApplication) -> None:
     ]
 
 
+def test_line_break_insert_shortcuts_are_available(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+
+    assert window.insert_br_action.shortcut().toString() == "F8"
+    assert window.insert_br_br_action.shortcut().toString() == "F9"
+    assert window.insert_br_action.text() == "<br> を挿入"
+    assert window.insert_br_br_action.text() == "<br><br> を挿入"
+    assert window.insert_br_action in [
+        action for action in window.edit_menu.actions()
+    ]
+    assert window.insert_br_br_action in [
+        action for action in window.edit_menu.actions()
+    ]
+
+
 def child_menus(menu: QMenu) -> list[QMenu]:
     menus: list[QMenu] = []
     for action in menu.actions():
@@ -307,6 +323,42 @@ def test_insert_tag_snippet_can_be_undone_and_redone(app: QApplication) -> None:
     window.redo_action.trigger()
 
     assert window.editor.toPlainText() == "<p>hello</p>"
+
+
+def test_insert_line_break_actions_insert_fixed_html_text(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("beforeafter")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("before"))
+    window.editor.setTextCursor(cursor)
+
+    window.insert_br_action.trigger()
+    window.insert_br_br_action.trigger()
+
+    assert window.editor.toPlainText() == "before<br><br><br>after"
+    assert window.editor.textCursor().position() == len("before<br><br><br>")
+
+    window.undo_action.trigger()
+    assert window.editor.toPlainText() == "before<br>after"
+    window.undo_action.trigger()
+    assert window.editor.toPlainText() == "beforeafter"
+
+
+def test_insert_line_break_replaces_selected_text(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("before middle after")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("before "))
+    cursor.setPosition(len("before middle"), QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+
+    window.insert_br_action.trigger()
+
+    assert window.editor.toPlainText() == "before <br> after"
 
 
 def test_insert_link_snippet_places_cursor_in_href(app: QApplication) -> None:
@@ -687,20 +739,23 @@ def test_wordpress_html_snippets_are_loaded_from_json() -> None:
     wordpress_group = tag_snippet_groups()[2]
 
     assert wordpress_group.label_key == "tag.group.wordpress_html"
-    assert len(wordpress_group.snippets) == 28
+    assert len(wordpress_group.snippets) == 29
     assert wordpress_group.snippets[0].label_key == "tag.wordpress.paragraph_block"
-    assert wordpress_group.snippets[7].label_key == "tag.wordpress.html_code_box"
-    assert wordpress_group.snippets[11].label_key == "tag.wordpress.link_block"
-    assert wordpress_group.snippets[12].label_key == (
+    assert wordpress_group.snippets[3].label_key == (
+        "tag.wordpress.soft_subheading_paragraph"
+    )
+    assert wordpress_group.snippets[8].label_key == "tag.wordpress.html_code_box"
+    assert wordpress_group.snippets[12].label_key == "tag.wordpress.link_block"
+    assert wordpress_group.snippets[13].label_key == (
         "tag.wordpress.custom_frame_block"
     )
-    assert wordpress_group.snippets[15].label_key == (
+    assert wordpress_group.snippets[16].label_key == (
         "tag.wordpress.important_frame_block"
     )
-    assert wordpress_group.snippets[21].label_key == (
+    assert wordpress_group.snippets[22].label_key == (
         "tag.wordpress.columns_2_text_block"
     )
-    assert wordpress_group.snippets[22].label_key == (
+    assert wordpress_group.snippets[23].label_key == (
         "tag.wordpress.columns_3_text_block"
     )
     assert wordpress_group.snippets[-2].label_key == "tag.wordpress.video_block"
@@ -736,6 +791,20 @@ def test_wordpress_link_snippet_uses_link_image_category() -> None:
     assert tag_snippet_category_key(wordpress_group.label_key, link_snippet) == (
         "tag.category.link_image"
     )
+
+
+def test_wordpress_soft_subheading_uses_text_category() -> None:
+    wordpress_group = tag_snippet_groups()[2]
+    subheading_snippet = next(
+        snippet
+        for snippet in wordpress_group.snippets
+        if snippet.label_key == "tag.wordpress.soft_subheading_paragraph"
+    )
+
+    assert tag_snippet_category_key(
+        wordpress_group.label_key,
+        subheading_snippet,
+    ) == "tag.category.text"
 
 
 def test_wordpress_text_columns_use_layout_category() -> None:
@@ -798,6 +867,11 @@ def test_wordpress_snippets_have_expected_mode_groups() -> None:
         "tag.wordpress_mode.business",
         "tag.wordpress_mode.high_security",
     )
+    assert wordpress_mode_keys(snippets["tag.wordpress.soft_subheading_paragraph"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
     assert wordpress_mode_keys(snippets["tag.wordpress.custom_frame_block"]) == (
         "tag.wordpress_mode.normal",
         "tag.wordpress_mode.business",
@@ -842,7 +916,7 @@ def test_insert_wordpress_code_block_uses_pre_code_markup(
     cursor = window.editor.textCursor()
     cursor.select(QTextCursor.SelectionType.Document)
     window.editor.setTextCursor(cursor)
-    code_snippet = tag_snippet_groups()[2].snippets[5]
+    code_snippet = tag_snippet_groups()[2].snippets[6]
 
     window.insert_tag_snippet(code_snippet)
 
@@ -866,7 +940,7 @@ def test_insert_wordpress_html_code_box_uses_custom_style(
     cursor = window.editor.textCursor()
     cursor.select(QTextCursor.SelectionType.Document)
     window.editor.setTextCursor(cursor)
-    html_code_box_snippet = tag_snippet_groups()[2].snippets[7]
+    html_code_box_snippet = tag_snippet_groups()[2].snippets[8]
 
     window.insert_tag_snippet(html_code_box_snippet)
 
@@ -902,6 +976,36 @@ def test_insert_wordpress_link_block_places_cursor_in_href(
     assert window.editor.textCursor().position() == len(
         '<!-- wp:paragraph -->\n<p><a href="'
     )
+
+
+def test_insert_wordpress_soft_subheading_paragraph_avoids_h3_markup(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("最初からできなくても大丈夫です")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    subheading_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.soft_subheading_paragraph"
+    )
+
+    window.insert_tag_snippet(subheading_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text == (
+        "<!-- wp:paragraph -->\n"
+        '<p><span style="font-size: 1.08em; font-weight: bold;">'
+        "最初からできなくても大丈夫です"
+        "</span></p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+    assert "<h3" not in editor_text
+    assert "wp:heading" not in editor_text
+    assert window.editor.textCursor().position() == editor_text.index("</span>")
 
 
 def test_insert_wordpress_custom_frame_block_has_editable_style_parameters(

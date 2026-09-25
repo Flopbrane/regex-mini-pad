@@ -29,6 +29,7 @@ WORDPRESS_HIGH_SECURITY_LABEL_KEYS = {
     "tag.wordpress.paragraph_block",
     "tag.wordpress.heading2_block",
     "tag.wordpress.heading3_block",
+    "tag.wordpress.soft_subheading_paragraph",
     "tag.wordpress.list_block",
     "tag.wordpress.quote_block",
     "tag.wordpress.code_block",
@@ -255,6 +256,7 @@ def _wordpress_category_key(label_key: str) -> str:
         "tag.wordpress.paragraph_block",
         "tag.wordpress.heading2_block",
         "tag.wordpress.heading3_block",
+        "tag.wordpress.soft_subheading_paragraph",
         "tag.wordpress.list_block",
         "tag.wordpress.quote_block",
     }:

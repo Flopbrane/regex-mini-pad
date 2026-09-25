@@ -79,6 +79,7 @@ class OptionsDialogValues:
     visible_newline_marker_color: str
     regex_lint_enabled: bool
     html_typo_lint_enabled: bool
+    reduced_error_check_enabled: bool
 
 
 class OptionsDialog(QDialog):
@@ -124,6 +125,7 @@ class OptionsDialog(QDialog):
         self.visible_newline_marker_color_combo = QComboBox(self)
         self.regex_lint_checkbox = QCheckBox(self)
         self.html_typo_lint_checkbox = QCheckBox(self)
+        self.reduced_error_check_checkbox = QCheckBox(self)
         self.button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok
             | QDialogButtonBox.StandardButton.Cancel,
@@ -184,6 +186,9 @@ class OptionsDialog(QDialog):
         )
         self.html_typo_lint_checkbox.setText(
             self.translator.text("options.item.html_typo_lint")
+        )
+        self.reduced_error_check_checkbox.setText(
+            self.translator.text("options.item.reduced_error_check")
         )
 
     def set_values(self, settings: EditorSettings) -> None:
@@ -251,6 +256,9 @@ class OptionsDialog(QDialog):
         )
         self.regex_lint_checkbox.setChecked(settings.regex_lint_enabled)
         self.html_typo_lint_checkbox.setChecked(settings.html_typo_lint_enabled)
+        self.reduced_error_check_checkbox.setChecked(
+            settings.reduced_error_check_enabled
+        )
 
     def values(self) -> OptionsDialogValues:
         return OptionsDialogValues(
@@ -291,6 +299,9 @@ class OptionsDialog(QDialog):
             ),
             regex_lint_enabled=self.regex_lint_checkbox.isChecked(),
             html_typo_lint_enabled=self.html_typo_lint_checkbox.isChecked(),
+            reduced_error_check_enabled=(
+                self.reduced_error_check_checkbox.isChecked()
+            ),
         )
 
     def _create_tabs(self) -> None:
@@ -420,6 +431,7 @@ class OptionsDialog(QDialog):
         )
         layout.addRow(self.regex_lint_checkbox)
         layout.addRow(self.html_typo_lint_checkbox)
+        layout.addRow(self.reduced_error_check_checkbox)
         tab.setLayout(layout)
         return tab
 

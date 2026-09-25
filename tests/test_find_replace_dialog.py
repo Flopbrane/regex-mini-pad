@@ -131,6 +131,30 @@ def test_regex_lint_can_be_disabled(app: QApplication) -> None:
     assert dialog.warning_label.text() == ""
 
 
+def test_low_load_mode_suppresses_regex_lint_and_auto_search_signal(
+    app: QApplication,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    emitted: list[str] = []
+    dialog.search_parameters_changed.connect(
+        lambda search_text, _options: emitted.append(search_text)
+    )
+    dialog.regular_expression_check_box.setChecked(True)
+    dialog.find_text_edit.setText("example.com")
+
+    assert dialog.warning_label.text()
+    assert emitted
+
+    emitted.clear()
+    dialog.set_reduced_error_check_enabled(True)
+    dialog.find_text_edit.setText("example.org")
+
+    assert dialog.warning_label.text() == ""
+    assert emitted == []
+
+
 def test_regex_mode_toggles_find_and_replace_highlighting(app: QApplication) -> None:
     _ = app
     translator = Translator(Path("resources"), "en")

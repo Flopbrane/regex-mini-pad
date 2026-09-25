@@ -39,6 +39,7 @@ class EditorSettings:
     visible_newline_marker_color: str = "#ff9900"
     regex_lint_enabled: bool = True
     html_typo_lint_enabled: bool = True
+    reduced_error_check_enabled: bool = False
 
 
 class SettingsManager:
@@ -119,6 +120,9 @@ class SettingsManager:
             html_typo_lint_enabled=bool(
                 load_data.get("html_typo_lint_enabled", True)
             ),
+            reduced_error_check_enabled=bool(
+                load_data.get("reduced_error_check_enabled", False)
+            ),
         )
 
     def save(
@@ -155,6 +159,7 @@ class SettingsManager:
         visible_newline_marker_color: str = "#ff9900",
         regex_lint_enabled: bool = True,
         html_typo_lint_enabled: bool = True,
+        reduced_error_check_enabled: bool = False,
     ) -> None:
         save_data = {
             "word_wrap_enabled": word_wrap_enabled,
@@ -188,6 +193,7 @@ class SettingsManager:
             "visible_newline_marker_color": visible_newline_marker_color,
             "regex_lint_enabled": regex_lint_enabled,
             "html_typo_lint_enabled": html_typo_lint_enabled,
+            "reduced_error_check_enabled": reduced_error_check_enabled,
         }
         self.settings_path.write_text(
             json.dumps(save_data, indent=2),

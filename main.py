@@ -137,6 +137,7 @@ class MainWindow(QMainWindow):
         self.visible_newline_marker_color = settings.visible_newline_marker_color
         self.regex_lint_enabled = settings.regex_lint_enabled
         self.html_typo_lint_enabled = settings.html_typo_lint_enabled
+        self.reduced_error_check_enabled = settings.reduced_error_check_enabled
         self.visible_spaces_enabled = settings.visible_spaces_enabled
         self.visible_tabs_enabled = settings.visible_tabs_enabled
         self.visible_newlines_enabled = settings.visible_newlines_enabled
@@ -254,6 +255,16 @@ class MainWindow(QMainWindow):
         self.select_all_action.setShortcut("Ctrl+A")
         self.select_all_action.triggered.connect(self._select_all_current_editor)
 
+        self.insert_br_action = QAction(self)
+        self.insert_br_action.setShortcut("F8")
+        self.insert_br_action.triggered.connect(lambda: self.insert_text_at_cursor("<br>"))
+
+        self.insert_br_br_action = QAction(self)
+        self.insert_br_br_action.setShortcut("F9")
+        self.insert_br_br_action.triggered.connect(
+            lambda: self.insert_text_at_cursor("<br><br>")
+        )
+
         self.html_escape_action = QAction(self)
         self.html_escape_action.triggered.connect(self.escape_selected_html)
 
@@ -333,6 +344,9 @@ class MainWindow(QMainWindow):
         self.edit_menu.addAction(self.redo_action)
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.select_all_action)
+        self.edit_menu.addSeparator()
+        self.edit_menu.addAction(self.insert_br_action)
+        self.edit_menu.addAction(self.insert_br_br_action)
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.insert_tag_picker_action)
         self.edit_menu.addMenu(self.insert_tag_menu)
@@ -720,6 +734,7 @@ class MainWindow(QMainWindow):
             visible_newline_marker_color=self.visible_newline_marker_color,
             regex_lint_enabled=self.regex_lint_enabled,
             html_typo_lint_enabled=self.html_typo_lint_enabled,
+            reduced_error_check_enabled=self.reduced_error_check_enabled,
         )
 
     def set_language(self, language_code: str) -> None:
@@ -755,6 +770,8 @@ class MainWindow(QMainWindow):
         self.undo_action.setText(self.translator.text("action.undo"))
         self.redo_action.setText(self.translator.text("action.redo"))
         self.select_all_action.setText(self.translator.text("action.select_all"))
+        self.insert_br_action.setText(self.translator.text("action.insert_br"))
+        self.insert_br_br_action.setText(self.translator.text("action.insert_br_br"))
         self.html_escape_action.setText(self.translator.text("action.html_escape"))
         self.html_unescape_action.setText(self.translator.text("action.html_unescape"))
         self.wordpress_code_block_action.setText(
@@ -950,6 +967,7 @@ class MainWindow(QMainWindow):
             visible_newline_marker_color=self.visible_newline_marker_color,
             regex_lint_enabled=self.regex_lint_enabled,
             html_typo_lint_enabled=self.html_typo_lint_enabled,
+            reduced_error_check_enabled=self.reduced_error_check_enabled,
         )
         dialog = OptionsDialog(self.translator, settings, self)
         self.options_dialog = dialog
@@ -984,6 +1002,7 @@ class MainWindow(QMainWindow):
         self.visible_newline_marker_color = values.visible_newline_marker_color
         self.regex_lint_enabled = values.regex_lint_enabled
         self.html_typo_lint_enabled = values.html_typo_lint_enabled
+        self.reduced_error_check_enabled = values.reduced_error_check_enabled
         self.visible_spaces_enabled = values.visible_spaces_enabled
         self.visible_tabs_enabled = values.visible_tabs_enabled
         self.visible_newlines_enabled = values.visible_newlines_enabled
@@ -1102,6 +1121,9 @@ class MainWindow(QMainWindow):
         """Apply the regex lint display option to the existing Find/Replace dialog."""
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.set_regex_lint_enabled(self.regex_lint_enabled)
+            self.find_replace_dialog.set_reduced_error_check_enabled(
+                self.reduced_error_check_enabled
+            )
 
     def run_grammar_check(self) -> None:
         """Run the HTML / WordPress typo grammar check for the current document."""
@@ -1219,6 +1241,15 @@ class MainWindow(QMainWindow):
         cursor.insertText(insert_text)
         cursor.endEditBlock()
         cursor.setPosition(insert_start + cursor_offset)
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def insert_text_at_cursor(self, insert_text: str) -> None:
+        """Insert fixed text into the current editor at the cursor position."""
+        cursor = self.editor.textCursor()
+        cursor.beginEditBlock()
+        cursor.insertText(insert_text)
+        cursor.endEditBlock()
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
 
@@ -1538,6 +1569,9 @@ class MainWindow(QMainWindow):
         if self.find_replace_dialog is None:
             self.find_replace_dialog = FindReplaceDialog(self.translator, self)
             self.find_replace_dialog.set_regex_lint_enabled(self.regex_lint_enabled)
+            self.find_replace_dialog.set_reduced_error_check_enabled(
+                self.reduced_error_check_enabled
+            )
             self.find_replace_dialog.find_requested.connect(self.find_next)
             self.find_replace_dialog.find_previous_requested.connect(self.find_previous)
             self.find_replace_dialog.replace_requested.connect(self.replace_current)
@@ -1562,10 +1596,11 @@ class MainWindow(QMainWindow):
         else:
             self.search_scope = None
         self.find_replace_dialog.clear_error()
-        self.update_search_highlights(
-            self.find_replace_dialog.find_text_edit.text(),
-            self.find_replace_dialog.current_search_options(),
-        )
+        if not self.reduced_error_check_enabled:
+            self.update_search_highlights(
+                self.find_replace_dialog.find_text_edit.text(),
+                self.find_replace_dialog.current_search_options(),
+            )
         self.find_replace_dialog.show()
         self.find_replace_dialog.raise_()
         self.find_replace_dialog.activateWindow()
@@ -1717,7 +1752,7 @@ class MainWindow(QMainWindow):
             return
 
         self._replace_document_text(result.text)
-        self.update_search_highlights(search_text, options)
+        self._update_search_highlights_when_allowed(search_text, options)
         replaced_end = len(result.text) - (len(source_text) - selected_match.end)
         self._set_cursor_position(replaced_end)
         self._set_search_status(self.translator.text("search.replaced_one"))
@@ -1766,10 +1801,11 @@ class MainWindow(QMainWindow):
             result_text = result.text
 
         self._replace_document_text(result_text)
-        self.update_search_highlights(search_text, options)
+        self._update_search_highlights_when_allowed(search_text, options)
         self._set_search_status(
             self.translator.text("search.replaced_many", count=result.count)
         )
+        self._focus_find_text_after_replace_all()
 
     def replace_marked_matches(
         self,
@@ -1821,10 +1857,29 @@ class MainWindow(QMainWindow):
             return
 
         self._replace_document_text(result_text)
-        self.update_search_highlights(search_text, options)
+        self._update_search_highlights_when_allowed(search_text, options)
         self._set_search_status(
             self.translator.text("search.replaced_many", count=replacement_count)
         )
+
+    def _update_search_highlights_when_allowed(
+        self,
+        search_text: str,
+        options: SearchOptions,
+    ) -> None:
+        if self.reduced_error_check_enabled:
+            self.editor.clear_search_matches()
+            return
+        self.update_search_highlights(search_text, options)
+
+    def _focus_find_text_after_replace_all(self) -> None:
+        if self.find_replace_dialog is None or not self.find_replace_dialog.isVisible():
+            return
+        self.find_replace_dialog.show()
+        self.find_replace_dialog.raise_()
+        self.find_replace_dialog.activateWindow()
+        self.find_replace_dialog.find_text_edit.setFocus()
+        self.find_replace_dialog.find_text_edit.selectAll()
 
     def update_search_highlights(
         self,

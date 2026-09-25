@@ -15,6 +15,11 @@
     "template": "<!-- wp:heading {\"level\":3} -->\n<h3 class=\"wp-block-heading\">{selection}{cursor}</h3>\n<!-- /wp:heading -->"
   },
   {
+    "label_key": "tag.wordpress.soft_subheading_paragraph",
+    "hint_key": "tag.hint.wordpress.soft_subheading_paragraph",
+    "template": "<!-- wp:paragraph -->\n<p><span style=\"font-size: 1.08em; font-weight: bold;\">{selection}{cursor}</span></p>\n<!-- /wp:paragraph -->"
+  },
+  {
     "label_key": "tag.wordpress.list_block",
     "hint_key": "tag.hint.wordpress.list_block",
     "template": "<!-- wp:list -->\n<ul class=\"wp-block-list\">\n<!-- wp:list-item -->\n<li>・{selection}{cursor}</li>\n<!-- /wp:list-item -->\n</ul>\n<!-- /wp:list -->"

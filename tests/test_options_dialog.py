@@ -41,6 +41,9 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.dictionary_check_checkbox.text() == "Dict 検証"
     assert dialog.regex_lint_checkbox.text() == "正規表現チェック"
     assert dialog.html_typo_lint_checkbox.text() == "HTML/WP表記チェック"
+    assert dialog.reduced_error_check_checkbox.text() == (
+        "低負荷モード（入力中の自動チェックを抑制）"
+    )
     assert dialog.line_numbers_checkbox.text() == "行番号"
     assert dialog.word_wrap_checkbox.text() == "折り返し"
     assert dialog.fixed_column_wrap_checkbox.text() == "設定文字数で折り返す"
@@ -87,6 +90,7 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             visible_newline_marker_color="#ff9900",
             regex_lint_enabled=False,
             html_typo_lint_enabled=False,
+            reduced_error_check_enabled=True,
         ),
     )
 
@@ -120,3 +124,4 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.visible_newline_marker_color == "#ff9900"
     assert values.regex_lint_enabled is False
     assert values.html_typo_lint_enabled is False
+    assert values.reduced_error_check_enabled is True
