@@ -47,3 +47,19 @@ def test_japanese_help_contains_readable_japanese_text() -> None:
     assert japanese_items[0]["category"] == "位置"
     assert japanese_items[0]["label"] == "行の先頭"
     assert "位置" in japanese_items[0]["description"]
+
+
+def test_help_contains_complex_and_office_samples() -> None:
+    japanese_items = load_help_items(Path("resources/regex_help_ja.json"))
+    labels_by_category = {
+        str(item["category"]): {
+            str(other_item["label"])
+            for other_item in japanese_items
+            if other_item["category"] == item["category"]
+        }
+        for item in japanese_items
+    }
+
+    assert "同じ単語が続く場所" in labels_by_category["複雑な組み合わせサンプル"]
+    assert "電話番号" in labels_by_category["事務・計算・住所"]
+    assert "CSVの列を並べ替える" in labels_by_category["置換サンプル"]

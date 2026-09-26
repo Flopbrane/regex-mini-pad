@@ -306,5 +306,159 @@
     "matches": "The tab before Indented",
     "replace_with": "    ",
     "replacement_result": "    Indented"
+  },
+  {
+    "category": "Complex combination sample",
+    "label": "Repeated word",
+    "pattern": "\\b(\\w+)\\s+\\1\\b",
+    "description": "Uses \\b for word edges, (\\w+) to capture a word, \\s+ for the gap, and \\1 to find the same word again.",
+    "example_text": "this is is a test",
+    "usage_example": "\\b(\\w+)\\s+\\1\\b",
+    "matches": "is is",
+    "replace_with": "\\1",
+    "replacement_result": "this is a test"
+  },
+  {
+    "category": "Complex combination sample",
+    "label": "Text inside quotes",
+    "pattern": "\"([^\"\\n]*)\"",
+    "description": "Uses literal quotes, then [^\"\\n]* to capture text that is not a quote or newline. The captured text can be reused as \\1.",
+    "example_text": "name=\"Sato\"",
+    "usage_example": "\"([^\"\\n]*)\"",
+    "matches": "\"Sato\"",
+    "replace_with": "\\1",
+    "replacement_result": "name=Sato"
+  },
+  {
+    "category": "Complex combination sample",
+    "label": "Matching HTML start/end tag",
+    "pattern": "<([a-z][a-z0-9]*)\\b[^>]*>(.*?)</\\1>",
+    "description": "Captures the tag name with ([a-z][a-z0-9]*), then </\\1> requires the same closing tag. .*? captures the shortest body text.",
+    "example_text": "<span>important</span>",
+    "usage_example": "<([a-z][a-z0-9]*)\\b[^>]*>(.*?)</\\1>",
+    "matches": "<span>important</span>",
+    "replace_with": "\\2",
+    "replacement_result": "important"
+  },
+  {
+    "category": "Complex combination sample",
+    "label": "Line containing two words",
+    "pattern": "^.*受付.*完了.*$",
+    "description": "Uses ^ and $ for the whole line, and .* to allow any text between the required words.",
+    "example_text": "受付のみ\\n受付メール送信完了\\n完了待ち",
+    "usage_example": "^.*受付.*完了.*$",
+    "matches": "受付メール送信完了",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Office, calculation, and address",
+    "label": "Japanese postal code",
+    "pattern": "\\d{3}-\\d{4}",
+    "description": "Uses \\d{3} for three digits, a hyphen, then \\d{4} for four digits.",
+    "example_text": "〒160-0022 Tokyo",
+    "usage_example": "\\d{3}-\\d{4}",
+    "matches": "160-0022",
+    "replace_with": "Postal code: \\g<0>",
+    "replacement_result": "〒Postal code: 160-0022 Tokyo"
+  },
+  {
+    "category": "Office, calculation, and address",
+    "label": "Phone number",
+    "pattern": "0\\d{1,4}-\\d{1,4}-\\d{3,4}",
+    "description": "A practical simple pattern for Japanese hyphenated phone numbers with variable area-code lengths.",
+    "example_text": "Tel 03-1234-5678",
+    "usage_example": "0\\d{1,4}-\\d{1,4}-\\d{3,4}",
+    "matches": "03-1234-5678",
+    "replace_with": "[phone]",
+    "replacement_result": "Tel [phone]"
+  },
+  {
+    "category": "Office, calculation, and address",
+    "label": "Comma-separated amount",
+    "pattern": "\\d{1,3}(?:,\\d{3})+",
+    "description": "Uses \\d{1,3} for the first group, then (?:,\\d{3})+ for one or more comma-plus-three-digit groups.",
+    "example_text": "Sales 1,234,567 yen",
+    "usage_example": "\\d{1,3}(?:,\\d{3})+",
+    "matches": "1,234,567",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Office, calculation, and address",
+    "label": "Integer or decimal",
+    "pattern": "[+-]?\\d+(?:\\.\\d+)?",
+    "description": "Makes the sign optional with [+-]?, requires digits with \\d+, and makes the decimal part optional with (?:\\.\\d+)?.",
+    "example_text": "Change -12.5 points",
+    "usage_example": "[+-]?\\d+(?:\\.\\d+)?",
+    "matches": "-12.5",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Office, calculation, and address",
+    "label": "Japanese address line",
+    "pattern": "(東京都|北海道|(?:京都|大阪)府|.{2,3}県).+?[市区町村].+",
+    "description": "A rough address pattern that starts with a prefecture-like name and then requires city, ward, town, or village text.",
+    "example_text": "東京都新宿区西新宿1-1-1",
+    "usage_example": "(東京都|北海道|(?:京都|大阪)府|.{2,3}県).+?[市区町村].+",
+    "matches": "東京都新宿区西新宿1-1-1",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Office, calculation, and address",
+    "label": "Management number",
+    "pattern": "[A-Z]{2,}-\\d{4,}",
+    "description": "Finds two or more uppercase letters, a hyphen, and four or more digits, such as invoice or control numbers.",
+    "example_text": "INV-20260925",
+    "usage_example": "[A-Z]{2,}-\\d{4,}",
+    "matches": "INV-20260925",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Replacement sample",
+    "label": "Slash date to hyphen date",
+    "pattern": "(\\d{4})/(\\d{1,2})/(\\d{1,2})",
+    "description": "Captures year, month, and day separately, then reorders them as \\1-\\2-\\3 in replacement text.",
+    "example_text": "2026/9/25",
+    "usage_example": "(\\d{4})/(\\d{1,2})/(\\d{1,2})",
+    "matches": "2026/9/25",
+    "replace_with": "\\1-\\2-\\3",
+    "replacement_result": "2026-9-25"
+  },
+  {
+    "category": "Replacement sample",
+    "label": "Reorder CSV columns",
+    "pattern": "^([^,]+),([^,]+),([^,]+)$",
+    "description": "Captures three comma-separated columns, then changes their order in replacement text.",
+    "example_text": "Sato,Taro,Sales",
+    "usage_example": "^([^,]+),([^,]+),([^,]+)$",
+    "matches": "Sato,Taro,Sales",
+    "replace_with": "\\2 \\1 (\\3)",
+    "replacement_result": "Taro Sato (Sales)"
+  },
+  {
+    "category": "Replacement sample",
+    "label": "Normalize colon variants",
+    "pattern": "[：:]",
+    "description": "A character class matches one of the listed characters. This is useful for normalizing punctuation variants.",
+    "example_text": "Name：Sato\\nDept:Sales",
+    "usage_example": "[：:]",
+    "matches": "： and :",
+    "replace_with": "：",
+    "replacement_result": "Name：Sato\\nDept：Sales"
+  },
+  {
+    "category": "Replacement sample",
+    "label": "Trim leading and trailing spaces",
+    "pattern": "^[ \\t]+|[ \\t]+$",
+    "description": "| means OR. This finds spaces at the beginning of a line or spaces at the end of a line.",
+    "example_text": "  memo  ",
+    "usage_example": "^[ \\t]+|[ \\t]+$",
+    "matches": "The leading and trailing spaces",
+    "replace_with": "",
+    "replacement_result": "memo"
   }
 ]
