@@ -203,6 +203,21 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
 
     assert "タグ挿入..." in action_texts
     assert isinstance(insert_tag_menu, QMenu)
+    paragraph_split_menu = next(
+        (
+            child_menu
+            for action in context_menu.actions()
+            if isinstance((child_menu := action.menu()), QMenu)
+            and child_menu.title() == "段落分割"
+        ),
+        None,
+    )
+    assert isinstance(paragraph_split_menu, QMenu)
+    assert [action.text() for action in paragraph_split_menu.actions()] == [
+        "スペーサー挿入",
+        "HTML挿入",
+        "枠組み指定",
+    ]
     assert [menu.title() for menu in child_menus(insert_tag_menu)] == [
         "HTML",
         "Markdown",
@@ -378,6 +393,31 @@ def test_insert_link_snippet_places_cursor_in_href(app: QApplication) -> None:
 
     assert window.editor.toPlainText() == '<a href="">OpenAI</a>'
     assert window.editor.textCursor().position() == len('<a href="')
+
+
+def test_insert_html_image_snippet_uses_default_size_alignment_and_margin(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("画像の説明")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    image_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[0].snippets
+        if snippet.label_key == "tag.html.image"
+    )
+
+    window.insert_tag_snippet(image_snippet)
+
+    assert window.editor.toPlainText() == (
+        '<img src="" '
+        'style="width: 80%; display: block; margin: 2em auto 1.5em auto;" '
+        'alt="画像の説明">'
+    )
+    assert window.editor.textCursor().position() == len('<img src="')
 
 
 def test_html_snippets_are_loaded_from_json() -> None:
@@ -978,6 +1018,37 @@ def test_insert_wordpress_link_block_places_cursor_in_href(
     )
 
 
+def test_insert_wordpress_image_block_uses_default_size_alignment_and_margin(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("画像の説明")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    image_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.image_block"
+    )
+
+    window.insert_tag_snippet(image_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text == (
+        '<!-- wp:image {"sizeSlug":"full","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-full"><img src="" '
+        'style="width: 80%; display: block; margin: 2em auto 1.5em auto;" '
+        'alt="画像の説明"/></figure>\n'
+        "<!-- /wp:image -->"
+    )
+    assert window.editor.textCursor().position() == len(
+        '<!-- wp:image {"sizeSlug":"full","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-full"><img src="'
+    )
+
+
 def test_insert_wordpress_soft_subheading_paragraph_avoids_h3_markup(
     app: QApplication,
 ) -> None:
@@ -1065,6 +1136,7 @@ def test_insert_wordpress_frame_block_keeps_multiline_selection_in_single_html_b
     assert editor_text.count("<!-- /wp:html -->") == 1
     assert "\n1行目\nSecond line\n三行目\n</div>" in editor_text
     assert "<!-- wp:paragraph -->" not in editor_text
+    assert "wp:preformatted" not in editor_text
 
 
 def test_insert_wordpress_frame_block_without_selection_keeps_matching_tags(
@@ -1094,6 +1166,7 @@ def test_insert_wordpress_frame_block_without_selection_keeps_matching_tags(
         "<!-- /wp:html -->"
     )
     assert window.editor.textCursor().position() == editor_text.index("\n</div>")
+    assert "wp:preformatted" not in editor_text
 
 
 def test_insert_wordpress_frame_presets_keep_distinct_border_styles(

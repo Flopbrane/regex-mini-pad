@@ -315,7 +315,7 @@ def test_grammar_check_reports_no_issues(
 
     assert captured == {
         "title": "文法チェック",
-        "text": "文法チェックで問題は見つかりませんでした。",
+        "text": "簡易チェック完了：大きな構造エラーは見つかりませんでした。",
     }
 
 

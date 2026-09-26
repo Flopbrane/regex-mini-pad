@@ -1100,6 +1100,96 @@ Display review checklist:
    - Change colors only if the above checks show a concrete readability problem.
    - Prefer existing preset colors before adding a free color picker.
 
+## Step12-section1 WordPress Image, Paragraph Split, And Simple Structure Check
+
+Changes:
+
+- Updated image insertion snippets:
+  - `dictionaries/html_dict.json`
+    - HTML `<img>` now inserts `style="width: 80%; display: block; margin: 2em auto 1.5em auto;"` immediately after `src`.
+  - `dictionaries/wordpress_html_dict.json`
+    - WordPress image block now inserts the same default image style.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Image hover/help text now mentions default width, alignment, and outer margin.
+  - `tests/test_tag_insert.py`
+    - Added insertion tests that confirm `src=""` cursor placement and the default image style.
+
+- Added paragraph split context-menu support:
+  - `editor/paragraph_splitter.py`
+    - Added focused WordPress paragraph splitting helpers.
+    - Detects a simple `<!-- wp:paragraph --> ... <!-- /wp:paragraph -->` block containing `<p>...</p>`.
+    - Rebuilds output as `paragraph before`, inserted block, and `paragraph after`.
+    - Trims only edge `<br>` / `<br><br>` markers while preserving meaningful internal line breaks.
+    - Supports spacer insertion, empty HTML code block insertion, and selected-text decorated frame wrapping.
+  - `main.py`
+    - Added the editor context-menu submenu `段落分割`.
+    - Added menu items:
+      - `スペーサー挿入`
+      - `HTML挿入`
+      - `枠組み指定`
+    - Shows a warning when the cursor or selection cannot be safely handled as a single paragraph block.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added labels and error title strings for the paragraph split menu.
+  - `tests/test_paragraph_splitter.py`
+    - Added string-level regression tests for paragraph detection, spacer insertion, HTML insertion, code wrapping, decorated frame wrapping, and invalid positions.
+  - `tests/test_tag_insert.py`
+    - Added context-menu regression coverage for the `段落分割` submenu and its three entries.
+
+- Confirmed decorated frame output does not use `wp:preformatted`:
+  - Paragraph split `枠組み指定` uses one `wp:html` block containing a styled `div`.
+  - Existing WordPress decorated frame snippets continue to use one `wp:html` block and do not emit nested `wp:paragraph` or `wp:preformatted`.
+  - Added regression checks for this policy.
+
+- Added WP block simple structure checks to Grammar Check:
+  - `search/html_typo_lint.py`
+    - Added lightweight count checks for:
+      - `<!-- wp:paragraph -->` / `<!-- /wp:paragraph -->`
+      - `<!-- wp:html -->` / `<!-- /wp:html -->`
+      - `<p>` / `</p>`
+      - `<pre>` / `</pre>`
+      - `<code>` / `</code>`
+    - Added detection for malformed `<\p>`.
+    - Added detection for known `margin:2en` typo.
+    - Added detection for `wp:html` nested inside `wp:paragraph`.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added localized warning messages.
+    - Updated the no-issue message to:
+      - `簡易チェック完了：大きな構造エラーは見つかりませんでした。`
+  - `tests/test_html_typo_lint.py`
+    - Added regression tests for all newly added simple structure checks.
+  - `tests/test_main_window_search.py`
+    - Updated the no-issue dialog expectation.
+
+Important policy notes:
+
+- Do not use `wp:preformatted` for decorated frame output.
+- If `wp:preformatted` is used by a separate snippet, do not place `wp:html` inside that `wp:preformatted` block.
+- Keep decorated frame snippets as a single `wp:html` block with ordinary HTML inside.
+- The new simple structure check is intentionally lightweight. It is not a full HTML validator; it targets common WordPress paste-breaking mistakes first.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\html_dict.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\wordpress_html_dict.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_paragraph_splitter.py tests\test_tag_insert.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_main_window_search.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+```
+
+Validation result:
+
+- JSON validation passed for the changed dictionaries and resources.
+- `pytest tests\test_paragraph_splitter.py tests\test_tag_insert.py`: 60 passed.
+- `pytest tests\test_html_typo_lint.py tests\test_main_window_search.py tests\test_app_translation.py`: 48 passed.
+- Full `pytest`: 204 passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Targeted Ruff passed for the changed Python test/lint files.
+- Full `ruff check .` still stops on the pre-existing import-order issue in `dialogs/find_replace_dialog.py`; this was not introduced by Step12-section1.
+
 ## Validation Commands
 
 Use the project virtual environment:

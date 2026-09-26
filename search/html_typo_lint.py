@@ -127,6 +127,7 @@ class LintReferenceCache:
 
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
+    messages.extend(_lint_wordpress_simple_structure(load_data))
     messages.extend(_lint_wordpress_block_typos(load_data))
     messages.extend(_lint_wordpress_block_structure(load_data))
     parser = HtmlTypoLintParser()
@@ -134,6 +135,126 @@ def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     parser.close()
     messages.extend(parser.messages)
     return sorted(messages, key=lambda message: message.line_number)
+
+
+def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    messages.extend(
+        _lint_matching_count(
+            load_data,
+            "paragraph",
+            r"<!--\s+wp:paragraph\s+-->",
+            r"<!--\s+/wp:paragraph\s+-->",
+            "html_typo_lint.count_mismatch_wordpress_paragraph",
+        )
+    )
+    messages.extend(
+        _lint_matching_count(
+            load_data,
+            "html",
+            r"<!--\s+wp:html\s+-->",
+            r"<!--\s+/wp:html\s+-->",
+            "html_typo_lint.count_mismatch_wordpress_html",
+        )
+    )
+    messages.extend(
+        _lint_matching_count(
+            load_data,
+            "p",
+            r"<p(?:\s|>)",
+            r"</p\s*>",
+            "html_typo_lint.count_mismatch_p",
+        )
+    )
+    messages.extend(
+        _lint_matching_count(
+            load_data,
+            "pre",
+            r"<pre(?:\s|>)",
+            r"</pre\s*>",
+            "html_typo_lint.count_mismatch_pre",
+        )
+    )
+    messages.extend(
+        _lint_matching_count(
+            load_data,
+            "code",
+            r"<code(?:\s|>)",
+            r"</code\s*>",
+            "html_typo_lint.count_mismatch_code",
+        )
+    )
+    messages.extend(_lint_known_fragile_typos(load_data))
+    return messages
+
+
+def _lint_matching_count(
+    load_data: str,
+    name: str,
+    open_pattern: str,
+    close_pattern: str,
+    message_key: str,
+) -> list[HtmlTypoLintMessage]:
+    open_matches = list(re.finditer(open_pattern, load_data, re.IGNORECASE))
+    close_matches = list(re.finditer(close_pattern, load_data, re.IGNORECASE))
+    if len(open_matches) == len(close_matches):
+        return []
+
+    first_problem_position = _first_count_problem_position(open_matches, close_matches)
+    return [
+        HtmlTypoLintMessage(
+            "warning",
+            message_key,
+            _line_number_at(first_problem_position, _line_start_positions(load_data)),
+            {
+                "name": name,
+                "open_count": str(len(open_matches)),
+                "close_count": str(len(close_matches)),
+            },
+        )
+    ]
+
+
+def _first_count_problem_position(
+    open_matches: list[re.Match[str]],
+    close_matches: list[re.Match[str]],
+) -> int:
+    all_matches = sorted(
+        [(match.start(), "open") for match in open_matches]
+        + [(match.start(), "close") for match in close_matches]
+    )
+    balance = 0
+    for position, match_type in all_matches:
+        if match_type == "open":
+            balance += 1
+        else:
+            balance -= 1
+        if balance < 0:
+            return position
+    if len(open_matches) > len(close_matches) and open_matches:
+        return open_matches[-1].start()
+    if close_matches:
+        return close_matches[-1].start()
+    return 0
+
+
+def _lint_known_fragile_typos(load_data: str) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    line_starts = _line_start_positions(load_data)
+    typo_checks = (
+        (r"<\\p\s*>", "html_typo_lint.invalid_p_closing_tag"),
+        (r"margin\s*:\s*2en\b", "html_typo_lint.known_typo_margin_2en"),
+    )
+    for pattern, message_key in typo_checks:
+        for match in re.finditer(pattern, load_data, re.IGNORECASE):
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    message_key,
+                    _line_number_at(match.start(), line_starts),
+                )
+            )
+    return messages
 
 
 def _load_lint_reference() -> dict[str, Any]:
@@ -239,6 +360,14 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     HtmlTypoLintMessage(
                         "warning",
                         "html_typo_lint.wordpress_html_contains_block_comment",
+                        line_number,
+                    )
+                )
+            if block_stack and block_stack[-1][0] == "paragraph" and block_name == "html":
+                messages.append(
+                    HtmlTypoLintMessage(
+                        "warning",
+                        "html_typo_lint.wordpress_paragraph_contains_html_block",
                         line_number,
                     )
                 )

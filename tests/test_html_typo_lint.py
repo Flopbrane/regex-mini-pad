@@ -130,6 +130,55 @@ def test_lint_reports_div_inside_wordpress_paragraph_block() -> None:
     )
 
 
+def test_lint_reports_simple_count_mismatches() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p><pre><code>本文</code></pre>\n"
+        "<!-- wp:html -->\n"
+        "<div>HTML</div>\n"
+    )
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.count_mismatch_wordpress_paragraph" in message_keys
+    assert "html_typo_lint.count_mismatch_wordpress_html" in message_keys
+    assert "html_typo_lint.count_mismatch_p" in message_keys
+
+
+def test_lint_reports_pre_and_code_count_mismatches() -> None:
+    messages = lint_html_typos("<pre><code>本文</pre>")
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.count_mismatch_code" in message_keys
+    assert "html_typo_lint.count_mismatch_pre" not in message_keys
+
+
+def test_lint_reports_known_fragile_typos() -> None:
+    messages = lint_html_typos('<p style="margin:2en 0 1.5em;">本文<\\p>')
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.invalid_p_closing_tag" in message_keys
+    assert "html_typo_lint.known_typo_margin_2en" in message_keys
+
+
+def test_lint_reports_html_block_inside_wordpress_paragraph_block() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p>前半\n"
+        "<!-- wp:html -->\n"
+        "<div>入れ子HTML</div>\n"
+        "<!-- /wp:html -->\n"
+        "</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key
+        == "html_typo_lint.wordpress_paragraph_contains_html_block"
+        and message.line_number == 3
+        for message in messages
+    )
+
+
 def test_lint_accepts_valid_wordpress_paragraph_blocks() -> None:
     messages = lint_html_typos(
         "<!-- wp:paragraph -->\n"

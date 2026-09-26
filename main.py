@@ -52,6 +52,13 @@ from dialogs.regex_help_dialog import RegexHelpDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
 from dialogs.user_help_dialog import UserHelpDialog
 from editor.editor_tab import EditorTab
+from editor.paragraph_splitter import (
+    ParagraphReplacement,
+    ParagraphSplitError,
+    split_paragraph_insert_html,
+    split_paragraph_insert_spacer,
+    wrap_selection_as_decorated_block,
+)
 from editor.tag_insert import (
     WORDPRESS_GROUP_LABEL_KEY,
     TagSnippet,
@@ -308,6 +315,21 @@ class MainWindow(QMainWindow):
         self.wordpress_code_block_action = QAction(self)
         self.wordpress_code_block_action.triggered.connect(
             self.wrap_selected_as_wordpress_code_block
+        )
+
+        self.paragraph_split_spacer_action = QAction(self)
+        self.paragraph_split_spacer_action.triggered.connect(
+            self.insert_paragraph_split_spacer
+        )
+
+        self.paragraph_split_html_action = QAction(self)
+        self.paragraph_split_html_action.triggered.connect(
+            self.insert_paragraph_split_html
+        )
+
+        self.paragraph_split_decorated_action = QAction(self)
+        self.paragraph_split_decorated_action.triggered.connect(
+            self.wrap_paragraph_split_decorated_block
         )
 
         self.insert_tag_menu = QMenu(self)
@@ -816,6 +838,15 @@ class MainWindow(QMainWindow):
         self.wordpress_code_block_action.setText(
             self.translator.text("action.wordpress_code_block")
         )
+        self.paragraph_split_spacer_action.setText(
+            self.translator.text("paragraph_split.insert_spacer")
+        )
+        self.paragraph_split_html_action.setText(
+            self.translator.text("paragraph_split.insert_html")
+        )
+        self.paragraph_split_decorated_action.setText(
+            self.translator.text("paragraph_split.decorated_block")
+        )
         self.insert_tag_picker_action.setText(
             self.translator.text("action.insert_tag_picker")
         )
@@ -946,6 +977,14 @@ class MainWindow(QMainWindow):
         html_transform_menu.addSeparator()
         html_transform_menu.addAction(self.wordpress_code_block_action)
         context_menu.addMenu(html_transform_menu)
+        paragraph_split_menu = QMenu(
+            self.translator.text("paragraph_split.menu"),
+            context_menu,
+        )
+        paragraph_split_menu.addAction(self.paragraph_split_spacer_action)
+        paragraph_split_menu.addAction(self.paragraph_split_html_action)
+        paragraph_split_menu.addAction(self.paragraph_split_decorated_action)
+        context_menu.addMenu(paragraph_split_menu)
         context_menu.addAction(self.insert_tag_picker_action)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
         self._set_tag_menu_tooltips_visible(insert_tag_menu)
@@ -1291,6 +1330,50 @@ class MainWindow(QMainWindow):
         cursor.endEditBlock()
         cursor.setPosition(insert_start + cursor_offset)
         self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def insert_paragraph_split_spacer(self) -> None:
+        """Split the current paragraph and insert a WordPress spacer block."""
+        self._apply_paragraph_split_operation(
+            lambda text, start, _end: split_paragraph_insert_spacer(text, start)
+        )
+
+    def insert_paragraph_split_html(self) -> None:
+        """Split the current paragraph and insert an empty HTML code block."""
+        self._apply_paragraph_split_operation(
+            lambda text, start, _end: split_paragraph_insert_html(text, start)
+        )
+
+    def wrap_paragraph_split_decorated_block(self) -> None:
+        """Split the current paragraph and wrap the selection as a decorated block."""
+        self._apply_paragraph_split_operation(wrap_selection_as_decorated_block)
+
+    def _apply_paragraph_split_operation(
+        self,
+        operation: Callable[[str, int, int], ParagraphReplacement],
+    ) -> None:
+        cursor = self.editor.textCursor()
+        text = self.editor.toPlainText()
+        selection_start = cursor.selectionStart()
+        selection_end = cursor.selectionEnd()
+        try:
+            replacement = operation(text, selection_start, selection_end)
+        except ParagraphSplitError as error:
+            QMessageBox.warning(
+                self,
+                self.translator.text("paragraph_split.error_title"),
+                str(error),
+            )
+            return
+
+        edit_cursor = self.editor.textCursor()
+        edit_cursor.beginEditBlock()
+        edit_cursor.setPosition(0)
+        edit_cursor.setPosition(len(text), QTextCursor.MoveMode.KeepAnchor)
+        edit_cursor.insertText(replacement.text)
+        edit_cursor.endEditBlock()
+        edit_cursor.setPosition(replacement.cursor_position)
+        self.editor.setTextCursor(edit_cursor)
         self.editor.setFocus()
 
     def _render_tag_snippet(
