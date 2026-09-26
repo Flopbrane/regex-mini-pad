@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QLabel,
     QMenu,
+    QInputDialog,
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from dialogs.regex_input_edit import REGEX_TOKEN_COLOR, RegexInputEdit
 from localization.translator import Translator
+from normalise import normalise_operations
 from search.regex_lint import RegexLint, RegexLintMessage
 from search.search_engine import SearchOptions
 
@@ -30,6 +32,7 @@ class FindReplaceDialog(QDialog):
     preview_requested = Signal(str, str, SearchOptions)
     search_parameters_changed = Signal(str, SearchOptions)
     regex_help_requested = Signal()
+    normalise_requested = Signal(str)
     REGEX_INPUT_TEXT_COLOR = REGEX_TOKEN_COLOR
 
     def __init__(self, translator: Translator, parent: QWidget | None = None) -> None:
@@ -59,6 +62,7 @@ class FindReplaceDialog(QDialog):
         self.replace_marked_button = QPushButton("Replace Marked", self)
         self.insert_regex_button = QPushButton("Insert Regex", self)
         self.recipe_button = QPushButton("Recipes", self)
+        self.normalise_button = QPushButton("Regex Rewrite", self)
         self.preview_button = QPushButton("Preview", self)
         self.regex_help_button = QPushButton("Regex Help", self)
         self.close_button = QPushButton("Close", self)
@@ -158,6 +162,7 @@ class FindReplaceDialog(QDialog):
         )
         self.insert_regex_button.setText(self.translator.text("find.insert_regex"))
         self.recipe_button.setText(self.translator.text("find.regex_recipes"))
+        self.normalise_button.setText(self.translator.text("find.normalise"))
         self.preview_button.setText(self.translator.text("find.preview"))
         self.regex_help_button.setText(self.translator.text("find.regex_help"))
         self.close_button.setText(self.translator.text("find.close"))
@@ -198,6 +203,7 @@ class FindReplaceDialog(QDialog):
         button_layout.addWidget(self.preview_button, 1, 0)
         button_layout.addWidget(self.insert_regex_button, 1, 1)
         button_layout.addWidget(self.recipe_button, 1, 2)
+        button_layout.addWidget(self.normalise_button, 1, 3)
         button_layout.addWidget(self.regex_help_button, 2, 0)
         button_layout.addWidget(self.close_button, 2, 2)
 
@@ -313,6 +319,7 @@ class FindReplaceDialog(QDialog):
         self.replace_marked_button.clicked.connect(self._emit_replace_marked_requested)
         self.preview_button.clicked.connect(self._emit_preview_requested)
         self.regex_help_button.clicked.connect(self.regex_help_requested.emit)
+        self.normalise_button.clicked.connect(self._choose_normalise_operation)
         self.close_button.clicked.connect(self.close)
         self.find_text_edit.textChanged.connect(self._update_regex_lint)
         self.find_text_edit.textChanged.connect(self._emit_search_parameters_changed)
@@ -405,6 +412,25 @@ class FindReplaceDialog(QDialog):
             self.replace_text_edit.text(),
             self._search_options(),
         )
+
+    def _choose_normalise_operation(self) -> None:
+        operations = normalise_operations()
+        labels = [self.translator.text(operation.label_key) for operation in operations]
+        selected_label, accepted = QInputDialog.getItem(
+            self,
+            self.translator.text("normalise.title"),
+            self.translator.text("normalise.operation"),
+            labels,
+            0,
+            False,
+        )
+        if not accepted:
+            return
+        try:
+            selected_index = labels.index(selected_label)
+        except ValueError:
+            return
+        self.normalise_requested.emit(operations[selected_index].operation_id)
 
     def _handle_search_option_changed(self, *_args: object) -> None:
         self._update_regex_input_colors()

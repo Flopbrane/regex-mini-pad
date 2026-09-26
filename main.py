@@ -66,6 +66,7 @@ from editor.text_editor import TextEditor
 from fileio.file_manager import FileManager
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from localization.translator import Translator
+from normalise import apply_normalise_operation
 from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import EditorSettings, SettingsManager
@@ -1720,6 +1721,9 @@ class MainWindow(QMainWindow):
                 self.update_search_highlights
             )
             self.find_replace_dialog.regex_help_requested.connect(self.show_regex_help_dialog)
+            self.find_replace_dialog.normalise_requested.connect(
+                self.apply_regex_normalise_operation
+            )
 
         selected_text = self.editor.textCursor().selectedText()
         if selected_text:
@@ -1997,6 +2001,39 @@ class MainWindow(QMainWindow):
         self._set_search_status(
             self.translator.text("search.replaced_many", count=replacement_count)
         )
+
+    def apply_regex_normalise_operation(self, operation_id: str) -> None:
+        if self.find_replace_dialog is None:
+            return
+
+        options = self.find_replace_dialog.current_search_options()
+        scope_text, scope_offset = self._search_scope_text(options)
+        if options.selected_only and scope_text is None:
+            self._set_search_error(self.translator.text("search.select_before_replace"))
+            return
+
+        source_text = self.editor.toPlainText()
+        target_text = scope_text if scope_text is not None else source_text
+        result = apply_normalise_operation(target_text, operation_id)
+        if result.count == 0:
+            self._set_search_error(self.translator.text("search.no_replacements"))
+            return
+
+        if scope_text is not None:
+            scope_start = scope_offset
+            scope_end = scope_offset + len(scope_text)
+            result_text = source_text[:scope_start] + result.text + source_text[scope_end:]
+            if options.selected_only:
+                self.search_scope = (scope_start, scope_start + len(result.text))
+        else:
+            result_text = result.text
+
+        self._replace_document_text(result_text)
+        self._refresh_search_highlights_from_dialog()
+        self._set_search_status(
+            self.translator.text("normalise.applied", count=result.count)
+        )
+        self._focus_find_text_after_replace_all()
 
     def _update_search_highlights_when_allowed(
         self,

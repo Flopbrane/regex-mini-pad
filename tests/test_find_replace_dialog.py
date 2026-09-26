@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication, QMenu
+from PySide6.QtWidgets import QApplication, QInputDialog, QMenu
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.regex_input_edit import RegexInputHighlighter
@@ -78,6 +78,27 @@ def test_dialog_has_explicit_previous_next_buttons(app: QApplication) -> None:
     assert dialog.find_previous_button.toolTip() == "前へ"
     assert dialog.find_next_button.toolTip() == "次へ"
     assert dialog.replace_marked_button.text() == "マーカー部分を全て置換"
+    assert dialog.normalise_button.text() == "正規表現書き換え"
+
+
+def test_normalise_button_emits_selected_operation(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "ja")
+    dialog = FindReplaceDialog(translator)
+    emitted: list[str] = []
+    dialog.normalise_requested.connect(emitted.append)
+
+    def select_operation(*_args: object, **_kwargs: object) -> tuple[str, bool]:
+        return "全角アルファベット → 半角アルファベット", True
+
+    monkeypatch.setattr(QInputDialog, "getItem", select_operation)
+
+    dialog.normalise_button.click()
+
+    assert emitted == ["fullwidth_alphabet_to_halfwidth"]
 
 
 def test_regex_snippet_insert_enables_regex_mode_and_places_cursor(

@@ -460,5 +460,104 @@
     "matches": "The leading and trailing spaces",
     "replace_with": "",
     "replacement_result": "memo"
+  },
+  {
+    "category": "Character",
+    "label": "Full-width characters only",
+    "pattern": "[　-〿ぁ-ヿ㐀-鿿豈-﫿！-～￥]+",
+    "description": "Finds runs of full-width spaces, punctuation, hiragana, katakana, kanji, full-width letters, full-width digits, and full-width symbols.",
+    "example_text": "ABC　あいう１２３。",
+    "usage_example": "[　-〿ぁ-ヿ㐀-鿿豈-﫿！-～￥]+",
+    "matches": "　あいう１２３。",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Character",
+    "label": "Japanese text only",
+    "pattern": "[ぁ-んァ-ヶー一-龯々、。]+",
+    "description": "Finds runs of kanji, hiragana, katakana, the long vowel mark, iteration mark, and Japanese punctuation.",
+    "example_text": "PCの使い方、基本。",
+    "usage_example": "[ぁ-んァ-ヶー一-龯々、。]+",
+    "matches": "の使い方、基本。",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Character",
+    "label": "Katakana only",
+    "pattern": "[ァ-ヶー]+",
+    "description": "Finds runs of full-width katakana and the long vowel mark. Useful for checking product names and loanwords.",
+    "example_text": "パソコン and PC",
+    "usage_example": "[ァ-ヶー]+",
+    "matches": "パソコン",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Character",
+    "label": "Alphabet letters only",
+    "pattern": "[A-Za-z]+",
+    "description": "Finds runs of half-width alphabet letters, including uppercase and lowercase.",
+    "example_text": "WordPress and HTML",
+    "usage_example": "[A-Za-z]+",
+    "matches": "WordPress, HTML",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "Article cleanup combination",
+    "label": "Japanese punctuation to full-width space",
+    "pattern": "[、。]",
+    "description": "Finds Japanese comma and period. Replacing with a full-width space turns punctuation into spacing.",
+    "example_text": "注意、確認。完了",
+    "usage_example": "[、。]",
+    "matches": "、 and 。",
+    "replace_with": "Use Regex Rewrite",
+    "replacement_result": "注意　確認　完了"
+  },
+  {
+    "category": "Article cleanup combination",
+    "label": "Half-width katakana to full-width katakana",
+    "pattern": "[ｦ-ﾟ]+",
+    "description": "Finds runs of half-width katakana. Regex replacement alone cannot convert each character, so use it to locate text for a conversion tool or targeted replacement.",
+    "example_text": "ﾊﾟｿｺﾝの練習",
+    "usage_example": "[ｦ-ﾟ]+",
+    "matches": "ﾊﾟｿｺﾝ",
+    "replace_with": "Use Regex Rewrite",
+    "replacement_result": "パソコンの練習"
+  },
+  {
+    "category": "Article cleanup combination",
+    "label": "Full-width spaces to half-width space",
+    "pattern": "　+",
+    "description": "Finds one or more full-width spaces. Replacing with one half-width space normalizes spacing.",
+    "example_text": "氏名　佐藤",
+    "usage_example": "　+",
+    "matches": "The full-width space between 氏名 and 佐藤",
+    "replace_with": "Use Regex Rewrite",
+    "replacement_result": "氏名 佐藤"
+  },
+  {
+    "category": "Article cleanup combination",
+    "label": "Full-width digits and symbols to half-width",
+    "pattern": "[０-９！-／：-＠［-｀｛-～￥]+",
+    "description": "Finds runs of full-width digits and symbols. Regex replacement alone cannot convert each character, so use it to locate text for a conversion tool or targeted replacement.",
+    "example_text": "価格：１，２００円！",
+    "usage_example": "[０-９！-／：-＠［-｀｛-～￥]+",
+    "matches": "：１，２００！",
+    "replace_with": "Use Regex Rewrite",
+    "replacement_result": "価格:1,200円!"
+  },
+  {
+    "category": "Article cleanup combination",
+    "label": "Full-width alphabet to half-width alphabet",
+    "pattern": "[Ａ-Ｚａ-ｚ]+",
+    "description": "Finds runs of full-width alphabet letters. Regex replacement alone cannot convert each character, so use it to locate text for a conversion tool or targeted replacement.",
+    "example_text": "ＷｏｒｄＰｒｅｓｓを使う",
+    "usage_example": "[Ａ-Ｚａ-ｚ]+",
+    "matches": "ＷｏｒｄＰｒｅｓｓ",
+    "replace_with": "Use Regex Rewrite",
+    "replacement_result": "WordPressを使う"
   }
 ]

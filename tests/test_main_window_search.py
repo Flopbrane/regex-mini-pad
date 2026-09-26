@@ -166,6 +166,35 @@ def test_replace_all_can_target_selected_text_only(app: QApplication) -> None:
     assert window.editor.toPlainText() == "first 123\nsecond NUM\nthird 789"
 
 
+def test_regex_normalise_rewrites_document_text(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("ＷｏｒｄＰｒｅｓｓとＨＴＭＬ")
+    window.show_find_replace_dialog()
+
+    window.apply_regex_normalise_operation("fullwidth_alphabet_to_halfwidth")
+
+    assert window.editor.toPlainText() == "WordPressとHTML"
+
+
+def test_regex_normalise_can_target_selected_text_only(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("外側：１\n内側：２")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("外側：１\n"))
+    cursor.setPosition(len("外側：１\n内側：２"), QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+    window.search_scope = (cursor.selectionStart(), cursor.selectionEnd())
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+    window.find_replace_dialog.selected_only_check_box.setChecked(True)
+
+    window.apply_regex_normalise_operation("fullwidth_digits_symbols_to_halfwidth")
+
+    assert window.editor.toPlainText() == "外側：１\n内側:2"
+
+
 def test_find_next_can_target_selected_text_only(app: QApplication) -> None:
     _ = app
     window = MainWindow()

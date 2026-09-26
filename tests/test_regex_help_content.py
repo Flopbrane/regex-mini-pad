@@ -63,3 +63,6 @@ def test_help_contains_complex_and_office_samples() -> None:
     assert "同じ単語が続く場所" in labels_by_category["複雑な組み合わせサンプル"]
     assert "電話番号" in labels_by_category["事務・計算・住所"]
     assert "CSVの列を並べ替える" in labels_by_category["置換サンプル"]
+    assert "全角文字のみ" in labels_by_category["文字"]
+    assert "日本語の句読点を全角スペースへ" in labels_by_category["組み合わせ"]
+    assert "全角アルファベットを半角へ" in labels_by_category["組み合わせ"]

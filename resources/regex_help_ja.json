@@ -460,5 +460,104 @@
     "matches": "前後のスペース",
     "replace_with": "",
     "replacement_result": "メモ"
+  },
+  {
+    "category": "文字",
+    "label": "全角文字のみ",
+    "pattern": "[　-〿ぁ-ヿ㐀-鿿豈-﫿！-～￥]+",
+    "description": "全角スペース、句読点、ひらがな、カタカナ、漢字、全角英数字や全角記号のまとまりを探します。",
+    "example_text": "ABC　あいう１２３。",
+    "usage_example": "[　-〿ぁ-ヿ㐀-鿿豈-﫿！-～￥]+",
+    "matches": "　あいう１２３。",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "文字",
+    "label": "日本語のみ",
+    "pattern": "[ぁ-んァ-ヶー一-龯々、。]+",
+    "description": "漢字、ひらがな、カタカナ、長音、々、日本語の句読点だけのまとまりを探します。",
+    "example_text": "PCの使い方、基本。",
+    "usage_example": "[ぁ-んァ-ヶー一-龯々、。]+",
+    "matches": "の使い方、基本。",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "文字",
+    "label": "カタカナのみ",
+    "pattern": "[ァ-ヶー]+",
+    "description": "全角カタカナと長音記号のまとまりを探します。商品名や外来語の確認に使えます。",
+    "example_text": "パソコンとPC",
+    "usage_example": "[ァ-ヶー]+",
+    "matches": "パソコン",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "文字",
+    "label": "アルファベットのみ",
+    "pattern": "[A-Za-z]+",
+    "description": "半角アルファベットのまとまりを探します。大文字と小文字の両方を対象にします。",
+    "example_text": "WordPress と HTML",
+    "usage_example": "[A-Za-z]+",
+    "matches": "WordPress, HTML",
+    "replace_with": "",
+    "replacement_result": ""
+  },
+  {
+    "category": "組み合わせ",
+    "label": "日本語の句読点を全角スペースへ",
+    "pattern": "[、。]",
+    "description": "日本語の読点と句点だけを探します。置換文字を全角スペースにすると、句読点を空きにできます。",
+    "example_text": "注意、確認。完了",
+    "usage_example": "[、。]",
+    "matches": "、 と 。",
+    "replace_with": "正規表現書き換え機能を使用",
+    "replacement_result": "注意　確認　完了"
+  },
+  {
+    "category": "組み合わせ",
+    "label": "半角カタカナを全角カタカナへ",
+    "pattern": "[ｦ-ﾟ]+",
+    "description": "半角カタカナのまとまりを探します。正規表現だけでは文字ごとの全角変換はできないため、見つけた箇所を変換機能や個別置換で整えます。",
+    "example_text": "ﾊﾟｿｺﾝの練習",
+    "usage_example": "[ｦ-ﾟ]+",
+    "matches": "ﾊﾟｿｺﾝ",
+    "replace_with": "正規表現書き換え機能を使用",
+    "replacement_result": "パソコンの練習"
+  },
+  {
+    "category": "組み合わせ",
+    "label": "全角スペースを半角スペースへ",
+    "pattern": "　+",
+    "description": "全角スペースが1つ以上続く場所を探します。置換文字を半角スペース1つにすると、空白幅を揃えられます。",
+    "example_text": "氏名　佐藤",
+    "usage_example": "　+",
+    "matches": "氏名 と 佐藤 の間の全角スペース",
+    "replace_with": "正規表現書き換え機能を使用",
+    "replacement_result": "氏名 佐藤"
+  },
+  {
+    "category": "組み合わせ",
+    "label": "全角数値と記号を半角へ",
+    "pattern": "[０-９！-／：-＠［-｀｛-～￥]+",
+    "description": "全角数字と全角記号のまとまりを探します。正規表現だけでは文字ごとの半角変換はできないため、見つけた箇所を変換機能や個別置換で整えます。",
+    "example_text": "価格：１，２００円！",
+    "usage_example": "[０-９！-／：-＠［-｀｛-～￥]+",
+    "matches": "：１，２００！",
+    "replace_with": "正規表現書き換え機能を使用",
+    "replacement_result": "価格:1,200円!"
+  },
+  {
+    "category": "組み合わせ",
+    "label": "全角アルファベットを半角へ",
+    "pattern": "[Ａ-Ｚａ-ｚ]+",
+    "description": "全角アルファベットのまとまりを探します。正規表現だけでは文字ごとの半角変換はできないため、見つけた箇所を変換機能や個別置換で整えます。",
+    "example_text": "ＷｏｒｄＰｒｅｓｓを使う",
+    "usage_example": "[Ａ-Ｚａ-ｚ]+",
+    "matches": "ＷｏｒｄＰｒｅｓｓ",
+    "replace_with": "正規表現書き換え機能を使用",
+    "replacement_result": "WordPressを使う"
   }
 ]
