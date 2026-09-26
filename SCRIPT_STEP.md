@@ -65,6 +65,21 @@ This file records the planned build order for `mini_editor_project`.
 
 ## Next Recommended Steps
 
+Progress on 2026-09-27:
+
+- Regex rewrite / `normalise.py` workflow validation completed.
+  - Full pytest passed: `207 passed`.
+  - Ruff passed: `All checks passed!`.
+  - Pyright passed: `0 errors, 0 warnings, 0 informations`.
+  - JSON validation passed for app text resources and `wordpress_html_dict.json`.
+  - Added a cancel-path test for the regex rewrite operation picker.
+- Regex preview / replacement safety progressed.
+  - Replace All from the Find / Replace dialog now fills the preview table and asks for confirmation before changing text.
+  - Direct internal `replace_all()` calls remain usable for focused tests and non-dialog code paths.
+- Save-time HTML / WordPress grammar safety progressed.
+  - When HTML/WP typo lint is enabled, Save / Save As now runs the grammar check before writing.
+  - If paragraph-split-related tag or WordPress block issues are found, the first issue line is selected and the user can cancel saving.
+
 1. Regex preview
    - Show match count before replacement.
    - Show target text snippets.

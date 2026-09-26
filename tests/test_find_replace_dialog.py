@@ -101,6 +101,26 @@ def test_normalise_button_emits_selected_operation(
     assert emitted == ["fullwidth_alphabet_to_halfwidth"]
 
 
+def test_normalise_button_cancel_does_not_emit(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "ja")
+    dialog = FindReplaceDialog(translator)
+    emitted: list[str] = []
+    dialog.normalise_requested.connect(emitted.append)
+
+    def cancel_operation(*_args: object, **_kwargs: object) -> tuple[str, bool]:
+        return "", False
+
+    monkeypatch.setattr(QInputDialog, "getItem", cancel_operation)
+
+    dialog.normalise_button.click()
+
+    assert emitted == []
+
+
 def test_regex_snippet_insert_enables_regex_mode_and_places_cursor(
     app: QApplication,
 ) -> None:

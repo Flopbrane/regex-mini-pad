@@ -1238,6 +1238,30 @@ class MainWindow(QMainWindow):
             summary,
         )
 
+    def _confirm_save_after_grammar_check(self, save_data: str) -> bool:
+        if not self.html_typo_lint_enabled:
+            return True
+
+        messages = lint_html_typos(save_data)
+        if not messages:
+            return True
+
+        self._set_cursor_to_line(messages[0].line_number)
+        summary = self._grammar_check_summary(messages)
+        result = QMessageBox.question(
+            self,
+            self.translator.text("grammar_check.save_warning.title"),
+            "\n\n".join(
+                (
+                    self.translator.text("grammar_check.save_warning.message"),
+                    summary,
+                )
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return result == QMessageBox.StandardButton.Yes
+
     def _grammar_check_summary(
         self,
         messages: list[HtmlTypoLintMessage],
@@ -1711,6 +1735,9 @@ class MainWindow(QMainWindow):
     def _save_to_path(self, save_file_path: Path) -> bool:
         """Save the current editor content to the specified file path, returning True if successful."""
         save_data = self.editor.toPlainText()
+        if not self._confirm_save_after_grammar_check(save_data):
+            return False
+
         try:
             self.file_manager.save_text(
                 save_file_path,
@@ -1795,7 +1822,9 @@ class MainWindow(QMainWindow):
             self.find_replace_dialog.find_requested.connect(self.find_next)
             self.find_replace_dialog.find_previous_requested.connect(self.find_previous)
             self.find_replace_dialog.replace_requested.connect(self.replace_current)
-            self.find_replace_dialog.replace_all_requested.connect(self.replace_all)
+            self.find_replace_dialog.replace_all_requested.connect(
+                self._replace_all_from_dialog
+            )
             self.find_replace_dialog.replace_marked_requested.connect(
                 self.replace_marked_matches
             )
@@ -1985,6 +2014,8 @@ class MainWindow(QMainWindow):
         search_text: str,
         replace_text: str,
         options: SearchOptions,
+        *,
+        confirm: bool = False,
     ) -> None:
         """Replace all occurrences of the search text with the replacement text using the specified search options."""
         if not search_text:
@@ -2000,6 +2031,19 @@ class MainWindow(QMainWindow):
         target_text = scope_text if scope_text is not None else source_text
 
         try:
+            matches = self.search_engine.find_all(target_text, search_text, options)
+            if not matches:
+                self._set_search_error(self.translator.text("search.no_replacements"))
+                return
+            if confirm and not self._confirm_replace_all(
+                target_text,
+                matches,
+                search_text,
+                replace_text,
+                options,
+                scope_offset,
+            ):
+                return
             result = self.search_engine.replace_all(
                 target_text,
                 search_text,
@@ -2029,6 +2073,58 @@ class MainWindow(QMainWindow):
             self.translator.text("search.replaced_many", count=result.count)
         )
         self._focus_find_text_after_replace_all()
+
+    def _replace_all_from_dialog(
+        self,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> None:
+        self.replace_all(search_text, replace_text, options, confirm=True)
+
+    def _confirm_replace_all(
+        self,
+        target_text: str,
+        matches: list[SearchMatch],
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+        scope_offset: int,
+    ) -> bool:
+        rows = self._preview_rows(
+            target_text,
+            matches,
+            search_text,
+            replace_text,
+            options,
+            scope_offset,
+        )
+        summary = self._replacement_preview_summary(len(matches), len(rows))
+        if self.find_replace_dialog is not None:
+            self.find_replace_dialog.set_preview_rows(rows, summary)
+        self._set_search_status(summary)
+
+        result = QMessageBox.question(
+            self,
+            self.translator.text("search.replace_all_confirm.title"),
+            "\n\n".join(
+                (
+                    self.translator.text(
+                        "search.replace_all_confirm.message",
+                        count=len(matches),
+                    ),
+                    summary,
+                )
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            self._set_search_status(
+                self.translator.text("search.replace_all_cancelled")
+            )
+            return False
+        return True
 
     def replace_marked_matches(
         self,
@@ -2212,20 +2308,21 @@ class MainWindow(QMainWindow):
             self._set_search_error(self.translator.text("search.invalid_regex", error=error))
             return
 
-        shown_count = len(rows)
-        if not matches:
-            summary = self.translator.text("search.preview.no_matches")
-        elif shown_count < len(matches):
-            summary = self.translator.text(
-                "search.preview.limited",
-                shown=shown_count,
-                total=len(matches),
-            )
-        else:
-            summary = self.translator.text("search.preview.matches", count=len(matches))
+        summary = self._replacement_preview_summary(len(matches), len(rows))
 
         self.find_replace_dialog.set_preview_rows(rows, summary)
         self._set_search_status(summary)
+
+    def _replacement_preview_summary(self, match_count: int, shown_count: int) -> str:
+        if match_count == 0:
+            return self.translator.text("search.preview.no_matches")
+        if shown_count < match_count:
+            return self.translator.text(
+                "search.preview.limited",
+                shown=shown_count,
+                total=match_count,
+            )
+        return self.translator.text("search.preview.matches", count=match_count)
 
     def show_regex_help_dialog(self) -> None:
         """Show the regex help dialog, initializing it if necessary."""

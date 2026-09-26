@@ -50,7 +50,11 @@ def test_replace_all_uses_regex_groups(app: QApplication) -> None:
     assert window.editor.toPlainText() == "01:item 20:item"
 
 
-def test_replace_all_returns_focus_to_find_text(app: QApplication, tmp_path) -> None:
+def test_replace_all_returns_focus_to_find_text(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
     _ = app
     window = MainWindow(settings_path=tmp_path / "settings.json")
     window.editor.setPlainText("target target")
@@ -58,6 +62,11 @@ def test_replace_all_returns_focus_to_find_text(app: QApplication, tmp_path) -> 
     assert window.find_replace_dialog is not None
     window.find_replace_dialog.find_text_edit.setText("target")
     window.find_replace_dialog.replace_text_edit.setText("done")
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *_args, **_kwargs: QMessageBox.StandardButton.Yes,
+    )
 
     window.find_replace_dialog.replace_all_button.click()
     QApplication.processEvents()
@@ -67,6 +76,42 @@ def test_replace_all_returns_focus_to_find_text(app: QApplication, tmp_path) -> 
     assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
         "target"
     )
+
+
+def test_replace_all_button_previews_and_confirms_before_replacing(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("target target")
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+    window.find_replace_dialog.find_text_edit.setText("target")
+    window.find_replace_dialog.replace_text_edit.setText("done")
+    captured: dict[str, str] = {}
+
+    def capture_question(
+        _parent: object,
+        title: str,
+        text: str,
+        *_args: object,
+        **_kwargs: object,
+    ) -> QMessageBox.StandardButton:
+        captured["title"] = title
+        captured["text"] = text
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(QMessageBox, "question", capture_question)
+
+    window.find_replace_dialog.replace_all_button.click()
+    QApplication.processEvents()
+
+    assert window.editor.toPlainText() == "target target"
+    assert window.find_replace_dialog.preview_table.rowCount() == 2
+    assert captured["title"] == "すべて置換の確認"
+    assert "2件を置換します" in captured["text"]
 
 
 def test_low_load_mode_skips_auto_search_highlights(
@@ -553,3 +598,39 @@ def test_reload_file_can_use_cp932_encoding(app: QApplication, tmp_path) -> None
 
     assert window.editor.toPlainText() == "日本語の文章です。"
     assert window.current_encoding == "cp932"
+
+
+def test_save_file_runs_pre_save_grammar_check_and_can_cancel(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    _ = app
+    save_file_path = tmp_path / "sample.wp.html"
+    save_file_path.write_text("original", encoding="utf-8")
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.current_save_file_path = save_file_path
+    window.editor.setPlainText(
+        "<!-- wp:paragraph -->\n"
+        "段落分割後にp開始タグが抜けています。</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+    captured: dict[str, str] = {}
+
+    def capture_question(
+        _parent: object,
+        title: str,
+        text: str,
+        *_args: object,
+        **_kwargs: object,
+    ) -> QMessageBox.StandardButton:
+        captured["title"] = title
+        captured["text"] = text
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(QMessageBox, "question", capture_question)
+
+    assert not window.save_file()
+    assert save_file_path.read_text(encoding="utf-8") == "original"
+    assert captured["title"] == "保存前の文法チェック"
+    assert "段落ブロック内に `<p>` 開始タグが見つかりません" in captured["text"]
