@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QHeaderView
 
 from dialogs.regex_help_dialog import RegexHelpDialog
 from localization.translator import Translator
@@ -34,6 +34,23 @@ def test_regex_help_loads_examples(app: QApplication) -> None:
     usage_item = dialog.table.item(0, 5)
     assert usage_item is not None
     assert usage_item.text() == "^TODO"
+
+
+def test_regex_help_columns_are_resizable_and_wide_enough(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "ja")
+    dialog = RegexHelpDialog(Path("resources/regex_help_ja.json"), translator)
+
+    header = dialog.table.horizontalHeader()
+
+    assert header.sectionsMovable() is True
+    assert dialog.table.wordWrap() is False
+    for column in range(dialog.table.columnCount()):
+        assert header.sectionResizeMode(column) == QHeaderView.ResizeMode.Interactive
+    assert dialog.table.columnWidth(3) >= 320
+    assert dialog.table.columnWidth(4) >= 220
+    assert dialog.table.columnWidth(6) >= 220
+    assert dialog.table.columnWidth(7) >= 260
 
 
 def test_regex_help_can_switch_between_english_and_japanese(app: QApplication) -> None:

@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from localization.translator import Translator
 
 PATTERN_COLUMN = 2
+REGEX_HELP_MIN_COLUMN_WIDTHS = (120, 170, 220, 320, 220, 220, 220, 260)
 
 HELP_HEADERS = {
     "EN_Ver.": [
@@ -79,19 +80,14 @@ class RegexHelpDialog(QDialog):
 
         self.table = QTableWidget(self)
         self.table.setColumnCount(8)
-        for column in (0, 1, 2, 5):
-            self.table.horizontalHeader().setSectionResizeMode(
-                column,
-                QHeaderView.ResizeMode.ResizeToContents,
-            )
-        for column in (3, 4, 6, 7):
-            self.table.horizontalHeader().setSectionResizeMode(
-                column,
-                QHeaderView.ResizeMode.Stretch,
-            )
+        header = self.table.horizontalHeader()
+        header.setSectionsMovable(True)
+        for column in range(self.table.columnCount()):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+            self.table.setColumnWidth(column, REGEX_HELP_MIN_COLUMN_WIDTHS[column])
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setWordWrap(True)
+        self.table.setWordWrap(False)
 
         button_box = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Close,
@@ -173,7 +169,14 @@ class RegexHelpDialog(QDialog):
             self.table.setItem(row, 5, QTableWidgetItem(item.usage_example))
             self.table.setItem(row, 6, QTableWidgetItem(item.matches))
             self.table.setItem(row, 7, QTableWidgetItem(replace_summary))
+        self._fit_columns_to_contents()
         self.table.resizeRowsToContents()
+
+    def _fit_columns_to_contents(self) -> None:
+        self.table.resizeColumnsToContents()
+        for column, minimum_width in enumerate(REGEX_HELP_MIN_COLUMN_WIDTHS):
+            current_width = self.table.columnWidth(column)
+            self.table.setColumnWidth(column, max(current_width, minimum_width))
 
     def _replace_summary(self, item: RegexHelpItem) -> str:
         if not item.replace_with and not item.replacement_result:
