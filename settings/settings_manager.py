@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -27,7 +28,7 @@ class EditorSettings:
     user_dictionary_folder: str = ""
     dictionary_check_enabled: bool = True
     backup_folder: str = ""
-    backup_retention_count: int = 10
+    backup_retention_count: int = 20
     backup_retention_days: int = 30
     font_family: str = "Consolas"
     font_size: int = 11
@@ -61,82 +62,89 @@ class SettingsManager:
             )
         except (OSError, json.JSONDecodeError):
             return EditorSettings()
+        if not isinstance(load_data, dict):
+            return EditorSettings()
 
         return EditorSettings(
-            word_wrap_enabled=bool(load_data.get("word_wrap_enabled", False)),
-            line_numbers_enabled=bool(load_data.get("line_numbers_enabled", True)),
-            ruler_enabled=bool(load_data.get("ruler_enabled", False)),
-            visible_spaces_enabled=bool(
-                load_data.get("visible_spaces_enabled", False)
+            word_wrap_enabled=_setting_bool(load_data, "word_wrap_enabled", False),
+            line_numbers_enabled=_setting_bool(
+                load_data, "line_numbers_enabled", True
             ),
-            visible_tabs_enabled=bool(load_data.get("visible_tabs_enabled", False)),
-            visible_newlines_enabled=bool(
-                load_data.get("visible_newlines_enabled", False)
+            ruler_enabled=_setting_bool(load_data, "ruler_enabled", False),
+            visible_spaces_enabled=_setting_bool(
+                load_data, "visible_spaces_enabled", False
             ),
-            fixed_column_wrap_enabled=bool(
-                load_data.get("fixed_column_wrap_enabled", False)
+            visible_tabs_enabled=_setting_bool(
+                load_data, "visible_tabs_enabled", False
             ),
-            fixed_column_wrap_column=max(
-                1,
-                int(load_data.get("fixed_column_wrap_column", 80)),
+            visible_newlines_enabled=_setting_bool(
+                load_data, "visible_newlines_enabled", False
             ),
-            startup_restore_enabled=bool(
-                load_data.get("startup_restore_enabled", True)
+            fixed_column_wrap_enabled=_setting_bool(
+                load_data, "fixed_column_wrap_enabled", False
             ),
-            language_code=str(load_data.get("language_code", "ja")),
-            default_encoding=str(load_data.get("default_encoding", "utf-8")),
-            newline_code=str(load_data.get("newline_code", "lf")),
-            window_width=int(load_data.get("window_width", 900)),
-            window_height=int(load_data.get("window_height", 650)),
-            wordpress_mode_label_key=str(
-                load_data.get("wordpress_mode_label_key", "tag.wordpress_mode.normal")
+            fixed_column_wrap_column=_setting_int_min(
+                load_data, "fixed_column_wrap_column", 80, minimum=1
             ),
-            hover_hints_enabled=bool(load_data.get("hover_hints_enabled", True)),
-            user_dictionary_folder=str(load_data.get("user_dictionary_folder", "")),
-            dictionary_check_enabled=bool(
-                load_data.get("dictionary_check_enabled", True)
+            startup_restore_enabled=_setting_bool(
+                load_data, "startup_restore_enabled", True
             ),
-            backup_folder=str(load_data.get("backup_folder", "")),
-            backup_retention_count=max(
-                1,
-                int(load_data.get("backup_retention_count", 10)),
+            language_code=_setting_str(load_data, "language_code", "ja"),
+            default_encoding=_setting_str(load_data, "default_encoding", "utf-8"),
+            newline_code=_setting_str(load_data, "newline_code", "lf"),
+            window_width=_setting_int_min(load_data, "window_width", 900, minimum=1),
+            window_height=_setting_int_min(load_data, "window_height", 650, minimum=1),
+            wordpress_mode_label_key=_setting_str(
+                load_data, "wordpress_mode_label_key", "tag.wordpress_mode.normal"
             ),
-            backup_retention_days=max(
-                1,
-                int(load_data.get("backup_retention_days", 30)),
+            hover_hints_enabled=_setting_bool(load_data, "hover_hints_enabled", True),
+            user_dictionary_folder=_setting_str(
+                load_data, "user_dictionary_folder", ""
             ),
-            font_family=str(load_data.get("font_family", "Consolas")),
-            font_size=int(load_data.get("font_size", 11)),
-            tab_width=max(1, int(load_data.get("tab_width", 4))),
-            search_marker_color=str(load_data.get("search_marker_color", "#ffff00")),
-            current_match_marker_color=str(
-                load_data.get("current_match_marker_color", "#ff9900")
+            dictionary_check_enabled=_setting_bool(
+                load_data, "dictionary_check_enabled", True
             ),
-            visible_space_marker_color=str(
-                load_data.get("visible_space_marker_color", "#9a9a9a")
+            backup_folder=_setting_str(load_data, "backup_folder", ""),
+            backup_retention_count=_setting_int_min(
+                load_data, "backup_retention_count", 20, minimum=1
             ),
-            visible_tab_marker_color=str(
-                load_data.get("visible_tab_marker_color", "#9ed8ff")
+            backup_retention_days=_setting_int_min(
+                load_data, "backup_retention_days", 30, minimum=1
             ),
-            visible_newline_marker_color=str(
-                load_data.get("visible_newline_marker_color", "#ff9900")
+            font_family=_setting_str(load_data, "font_family", "Consolas"),
+            font_size=_setting_int_min(load_data, "font_size", 11, minimum=1),
+            tab_width=_setting_int_min(load_data, "tab_width", 4, minimum=1),
+            search_marker_color=_setting_str(
+                load_data, "search_marker_color", "#ffff00"
             ),
-            regex_lint_enabled=bool(load_data.get("regex_lint_enabled", True)),
-            html_typo_lint_enabled=bool(
-                load_data.get("html_typo_lint_enabled", True)
+            current_match_marker_color=_setting_str(
+                load_data, "current_match_marker_color", "#ff9900"
             ),
-            reduced_error_check_enabled=bool(
-                load_data.get("reduced_error_check_enabled", False)
+            visible_space_marker_color=_setting_str(
+                load_data, "visible_space_marker_color", "#9a9a9a"
             ),
-            frame_alignment=str(load_data.get("frame_alignment", "left")),
-            frame_display=str(load_data.get("frame_display", "inline-block")),
-            frame_outer_spacing=str(
-                load_data.get("frame_outer_spacing", "1.5em 0 2em 0")
+            visible_tab_marker_color=_setting_str(
+                load_data, "visible_tab_marker_color", "#9ed8ff"
             ),
-            frame_background_color=str(
-                load_data.get("frame_background_color", "#fffaf0")
+            visible_newline_marker_color=_setting_str(
+                load_data, "visible_newline_marker_color", "#ff9900"
             ),
-            frame_text_color=str(load_data.get("frame_text_color", "#333333")),
+            regex_lint_enabled=_setting_bool(load_data, "regex_lint_enabled", True),
+            html_typo_lint_enabled=_setting_bool(
+                load_data, "html_typo_lint_enabled", True
+            ),
+            reduced_error_check_enabled=_setting_bool(
+                load_data, "reduced_error_check_enabled", False
+            ),
+            frame_alignment=_setting_str(load_data, "frame_alignment", "left"),
+            frame_display=_setting_str(load_data, "frame_display", "inline-block"),
+            frame_outer_spacing=_setting_str(
+                load_data, "frame_outer_spacing", "1.5em 0 2em 0"
+            ),
+            frame_background_color=_setting_str(
+                load_data, "frame_background_color", "#fffaf0"
+            ),
+            frame_text_color=_setting_str(load_data, "frame_text_color", "#333333"),
         )
 
     def save(
@@ -161,7 +169,7 @@ class SettingsManager:
         user_dictionary_folder: str = "",
         dictionary_check_enabled: bool = True,
         backup_folder: str = "",
-        backup_retention_count: int = 10,
+        backup_retention_count: int = 20,
         backup_retention_days: int = 30,
         font_family: str = "Consolas",
         font_size: int = 11,
@@ -219,7 +227,51 @@ class SettingsManager:
             "frame_background_color": frame_background_color,
             "frame_text_color": frame_text_color,
         }
-        self.settings_path.write_text(
-            json.dumps(save_data, indent=2),
+        self.settings_path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            "w",
             encoding="utf-8",
-        )
+            dir=self.settings_path.parent,
+            delete=False,
+        ) as temporary_file:
+            json.dump(save_data, temporary_file, indent=2)
+            temporary_file.flush()
+            temporary_file_path = Path(temporary_file.name)
+
+        temporary_file_path.replace(self.settings_path)
+
+
+def _setting_bool(load_data: dict[str, Any], key: str, default: bool) -> bool:
+    value = load_data.get(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized_value = value.strip().lower()
+        if normalized_value in {"true", "1", "yes", "on"}:
+            return True
+        if normalized_value in {"false", "0", "no", "off"}:
+            return False
+    return default
+
+
+def _setting_int_min(
+    load_data: dict[str, Any],
+    key: str,
+    default: int,
+    *,
+    minimum: int,
+) -> int:
+    value = load_data.get(key, default)
+    if isinstance(value, bool):
+        return default
+    try:
+        return max(minimum, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def _setting_str(load_data: dict[str, Any], key: str, default: str) -> str:
+    value = load_data.get(key, default)
+    if isinstance(value, str):
+        return value
+    return default

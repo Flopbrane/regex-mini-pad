@@ -153,6 +153,89 @@ Inline style example:
 """,
         ),
         (
+            "WordPress Parameter Notes",
+            """# WordPress Parameter Notes
+
+WordPress block comments can contain JSON parameters.
+
+```html
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Heading</h3>
+<!-- /wp:heading -->
+```
+
+These values are WordPress block attributes. They are not ordinary HTML attributes.
+
+## Basic Rule
+
+- Some values are read from the block comment, such as `level` on `wp:heading`.
+- Some values are read from the inner HTML, such as image `src` and `alt`.
+- If the block comment and HTML describe the same meaning, keep them aligned.
+- When they disagree, WordPress may rewrite the block, drop a value, or show a block validation warning.
+
+## Safer Examples
+
+Heading level and HTML tag match:
+
+```html
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Heading</h3>
+<!-- /wp:heading -->
+```
+
+Spacer height and CSS height match:
+
+```html
+<!-- wp:spacer {"height":"32px"} -->
+<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>
+<!-- /wp:spacer -->
+```
+
+Image size and class match:
+
+```html
+<!-- wp:image {"sizeSlug":"full","linkDestination":"none"} -->
+<figure class="wp-block-image size-full"><img src="sample.jpg" alt="Description"/></figure>
+<!-- /wp:image -->
+```
+
+## Risky Examples
+
+Heading parameter says level 3, but HTML is h2:
+
+```html
+<!-- wp:heading {"level":3} -->
+<h2 class="wp-block-heading">Heading</h2>
+<!-- /wp:heading -->
+```
+
+Spacer parameter says 64px, but HTML says 32px:
+
+```html
+<!-- wp:spacer {"height":"64px"} -->
+<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>
+<!-- /wp:spacer -->
+```
+
+Image parameter says large, but class says full:
+
+```html
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none"} -->
+<figure class="wp-block-image size-full"><img src="sample.jpg" alt="Description"/></figure>
+<!-- /wp:image -->
+```
+
+## Practical Notes
+
+- Use only attributes that the target core block actually supports.
+- Do not invent parameter names in `{}`.
+- Use double quotes in JSON: `{"height":"32px"}`.
+- Avoid trailing commas in JSON.
+- Copying HTML from Gutenberg after saving is the safest source for dictionary snippets.
+- Custom HTML blocks are different: inside `wp:html`, use ordinary HTML and avoid nested WordPress block comments.
+""",
+        ),
+        (
             "View",
             """# View
 
@@ -307,6 +390,89 @@ style の記述例:
 - 画像には、内容が分かる `alt` を入れておくと安全です。
 - `target="_blank"` を使う場合は、`rel="noopener noreferrer"` も一緒に入れるのがおすすめです。
 - class 名は、`note-box` や `lead-text` のように短く分かりやすくすると管理しやすくなります。
+""",
+        ),
+        (
+            "WPパラメータ記述の注意事項",
+            """# WPパラメータ記述の注意事項
+
+WordPress のブロックコメントには、JSON形式のパラメータを書けます。
+
+```html
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">見出し</h3>
+<!-- /wp:heading -->
+```
+
+この `{}` は WordPress ブロックの属性です。通常のHTML属性とは別物です。
+
+## 基本ルール
+
+- `wp:heading` の `level` のように、ブロックコメント側から読む値があります。
+- 画像の `src` や `alt` のように、内側のHTMLから読む値があります。
+- ブロックコメント側とHTML側が同じ意味を表す場合は、必ず一致させます。
+- 食い違うと、WordPress が再保存時に書き換えたり、値を落としたり、ブロック検証エラーを出すことがあります。
+
+## 安全寄りの例
+
+見出しレベルとHTMLタグが一致しています。
+
+```html
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">見出し</h3>
+<!-- /wp:heading -->
+```
+
+スペーサーの高さとCSSの高さが一致しています。
+
+```html
+<!-- wp:spacer {"height":"32px"} -->
+<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>
+<!-- /wp:spacer -->
+```
+
+画像サイズ指定とclassが一致しています。
+
+```html
+<!-- wp:image {"sizeSlug":"full","linkDestination":"none"} -->
+<figure class="wp-block-image size-full"><img src="sample.jpg" alt="説明"/></figure>
+<!-- /wp:image -->
+```
+
+## 危険な例
+
+パラメータは level 3 ですが、HTML は h2 です。
+
+```html
+<!-- wp:heading {"level":3} -->
+<h2 class="wp-block-heading">見出し</h2>
+<!-- /wp:heading -->
+```
+
+パラメータは 64px ですが、HTML側は 32px です。
+
+```html
+<!-- wp:spacer {"height":"64px"} -->
+<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>
+<!-- /wp:spacer -->
+```
+
+パラメータは large ですが、class は full です。
+
+```html
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none"} -->
+<figure class="wp-block-image size-full"><img src="sample.jpg" alt="説明"/></figure>
+<!-- /wp:image -->
+```
+
+## 実用メモ
+
+- `{}` には、そのコアブロックが実際に対応している属性だけを書きます。
+- 存在しないパラメータ名を作らないようにします。
+- JSONなので、文字列はダブルクォートで書きます: `{"height":"32px"}`。
+- 末尾カンマは入れないでください。
+- 辞書スニペットは、Gutenbergで作成して保存した後のHTMLを基準にするのが安全です。
+- `wp:html` は別扱いです。中には通常のHTMLを書き、WordPressブロックコメントを入れ子にしない方が安全です。
 """,
         ),
         (

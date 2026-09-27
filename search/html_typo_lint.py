@@ -347,7 +347,7 @@ def _lint_wordpress_block_typos(load_data: str) -> list[HtmlTypoLintMessage]:
 def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     line_starts = _line_start_positions(load_data)
-    block_stack: list[tuple[str, int, int]] = []
+    block_stack: list[tuple[str, int, int, dict[str, Any]]] = []
 
     for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
         is_closing = bool(block_match.group(1))
@@ -355,6 +355,17 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
         line_number = _line_number_at(block_match.start(), line_starts)
 
         if not is_closing:
+            block_attributes = _parse_wordpress_block_attributes(block_match.group(3))
+            if block_attributes is None:
+                messages.append(
+                    HtmlTypoLintMessage(
+                        "warning",
+                        "html_typo_lint.invalid_wordpress_block_attributes",
+                        line_number,
+                        {"block": block_name},
+                    )
+                )
+                block_attributes = {}
             if block_stack and block_stack[-1][0] == "html":
                 messages.append(
                     HtmlTypoLintMessage(
@@ -371,7 +382,9 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                         line_number,
                     )
                 )
-            block_stack.append((block_name, block_match.end(), line_number))
+            block_stack.append(
+                (block_name, block_match.end(), line_number, block_attributes)
+            )
             continue
 
         if not block_stack:
@@ -385,7 +398,7 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             )
             continue
 
-        open_block_name, open_end, open_line_number = block_stack.pop()
+        open_block_name, open_end, open_line_number, block_attributes = block_stack.pop()
         if open_block_name != block_name:
             messages.append(
                 HtmlTypoLintMessage(
@@ -397,15 +410,24 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             )
             continue
 
+        block_body = load_data[open_end : block_match.start()]
         if block_name == "paragraph":
             messages.extend(
                 _lint_wordpress_paragraph_body(
-                    load_data[open_end : block_match.start()],
+                    block_body,
                     open_line_number,
                 )
             )
+        messages.extend(
+            _lint_wordpress_block_attribute_html_consistency(
+                block_name,
+                block_attributes,
+                block_body,
+                open_line_number,
+            )
+        )
 
-    for block_name, _open_end, open_line_number in block_stack:
+    for block_name, _open_end, open_line_number, _block_attributes in block_stack:
         message_key = "html_typo_lint.missing_wordpress_closing_block"
         if block_name == "html":
             message_key = "html_typo_lint.missing_wordpress_html_closing_block"
@@ -418,6 +440,155 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             )
         )
     return messages
+
+
+def _parse_wordpress_block_attributes(attributes_text: str | None) -> dict[str, Any] | None:
+    if attributes_text is None:
+        return {}
+    try:
+        block_attributes = json.loads(attributes_text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(block_attributes, dict):
+        return None
+    return block_attributes
+
+
+def _lint_wordpress_block_attribute_html_consistency(
+    block_name: str,
+    block_attributes: dict[str, Any],
+    block_body: str,
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    if block_name == "heading":
+        return _lint_wordpress_heading_level_consistency(
+            block_attributes,
+            block_body,
+            line_number,
+        )
+    if block_name == "spacer":
+        return _lint_wordpress_spacer_height_consistency(
+            block_attributes,
+            block_body,
+            line_number,
+        )
+    if block_name == "image":
+        return _lint_wordpress_image_size_consistency(
+            block_attributes,
+            block_body,
+            line_number,
+        )
+    return []
+
+
+def _lint_wordpress_heading_level_consistency(
+    block_attributes: dict[str, Any],
+    block_body: str,
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    level = block_attributes.get("level")
+    if level is None:
+        level = 2
+    if not isinstance(level, int) or isinstance(level, bool):
+        return []
+    heading_match = re.search(r"<h([1-6])(?:\s|>)", block_body, re.IGNORECASE)
+    if heading_match is None:
+        return []
+    html_level = heading_match.group(1)
+    if str(level) == html_level:
+        return []
+    return [
+        _wordpress_attribute_html_mismatch_message(
+            line_number,
+            "heading",
+            "level",
+            str(level),
+            f"h{html_level}",
+        )
+    ]
+
+
+def _lint_wordpress_spacer_height_consistency(
+    block_attributes: dict[str, Any],
+    block_body: str,
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    height = block_attributes.get("height")
+    if not isinstance(height, str):
+        return []
+    height_match = re.search(
+        r"\bheight\s*:\s*([^;\"']+)",
+        block_body,
+        re.IGNORECASE,
+    )
+    if height_match is None:
+        return []
+    html_height = _normalize_css_value(height_match.group(1))
+    attribute_height = _normalize_css_value(height)
+    if attribute_height == html_height:
+        return []
+    return [
+        _wordpress_attribute_html_mismatch_message(
+            line_number,
+            "spacer",
+            "height",
+            height,
+            height_match.group(1).strip(),
+        )
+    ]
+
+
+def _lint_wordpress_image_size_consistency(
+    block_attributes: dict[str, Any],
+    block_body: str,
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    size_slug = block_attributes.get("sizeSlug")
+    if not isinstance(size_slug, str):
+        return []
+    size_class_match = re.search(
+        r'\bclass\s*=\s*["\'][^"\']*\bsize-([a-zA-Z0-9_-]+)\b',
+        block_body,
+        re.IGNORECASE,
+    )
+    if size_class_match is None:
+        return []
+    html_size = size_class_match.group(1)
+    if size_slug.lower() == html_size.lower():
+        return []
+    return [
+        _wordpress_attribute_html_mismatch_message(
+            line_number,
+            "image",
+            "sizeSlug",
+            size_slug,
+            f"size-{html_size}",
+        )
+    ]
+
+
+def _wordpress_attribute_html_mismatch_message(
+    line_number: int,
+    block: str,
+    attribute: str,
+    attribute_value: str,
+    html_value: str,
+) -> HtmlTypoLintMessage:
+    return HtmlTypoLintMessage(
+        "warning",
+        "html_typo_lint.wordpress_block_attribute_html_mismatch",
+        line_number,
+        {
+            "block": block,
+            "attribute": attribute,
+            "attribute_value": attribute_value,
+            "html_value": html_value,
+        },
+    )
+
+
+def _normalize_css_value(value: str) -> str:
+    return re.sub(r"\s+", "", value.strip().lower())
 
 
 def _lint_wordpress_paragraph_body(

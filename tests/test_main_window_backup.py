@@ -135,3 +135,32 @@ def test_main_window_saves_and_clears_unsaved_backup(
     window._save_to_path(tmp_path / "saved.txt")
 
     assert not backup_path.exists()
+
+
+def test_main_window_saves_existing_file_backup_before_overwrite(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    save_file_path = tmp_path / "saved.txt"
+    save_file_path.write_text("old text", encoding="utf-8")
+    backup_folder = tmp_path / "backup"
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+        restore_unsaved_backup=False,
+    )
+    window.backup_folder = str(backup_folder)
+    window.file_backup_manager = window.file_backup_manager.__class__(
+        window._file_backup_folder_for_folder(window.backup_folder)
+    )
+    window._set_current_file_state(save_file_path, "utf-8")
+    window.editor.setPlainText("new text")
+    window.editor.document().setModified(True)
+
+    assert window._save_to_path(save_file_path)
+
+    backups = window.file_backup_manager.backups_for_file(save_file_path)
+    assert len(backups) == 1
+    assert backups[0].read_text(encoding="utf-8") == "old text"
+    assert save_file_path.read_text(encoding="utf-8") == "new text"

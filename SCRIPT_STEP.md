@@ -63,6 +63,15 @@ This file records the planned build order for `mini_editor_project`.
     - Save As encoding selector.
     - Preserve selected encoding when saving.
 
+12. Saved-file generation backups
+    - Save / Save As keeps the current on-disk file as a per-file backup before overwriting it.
+    - Default backup retention count is 20 generations.
+    - Unsaved backup remains a temporary crash-recovery file, separate from saved-file generations.
+
+13. Snippet dictionary expansion
+    - Added extra HTML, Markdown, and WordPress HTML snippets.
+    - Kept dictionary entries backed by Japanese and English labels and hints.
+
 ## Next Recommended Steps
 
 Progress on 2026-09-27:
@@ -79,6 +88,13 @@ Progress on 2026-09-27:
 - Save-time HTML / WordPress grammar safety progressed.
   - When HTML/WP typo lint is enabled, Save / Save As now runs the grammar check before writing.
   - If paragraph-split-related tag or WordPress block issues are found, the first issue line is selected and the user can cancel saving.
+- Settings, dictionary, and file backup safety progressed.
+  - Settings loading now falls back safely when individual values have invalid types.
+  - Settings saving now uses a temporary file before replacing `settings.json`.
+  - Saved-file generation backup now runs before overwriting an existing file.
+  - Backup retention count / days now prune saved-file backup generations.
+  - Unsaved backup stays scoped as temporary crash-recovery data for tabs/windows.
+  - Snippet dictionaries were expanded with small practical HTML, Markdown, and WordPress entries.
 
 1. Regex preview
    - Show match count before replacement.
@@ -395,10 +411,13 @@ Follow-up candidates:
    - Use the saved `visible_spaces_enabled`, `visible_tabs_enabled`, and `visible_newlines_enabled` flags.
 
 2. Backup detail options
-   - Backup interval.
-   - Backup retention count.
-   - Backup retention days.
-   - Multi-tab backup restore behavior.
+   - Completed:
+     - Backup retention count is editable and is used for saved-file generation backups.
+     - Backup retention days is editable and is used for saved-file generation backups.
+     - Unsaved backup remains temporary crash-recovery storage, not long-term history.
+   - Remaining:
+     - Backup interval.
+     - Multi-tab temporary backup restore behavior.
 
 3. Search option expansion
    - Regex lint display behavior.
@@ -505,10 +524,11 @@ Follow-up candidates:
    - Confirm visible whitespace markers remain readable when search highlights are active.
    - Consider user-facing presets if more display colors are added later.
 
-4. Backup rotation
-   - The retention count / days values are now stored in Options.
-   - The current unsaved-backup implementation still uses a single backup file.
-   - Add pruning behavior when rotating backup files are introduced.
+4. Backup generation history
+   - The retention count / days values are stored in Options.
+   - Saved-file backups now rotate and prune by retention count / days.
+   - The unsaved-backup implementation intentionally remains a temporary single crash-recovery file.
+   - Add a restore UI for saved-file backup generations if users need in-app recovery.
 
 ## Step11-section9 General, Search, Backup, And Dictionary Options
 
@@ -538,7 +558,8 @@ Changes:
   - The setting is applied to the Find / Replace dialog when it is open or newly created.
 - Added Backup > Retention count and Retention days.
   - The settings are persisted for the backup feature.
-  - The current backup manager still stores one unsaved-backup file, so these values are not pruning multiple backup files yet.
+  - These values are now used to prune saved-file generation backups.
+  - Unsaved backup remains a separate temporary recovery file and does not use generation pruning.
 - Added Tag Insert > User dictionary folder.
   - User dictionaries can be loaded in addition to bundled dictionaries.
   - The Insert Tag menu and dialog use the configured user dictionary folder.
@@ -569,8 +590,9 @@ JSON validation: app_text_en.json OK, app_text_ja.json OK
 
 Follow-up candidates:
 
-1. Backup rotation behavior
-   - Introduce rotating backup files if retention count / days should actively prune old backups.
+1. Backup restore UI
+   - Saved-file generation backups are now created and pruned.
+   - Add an in-app restore / compare UI if users should recover from backups without opening the backup folder manually.
 
 2. User dictionary folder integration
    - Load user-provided dictionaries separately from bundled dictionaries.
@@ -1204,6 +1226,111 @@ Validation result:
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 - Targeted Ruff passed for the changed Python test/lint files.
 - Full `ruff check .` still stops on the pre-existing import-order issue in `dialogs/find_replace_dialog.py`; this was not introduced by Step12-section1.
+
+## Step12-section2 Settings Resilience, Dictionary Expansion, And Saved-File Backups
+
+Purpose:
+
+- Split backup responsibilities clearly:
+  - Unsaved backup is temporary crash-recovery data for tabs/windows.
+  - Saved-file backup is per-file generation history made before overwriting an existing file.
+- Address the frustration that Undo can be cut off at the pre-restore state by keeping external file generations as a separate recovery path.
+- Keep `main.py` structurally stable for now; avoid large file splitting until more of the feature surface is settled.
+
+Changes:
+
+- Hardened settings loading and saving:
+  - `settings/settings_manager.py`
+    - Invalid individual setting value types now fall back to defaults instead of crashing startup.
+    - Non-object `settings.json` content falls back to defaults.
+    - String boolean values such as `"true"` / `"false"` are handled safely.
+    - Numeric settings reject boolean values and fall back on invalid strings such as `"wide"`.
+    - Settings are now saved through a temporary file before replacing `settings.json`.
+    - Default `backup_retention_count` changed from 10 to 20.
+  - `tests/test_settings_manager.py`
+    - Added regression coverage for invalid setting value types.
+    - Added coverage for saving when the parent settings folder does not exist.
+
+- Added saved-file generation backups:
+  - `fileio/file_backup_manager.py`
+    - Added `FileBackupManager`.
+    - Backs up an existing file before it is overwritten.
+    - Skips backup creation when the target file does not exist yet.
+    - Stores backups per original file path using a safe file-name prefix and path hash.
+    - Prunes backups by retention count and retention days.
+  - `main.py`
+    - Save / Save As now calls the file backup manager before writing the new file content.
+    - Default saved-file backup location is `autosave/file_backups`.
+    - If a backup folder is configured, saved-file backups go under `<backup_folder>/file_backups`.
+    - Changing the backup folder from Options refreshes both the temporary unsaved backup manager and the saved-file backup manager.
+  - `tests/test_file_backup_manager.py`
+    - Added coverage for backup creation, missing-file skip behavior, and 20-generation pruning.
+  - `tests/test_main_window_backup.py`
+    - Added coverage that overwriting an existing file preserves the old content in saved-file backup history.
+
+- Expanded snippet dictionaries:
+  - `dictionaries/html_dict.json`
+    - Added `<small>`, `<mark>`, `<details>`, and a basic `<table>` snippet.
+  - `dictionaries/markdown_dict.json`
+    - Added a 3-column table snippet.
+  - `dictionaries/wordpress_html_dict.json`
+    - Added a WordPress `wp:table` snippet.
+    - Added a single-`wp:html` details/disclosure snippet.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added matching labels and hover hints for all new snippets.
+  - `editor/tag_insert.py`
+    - Updated category mapping and WordPress mode behavior for the new snippets.
+  - `tests/test_tag_insert.py`
+    - Updated snippet counts and mode/category expectations.
+    - Added insertion tests for the WordPress table and single-`wp:html` details snippet.
+
+- Added WordPress block parameter consistency checks:
+  - `search/html_typo_lint.py`
+    - Warns when WordPress block comment `{}` parameters are invalid JSON.
+    - Warns when `wp:heading` `level` and the inner `<h*>` tag disagree.
+    - Warns when `wp:spacer` `height` and inner HTML `style` height disagree.
+    - Warns when `wp:image` `sizeSlug` and inner HTML `size-*` class disagree.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added localized Grammar Check messages for invalid block parameters and comment/HTML mismatches.
+  - `tests/test_html_typo_lint.py`
+    - Added mismatch and matching-case regression tests.
+
+- Added WordPress parameter writing help:
+  - `dialogs/user_help_dialog.py`
+    - Added `WPパラメータ記述の注意事項` / `WordPress Parameter Notes`.
+    - Documents that `{}` block attributes and inner HTML values must stay aligned.
+    - Includes safe and risky examples for heading, spacer, and image blocks.
+  - `tests/test_user_help_dialog.py`
+    - Added navigation/content checks for the new help topic.
+
+Policy notes:
+
+- Unsaved backup should remain temporary and scoped to crash recovery. Do not treat it as long-term version history.
+- Saved-file generation backup should run only when an existing file is about to be overwritten.
+- A restore UI is still pending. The current feature creates and prunes backup files, but does not yet provide an in-app recovery picker.
+- The WordPress details snippet is provisional until real Gutenberg paste/save behavior is checked.
+- The new parameter consistency lint is intentionally targeted. It checks common high-risk core blocks first, not every possible WordPress block attribute.
+- Do not try to cover every core block attribute at once. When dictionaries add or change actual WordPress snippets, extend the lint with focused regression tests for those concrete attributes.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_settings_manager.py tests\test_tag_insert.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_file_backup_manager.py tests\test_main_window_backup.py tests\test_settings_manager.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_user_help_dialog.py tests\test_main_window_search.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- Targeted settings / tag / translation tests: 62 passed.
+- Targeted backup tests: 12 passed.
+- Targeted lint / user help / save-warning / translation tests: 60 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 221 passed.
 
 ## Validation Commands
 

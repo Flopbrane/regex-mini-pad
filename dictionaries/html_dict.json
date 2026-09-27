@@ -35,6 +35,16 @@
     "template": "<em>{selection}{cursor}</em>"
   },
   {
+    "label_key": "tag.html.small",
+    "hint_key": "tag.hint.html.small",
+    "template": "<small>{selection}{cursor}</small>"
+  },
+  {
+    "label_key": "tag.html.mark",
+    "hint_key": "tag.hint.html.mark",
+    "template": "<mark>{selection}{cursor}</mark>"
+  },
+  {
     "label_key": "tag.html.link",
     "hint_key": "tag.hint.html.link",
     "template": "<a href=\"{cursor}\">{selection}</a>"
@@ -65,6 +75,11 @@
     "template": "<span class=\"{cursor}\">{selection}</span>"
   },
   {
+    "label_key": "tag.html.details",
+    "hint_key": "tag.hint.html.details",
+    "template": "<details>\n  <summary>{cursor}</summary>\n  <p>{selection}</p>\n</details>"
+  },
+  {
     "label_key": "tag.html.blockquote",
     "hint_key": "tag.hint.html.blockquote",
     "template": "<blockquote>\n  <p>{selection}{cursor}</p>\n</blockquote>"
@@ -88,6 +103,11 @@
     "label_key": "tag.html.pre_code",
     "hint_key": "tag.hint.html.pre_code",
     "template": "<pre><code>{selection}{cursor}</code></pre>"
+  },
+  {
+    "label_key": "tag.html.table_2x2",
+    "hint_key": "tag.hint.html.table_2x2",
+    "template": "<table>\n  <thead>\n    <tr><th>項目</th><th>内容</th></tr>\n  </thead>\n  <tbody>\n    <tr><td>{selection}{cursor}</td><td></td></tr>\n  </tbody>\n</table>"
   },
   {
     "label_key": "tag.html.line_break",

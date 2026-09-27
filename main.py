@@ -70,6 +70,7 @@ from editor.tag_insert import (
     wordpress_snippets_for_mode,
 )
 from editor.text_editor import TextEditor
+from fileio.file_backup_manager import FileBackupManager
 from fileio.file_manager import FileManager
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from localization.translator import Translator
@@ -144,6 +145,9 @@ class MainWindow(QMainWindow):
         settings: EditorSettings = self.settings_manager.load()
         self.translator = Translator(self.resources_path, settings.language_code)
         self.file_manager = FileManager()
+        self.file_backup_manager = FileBackupManager(
+            self._file_backup_folder_for_folder(settings.backup_folder)
+        )
         self.search_engine = SearchEngine()
         self.current_save_file_path: Path | None = None
         self.default_encoding = settings.default_encoding
@@ -1101,6 +1105,9 @@ class MainWindow(QMainWindow):
         self.unsaved_backup_manager = UnsavedBackupManager(
             self._unsaved_backup_path_for_folder(self.backup_folder)
         )
+        self.file_backup_manager = FileBackupManager(
+            self._file_backup_folder_for_folder(self.backup_folder)
+        )
         self._apply_editor_font_to_all_tabs()
         self._apply_search_marker_colors_to_all_tabs()
         self._apply_visible_whitespace_options_to_all_tabs()
@@ -1138,6 +1145,12 @@ class MainWindow(QMainWindow):
         if backup_folder:
             return Path(backup_folder) / "unsaved_backup.json"
         return Path(__file__).with_name("autosave") / "unsaved_backup.json"
+
+    def _file_backup_folder_for_folder(self, backup_folder: str) -> Path:
+        """Return the folder for saved-file generation backups."""
+        if backup_folder:
+            return Path(backup_folder) / "file_backups"
+        return Path(__file__).with_name("autosave") / "file_backups"
 
     def _apply_editor_font_to_all_tabs(self) -> None:
         """Apply the current editor font settings to all open tabs."""
@@ -1739,6 +1752,11 @@ class MainWindow(QMainWindow):
             return False
 
         try:
+            self.file_backup_manager.backup_existing_file(
+                save_file_path,
+                retention_count=self.backup_retention_count,
+                retention_days=self.backup_retention_days,
+            )
             self.file_manager.save_text(
                 save_file_path,
                 save_data,

@@ -179,6 +179,92 @@ def test_lint_reports_html_block_inside_wordpress_paragraph_block() -> None:
     )
 
 
+def test_lint_reports_invalid_wordpress_block_attributes() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:spacer {"height":"32px",} -->\n'
+        '<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>\n'
+        "<!-- /wp:spacer -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.invalid_wordpress_block_attributes"
+        for message in messages
+    )
+
+
+def test_lint_reports_wordpress_heading_level_html_mismatch() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"level":3} -->\n'
+        '<h2 class="wp-block-heading">見出し</h2>\n'
+        "<!-- /wp:heading -->"
+    )
+
+    mismatch = next(
+        message
+        for message in messages
+        if message.message_key
+        == "html_typo_lint.wordpress_block_attribute_html_mismatch"
+    )
+    assert mismatch.values == {
+        "block": "heading",
+        "attribute": "level",
+        "attribute_value": "3",
+        "html_value": "h2",
+    }
+
+
+def test_lint_reports_wordpress_spacer_height_html_mismatch() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:spacer {"height":"64px"} -->\n'
+        '<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>\n'
+        "<!-- /wp:spacer -->"
+    )
+
+    assert any(
+        message.message_key
+        == "html_typo_lint.wordpress_block_attribute_html_mismatch"
+        and message.values
+        and message.values["block"] == "spacer"
+        for message in messages
+    )
+
+
+def test_lint_reports_wordpress_image_size_html_mismatch() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:image {"sizeSlug":"large","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-full"><img src="sample.jpg" alt="説明"/></figure>\n'
+        "<!-- /wp:image -->"
+    )
+
+    assert any(
+        message.message_key
+        == "html_typo_lint.wordpress_block_attribute_html_mismatch"
+        and message.values
+        and message.values["block"] == "image"
+        for message in messages
+    )
+
+
+def test_lint_accepts_matching_wordpress_comment_attributes_and_html() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"level":3} -->\n'
+        '<h3 class="wp-block-heading">見出し</h3>\n'
+        "<!-- /wp:heading -->\n"
+        '<!-- wp:spacer {"height":"32px"} -->\n'
+        '<div style="height:32px" aria-hidden="true" class="wp-block-spacer"></div>\n'
+        "<!-- /wp:spacer -->\n"
+        '<!-- wp:image {"sizeSlug":"full","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-full"><img src="sample.jpg" alt="説明"/></figure>\n'
+        "<!-- /wp:image -->"
+    )
+
+    assert not any(
+        message.message_key
+        == "html_typo_lint.wordpress_block_attribute_html_mismatch"
+        for message in messages
+    )
+
+
 def test_lint_accepts_valid_wordpress_paragraph_blocks() -> None:
     messages = lint_html_typos(
         "<!-- wp:paragraph -->\n"

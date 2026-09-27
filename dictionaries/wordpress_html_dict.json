@@ -89,6 +89,17 @@
     "default_selection": "ここに本文を入れます。"
   },
   {
+    "label_key": "tag.wordpress.table_block",
+    "hint_key": "tag.hint.wordpress.table_block",
+    "template": "<!-- wp:table -->\n<figure class=\"wp-block-table\"><table><thead><tr><th>項目</th><th>内容</th></tr></thead><tbody><tr><td>{selection}{cursor}</td><td></td></tr></tbody></table></figure>\n<!-- /wp:table -->"
+  },
+  {
+    "label_key": "tag.wordpress.details_html_block",
+    "hint_key": "tag.hint.wordpress.details_html_block",
+    "template": "<!-- wp:html -->\n<details>\n<summary>{cursor}</summary>\n<div>\n{selection}\n</div>\n</details>\n<!-- /wp:html -->",
+    "default_selection": "ここに詳しい説明を入れます。"
+  },
+  {
     "label_key": "tag.wordpress.image_block",
     "hint_key": "tag.hint.wordpress.image_block",
     "template": "<!-- wp:image {\"sizeSlug\":\"full\",\"linkDestination\":\"none\"} -->\n<figure class=\"wp-block-image size-full\"><img src=\"{cursor}\" style=\"width: 80%; display: block; margin: 2em auto 1.5em auto;\" alt=\"{selection}\"/></figure>\n<!-- /wp:image -->"

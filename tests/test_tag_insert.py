@@ -424,7 +424,7 @@ def test_html_snippets_are_loaded_from_json() -> None:
     html_group = tag_snippet_groups()[0]
 
     assert html_group.label_key == "tag.group.html"
-    assert len(html_group.snippets) == 20
+    assert len(html_group.snippets) == 24
     assert html_group.snippets[0].label_key == "tag.html.paragraph"
     assert html_group.snippets[-1].label_key == "tag.html.horizontal_rule"
 
@@ -728,7 +728,7 @@ def test_markdown_snippets_are_loaded_from_json() -> None:
     markdown_group = tag_snippet_groups()[1]
 
     assert markdown_group.label_key == "tag.group.markdown"
-    assert len(markdown_group.snippets) == 26
+    assert len(markdown_group.snippets) == 27
     assert markdown_group.snippets[0].label_key == "tag.markdown.heading1"
     assert markdown_group.snippets[-1].label_key == "tag.markdown.horizontal_rule"
 
@@ -779,7 +779,7 @@ def test_wordpress_html_snippets_are_loaded_from_json() -> None:
     wordpress_group = tag_snippet_groups()[2]
 
     assert wordpress_group.label_key == "tag.group.wordpress_html"
-    assert len(wordpress_group.snippets) == 29
+    assert len(wordpress_group.snippets) == 31
     assert wordpress_group.snippets[0].label_key == "tag.wordpress.paragraph_block"
     assert wordpress_group.snippets[3].label_key == (
         "tag.wordpress.soft_subheading_paragraph"
@@ -792,10 +792,14 @@ def test_wordpress_html_snippets_are_loaded_from_json() -> None:
     assert wordpress_group.snippets[16].label_key == (
         "tag.wordpress.important_frame_block"
     )
-    assert wordpress_group.snippets[22].label_key == (
+    assert wordpress_group.snippets[17].label_key == "tag.wordpress.table_block"
+    assert wordpress_group.snippets[18].label_key == (
+        "tag.wordpress.details_html_block"
+    )
+    assert wordpress_group.snippets[24].label_key == (
         "tag.wordpress.columns_2_text_block"
     )
-    assert wordpress_group.snippets[23].label_key == (
+    assert wordpress_group.snippets[25].label_key == (
         "tag.wordpress.columns_3_text_block"
     )
     assert wordpress_group.snippets[-2].label_key == "tag.wordpress.video_block"
@@ -847,13 +851,15 @@ def test_wordpress_soft_subheading_uses_text_category() -> None:
     ) == "tag.category.text"
 
 
-def test_wordpress_text_columns_use_layout_category() -> None:
+def test_wordpress_text_columns_and_article_parts_use_layout_category() -> None:
     wordpress_group = tag_snippet_groups()[2]
-    column_snippets = [
+    layout_snippets = [
         snippet
         for snippet in wordpress_group.snippets
         if snippet.label_key
         in {
+            "tag.wordpress.table_block",
+            "tag.wordpress.details_html_block",
             "tag.wordpress.columns_2_text_block",
             "tag.wordpress.columns_3_text_block",
         }
@@ -861,8 +867,13 @@ def test_wordpress_text_columns_use_layout_category() -> None:
 
     assert [
         tag_snippet_category_key(wordpress_group.label_key, snippet)
-        for snippet in column_snippets
-    ] == ["tag.category.layout", "tag.category.layout"]
+        for snippet in layout_snippets
+    ] == [
+        "tag.category.layout",
+        "tag.category.layout",
+        "tag.category.layout",
+        "tag.category.layout",
+    ]
 
 
 def test_wordpress_custom_frame_uses_layout_category() -> None:
@@ -931,6 +942,15 @@ def test_wordpress_snippets_have_expected_mode_groups() -> None:
         "tag.wordpress_mode.normal",
         "tag.wordpress_mode.business",
         "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.table_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(snippets["tag.wordpress.details_html_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
     )
     assert wordpress_mode_keys(snippets["tag.wordpress.columns_2_text_block"]) == (
         "tag.wordpress_mode.normal",
@@ -1295,3 +1315,54 @@ def test_insert_wordpress_three_column_text_block(app: QApplication) -> None:
     assert "<p>1段目</p>" in editor_text
     assert "<p>ここに2段目の文章を入力します。</p>" in editor_text
     assert "<p>ここに3段目の文章を入力します。</p>" in editor_text
+
+
+def test_insert_wordpress_table_block(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("料金")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    table_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.table_block"
+    )
+
+    window.insert_tag_snippet(table_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.startswith("<!-- wp:table -->")
+    assert editor_text.endswith("<!-- /wp:table -->")
+    assert '<figure class="wp-block-table">' in editor_text
+    assert "<th>項目</th><th>内容</th>" in editor_text
+    assert "<td>料金</td><td></td>" in editor_text
+    assert window.editor.textCursor().position() == editor_text.index("</td>")
+
+
+def test_insert_wordpress_details_html_block_keeps_single_html_block(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("詳しい説明")
+    cursor = window.editor.textCursor()
+    cursor.select(QTextCursor.SelectionType.Document)
+    window.editor.setTextCursor(cursor)
+    details_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.details_html_block"
+    )
+
+    window.insert_tag_snippet(details_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.count("<!-- wp:html -->") == 1
+    assert editor_text.count("<!-- /wp:html -->") == 1
+    assert "<details>" in editor_text
+    assert "<summary></summary>" in editor_text
+    assert "\n詳しい説明\n</div>" in editor_text
+    assert "<!-- wp:paragraph -->" not in editor_text
+    assert window.editor.textCursor().position() == editor_text.index("</summary>")

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from settings.settings_manager import SettingsManager
 
 
@@ -27,7 +29,7 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.user_dictionary_folder == ""
     assert settings.dictionary_check_enabled is True
     assert settings.backup_folder == ""
-    assert settings.backup_retention_count == 10
+    assert settings.backup_retention_count == 20
     assert settings.backup_retention_days == 30
     assert settings.font_family == "Consolas"
     assert settings.font_size == 11
@@ -128,3 +130,57 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.frame_outer_spacing == "2em 0 3em 0"
     assert settings.frame_background_color == "#f0f9ff"
     assert settings.frame_text_color == "#14384f"
+
+
+def test_load_uses_defaults_for_invalid_setting_value_types(tmp_path) -> None:
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps(
+            {
+                "word_wrap_enabled": "false",
+                "line_numbers_enabled": "definitely",
+                "window_width": "wide",
+                "window_height": None,
+                "fixed_column_wrap_column": "0",
+                "font_size": [],
+                "tab_width": True,
+                "font_family": 123,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings = SettingsManager(settings_path).load()
+
+    assert settings.word_wrap_enabled is False
+    assert settings.line_numbers_enabled is True
+    assert settings.window_width == 900
+    assert settings.window_height == 650
+    assert settings.fixed_column_wrap_column == 1
+    assert settings.font_size == 11
+    assert settings.tab_width == 4
+    assert settings.font_family == "Consolas"
+
+
+def test_save_creates_parent_folder(tmp_path) -> None:
+    settings_path = tmp_path / "portable" / "settings.json"
+
+    SettingsManager(settings_path).save(
+        word_wrap_enabled=False,
+        line_numbers_enabled=True,
+        ruler_enabled=False,
+        visible_spaces_enabled=False,
+        visible_tabs_enabled=False,
+        visible_newlines_enabled=False,
+        fixed_column_wrap_enabled=False,
+        fixed_column_wrap_column=80,
+        startup_restore_enabled=True,
+        language_code="ja",
+        default_encoding="utf-8",
+        newline_code="lf",
+        window_width=900,
+        window_height=650,
+    )
+
+    assert settings_path.exists()
+    assert SettingsManager(settings_path).load().window_width == 900

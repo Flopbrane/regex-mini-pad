@@ -41,6 +41,7 @@ WORDPRESS_HIGH_SECURITY_LABEL_KEYS = {
     "tag.wordpress.notice_frame_block",
     "tag.wordpress.info_frame_block",
     "tag.wordpress.important_frame_block",
+    "tag.wordpress.table_block",
     "tag.wordpress.columns_2_text_block",
     "tag.wordpress.columns_3_text_block",
 }
@@ -180,6 +181,8 @@ def _html_category_key(label_key: str) -> str:
         "tag.html.strong",
         "tag.html.emphasis",
         "tag.html.blockquote",
+        "tag.html.small",
+        "tag.html.mark",
     }:
         return "tag.category.text"
     if label_key in {
@@ -202,6 +205,8 @@ def _html_category_key(label_key: str) -> str:
     if label_key in {
         "tag.html.div",
         "tag.html.span",
+        "tag.html.details",
+        "tag.html.table_2x2",
     }:
         return "tag.category.layout"
     return "tag.category.utility"
@@ -246,6 +251,7 @@ def _markdown_category_key(label_key: str) -> str:
         return "tag.category.lists"
     if label_key in {
         "tag.markdown.table_2x2",
+        "tag.markdown.table_3x2",
     }:
         return "tag.category.layout"
     return "tag.category.utility"
@@ -292,6 +298,8 @@ def _wordpress_category_key(label_key: str) -> str:
         "tag.wordpress.notice_frame_block",
         "tag.wordpress.info_frame_block",
         "tag.wordpress.important_frame_block",
+        "tag.wordpress.table_block",
+        "tag.wordpress.details_html_block",
         "tag.wordpress.columns_2_text_block",
         "tag.wordpress.columns_3_text_block",
     }:

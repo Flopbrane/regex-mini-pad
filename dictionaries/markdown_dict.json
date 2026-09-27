@@ -125,6 +125,11 @@
     "template": "| 項目 | 内容 |\n| --- | --- |\n| {selection}{cursor} |  |\n|  |  |"
   },
   {
+    "label_key": "tag.markdown.table_3x2",
+    "hint_key": "tag.hint.markdown.table_3x2",
+    "template": "| 項目 | 内容 | 備考 |\n| --- | --- | --- |\n| {selection}{cursor} |  |  |\n|  |  |  |"
+  },
+  {
     "label_key": "tag.markdown.horizontal_rule",
     "hint_key": "tag.hint.markdown.horizontal_rule",
     "template": "---\n{cursor}"
