@@ -288,24 +288,9 @@ def test_grammar_check_action_is_available_from_search_menu(
 
 def test_grammar_check_reports_html_and_wordpress_typos(
     app: QApplication,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _ = app
     window = MainWindow()
-    captured: dict[str, str] = {}
-
-    def capture_warning(
-        _parent: object,
-        title: str,
-        text: str,
-        *_args: object,
-        **_kwargs: object,
-    ) -> QMessageBox.StandardButton:
-        captured["title"] = title
-        captured["text"] = text
-        return QMessageBox.StandardButton.Ok
-
-    monkeypatch.setattr(QMessageBox, "warning", capture_warning)
     window.editor.setPlainText(
         "<p>本文</p>\n"
         '<p clas="lead"><spna>誤字</spna></p>\n'
@@ -314,42 +299,40 @@ def test_grammar_check_reports_html_and_wordpress_typos(
 
     window.run_grammar_check()
 
-    assert captured["title"] == "文法チェック"
-    assert "文法チェックで" in captured["text"]
-    assert "2行目" in captured["text"]
-    assert "spna" in captured["text"]
-    assert "span" in captured["text"]
-    assert "clas" in captured["text"]
-    assert "class" in captured["text"]
-    assert "3行目" in captured["text"]
-    assert "paragaph" in captured["text"]
-    assert "paragraph" in captured["text"]
-    assert "Typoです" in captured["text"]
-    assert "wp:paragraph" in captured["text"]
-    assert "修正してください" in captured["text"]
+    assert window.grammar_check_dialog is not None
+    assert window.grammar_check_dialog.isModal() is False
+    assert window.grammar_check_dialog.windowTitle() == "文法チェック"
+    assert "文法チェックで" in window.grammar_check_dialog.summary_label.text()
+    result_text = "\n".join(
+        window.grammar_check_dialog.message_list.item(row).text()
+        for row in range(window.grammar_check_dialog.message_list.count())
+    )
+    assert "2行目" in result_text
+    assert "spna" in result_text
+    assert "span" in result_text
+    assert "clas" in result_text
+    assert "class" in result_text
+    assert "3行目" in result_text
+    assert "paragaph" in result_text
+    assert "paragraph" in result_text
+    assert "Typoです" in result_text
+    assert "wp:paragraph" in result_text
+    assert "修正してください" in result_text
     assert window.editor.textCursor().blockNumber() == 1
+    line_three_item = next(
+        window.grammar_check_dialog.message_list.item(row)
+        for row in range(window.grammar_check_dialog.message_list.count())
+        if "3行目" in window.grammar_check_dialog.message_list.item(row).text()
+    )
+    window.grammar_check_dialog.message_list.itemClicked.emit(line_three_item)
+    assert window.editor.textCursor().blockNumber() == 2
 
 
 def test_grammar_check_reports_no_issues(
     app: QApplication,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _ = app
     window = MainWindow()
-    captured: dict[str, str] = {}
-
-    def capture_information(
-        _parent: object,
-        title: str,
-        text: str,
-        *_args: object,
-        **_kwargs: object,
-    ) -> QMessageBox.StandardButton:
-        captured["title"] = title
-        captured["text"] = text
-        return QMessageBox.StandardButton.Ok
-
-    monkeypatch.setattr(QMessageBox, "information", capture_information)
     window.editor.setPlainText(
         "<!-- wp:paragraph -->\n"
         '<p class="lead">本文</p>\n'
@@ -358,10 +341,11 @@ def test_grammar_check_reports_no_issues(
 
     window.run_grammar_check()
 
-    assert captured == {
-        "title": "文法チェック",
-        "text": "簡易チェック完了：大きな構造エラーは見つかりませんでした。",
-    }
+    assert window.grammar_check_dialog is not None
+    assert window.grammar_check_dialog.summary_label.text() == (
+        "簡易チェック完了：大きな構造エラーは見つかりませんでした。"
+    )
+    assert window.grammar_check_dialog.message_list.count() == 0
 
 
 def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -> None:

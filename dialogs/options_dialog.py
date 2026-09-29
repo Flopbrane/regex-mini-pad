@@ -81,18 +81,19 @@ FRAME_TEXT_COLOR_PRESETS: tuple[tuple[str, str], ...] = (
     ("options.frame_text_color.green", "#214c32"),
     ("options.frame_text_color.gray", "#666666"),
 )
-EDITOR_THEME_PRESETS: tuple[tuple[str, str, str, str, str], ...] = (
-    ("options.editor_theme.light", "light", "#ffffff", "#202124", "#0b5cad"),
-    ("options.editor_theme.soft", "soft", "#fffaf0", "#333333", "#8a4b00"),
-    ("options.editor_theme.dark", "dark", "#1f2933", "#f5f7fa", "#7cc4ff"),
+EDITOR_THEME_PRESETS: tuple[tuple[str, str, str, str, str, str], ...] = (
+    ("options.editor_theme.light", "light", "#ffffff", "#202124", "#0b5cad", "#667085"),
+    ("options.editor_theme.soft", "soft", "#fffaf0", "#333333", "#8a4b00", "#8a6f4d"),
+    ("options.editor_theme.dark", "dark", "#1f2933", "#f5f7fa", "#7cc4ff", "#a8b3c2"),
     (
         "options.editor_theme.high_contrast",
         "high_contrast",
         "#000000",
         "#ffffff",
         "#00d9ff",
+        "#c8c8c8",
     ),
-    ("options.editor_theme.custom", "custom", "#ffffff", "#202124", "#0b5cad"),
+    ("options.editor_theme.custom", "custom", "#ffffff", "#202124", "#0b5cad", "#667085"),
 )
 
 
@@ -124,6 +125,7 @@ class OptionsDialogValues:
     editor_background_color: str
     editor_text_color: str
     html_tag_color: str
+    wordpress_core_block_color: str
     search_marker_color: str
     current_match_marker_color: str
     visible_space_marker_color: str
@@ -190,6 +192,8 @@ class OptionsDialog(QDialog):
         self.editor_text_color_button = QPushButton(self)
         self.html_tag_color_combo = QComboBox(self)
         self.html_tag_color_button = QPushButton(self)
+        self.wordpress_core_block_color_combo = QComboBox(self)
+        self.wordpress_core_block_color_button = QPushButton(self)
         self.search_marker_color_combo = QComboBox(self)
         self.search_marker_color_button = QPushButton(self)
         self.current_match_marker_color_combo = QComboBox(self)
@@ -360,6 +364,10 @@ class OptionsDialog(QDialog):
             settings.html_tag_color,
         )
         self._set_color_combo(
+            self.wordpress_core_block_color_combo,
+            settings.wordpress_core_block_color,
+        )
+        self._set_color_combo(
             self.search_marker_color_combo,
             settings.search_marker_color,
         )
@@ -415,6 +423,9 @@ class OptionsDialog(QDialog):
             ),
             editor_text_color=str(self.editor_text_color_combo.currentData()),
             html_tag_color=str(self.html_tag_color_combo.currentData()),
+            wordpress_core_block_color=str(
+                self.wordpress_core_block_color_combo.currentData()
+            ),
             search_marker_color=str(self.search_marker_color_combo.currentData()),
             current_match_marker_color=str(
                 self.current_match_marker_color_combo.currentData()
@@ -594,6 +605,7 @@ class OptionsDialog(QDialog):
         self._populate_color_combo(self.editor_background_color_combo)
         self._populate_color_combo(self.editor_text_color_combo)
         self._populate_color_combo(self.html_tag_color_combo)
+        self._populate_color_combo(self.wordpress_core_block_color_combo)
         layout.addRow(
             self.translator.text("options.editor_theme"),
             self.editor_theme_combo,
@@ -617,6 +629,13 @@ class OptionsDialog(QDialog):
             self._color_picker_row(
                 self.html_tag_color_combo,
                 self.html_tag_color_button,
+            ),
+        )
+        layout.addRow(
+            self.translator.text("options.wordpress_core_block_color"),
+            self._color_picker_row(
+                self.wordpress_core_block_color_combo,
+                self.wordpress_core_block_color_button,
             ),
         )
         tab.setLayout(layout)
@@ -682,6 +701,11 @@ class OptionsDialog(QDialog):
         )
         self.html_tag_color_button.clicked.connect(
             lambda: self._choose_color_for_combo(self.html_tag_color_combo)
+        )
+        self.wordpress_core_block_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(
+                self.wordpress_core_block_color_combo
+            )
         )
         self.frame_background_color_button.clicked.connect(
             lambda: self._choose_color_for_combo(self.frame_background_color_combo)
@@ -776,12 +800,17 @@ class OptionsDialog(QDialog):
             background_color,
             text_color,
             html_tag_color,
+            core_block_color,
         ) in EDITOR_THEME_PRESETS:
             if preset_value != theme_value or preset_value == "custom":
                 continue
             self._set_color_combo(self.editor_background_color_combo, background_color)
             self._set_color_combo(self.editor_text_color_combo, text_color)
             self._set_color_combo(self.html_tag_color_combo, html_tag_color)
+            self._set_color_combo(
+                self.wordpress_core_block_color_combo,
+                core_block_color,
+            )
             return
 
     def _set_frame_display_description(self) -> None:
@@ -841,6 +870,7 @@ class OptionsDialog(QDialog):
             self.editor_background_color_button,
             self.editor_text_color_button,
             self.html_tag_color_button,
+            self.wordpress_core_block_color_button,
             self.frame_background_color_button,
             self.frame_text_color_button,
             self.search_marker_color_button,

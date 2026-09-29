@@ -152,6 +152,18 @@ def test_lint_reports_pre_and_code_count_mismatches() -> None:
     assert "html_typo_lint.count_mismatch_pre" not in message_keys
 
 
+def test_lint_counts_only_html_tag_tokens_for_code() -> None:
+    messages = lint_html_typos(
+        "<!--wp:paragraph-->\n"
+        "<p>コード表示は <code>code</code> と書きます。</p>\n"
+        "<!--/wp:paragraph-->"
+    )
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.count_mismatch_code" not in message_keys
+    assert "html_typo_lint.count_mismatch_wordpress_paragraph" not in message_keys
+
+
 def test_lint_reports_known_fragile_typos() -> None:
     messages = lint_html_typos('<p style="margin:2en 0 1.5em;">本文<\\p>')
 

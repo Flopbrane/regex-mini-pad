@@ -38,6 +38,7 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.editor_background_color == "#ffffff"
     assert settings.editor_text_color == "#202124"
     assert settings.html_tag_color == "#0b5cad"
+    assert settings.wordpress_core_block_color == "#667085"
     assert settings.search_marker_color == "#ffff00"
     assert settings.current_match_marker_color == "#ff9900"
     assert settings.visible_space_marker_color == "#9a9a9a"
@@ -85,6 +86,7 @@ def test_save_and_load_settings(tmp_path) -> None:
         editor_background_color="#1f2933",
         editor_text_color="#f5f7fa",
         html_tag_color="#7cc4ff",
+        wordpress_core_block_color="#a8b3c2",
         search_marker_color="#9ed8ff",
         current_match_marker_color="#ffb3d9",
         visible_space_marker_color="#d9d9d9",
@@ -129,6 +131,7 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.editor_background_color == "#1f2933"
     assert settings.editor_text_color == "#f5f7fa"
     assert settings.html_tag_color == "#7cc4ff"
+    assert settings.wordpress_core_block_color == "#a8b3c2"
     assert settings.search_marker_color == "#9ed8ff"
     assert settings.current_match_marker_color == "#ffb3d9"
     assert settings.visible_space_marker_color == "#d9d9d9"

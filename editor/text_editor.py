@@ -43,6 +43,13 @@ class HtmlSyntaxHighlighter(QSyntaxHighlighter):
         self.tag_format.setForeground(color if color.isValid() else QColor("#0b5cad"))
         self.rehighlight()
 
+    def set_core_block_color(self, color_code: str) -> None:
+        color = QColor(color_code)
+        self.comment_format.setForeground(
+            color if color.isValid() else QColor("#667085")
+        )
+        self.rehighlight()
+
     def set_enabled(self, enabled: bool) -> None:
         self.enabled = enabled
         self.rehighlight()
@@ -77,6 +84,7 @@ class TextEditor(QPlainTextEdit):
         self.editor_background_color = "#ffffff"
         self.editor_text_color = "#202124"
         self.html_tag_color = "#0b5cad"
+        self.wordpress_core_block_color = "#667085"
         self.html_highlighter = HtmlSyntaxHighlighter(self.document())
 
         self.setFont(QFont("Consolas", 11))
@@ -105,6 +113,7 @@ class TextEditor(QPlainTextEdit):
         background_color: str,
         text_color: str,
         html_tag_color: str,
+        wordpress_core_block_color: str = "#667085",
     ) -> None:
         self.editor_background_color = _valid_color_or_default(
             background_color,
@@ -112,8 +121,13 @@ class TextEditor(QPlainTextEdit):
         )
         self.editor_text_color = _valid_color_or_default(text_color, "#202124")
         self.html_tag_color = _valid_color_or_default(html_tag_color, "#0b5cad")
+        self.wordpress_core_block_color = _valid_color_or_default(
+            wordpress_core_block_color,
+            "#667085",
+        )
         self._apply_editor_colors()
         self.html_highlighter.set_tag_color(self.html_tag_color)
+        self.html_highlighter.set_core_block_color(self.wordpress_core_block_color)
 
     def _apply_editor_colors(self) -> None:
         self.setStyleSheet(

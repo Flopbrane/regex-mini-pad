@@ -101,11 +101,13 @@ def test_editor_colors_apply_to_stylesheet_and_html_highlighter(
         background_color="#101820",
         text_color="#f0f6ff",
         html_tag_color="#33ccff",
+        wordpress_core_block_color="#99aabb",
     )
 
     assert editor.editor_background_color == "#101820"
     assert editor.editor_text_color == "#f0f6ff"
     assert editor.html_tag_color == "#33ccff"
+    assert editor.wordpress_core_block_color == "#99aabb"
     assert "background-color: #101820" in editor.styleSheet()
     assert "color: #f0f6ff" in editor.styleSheet()
 

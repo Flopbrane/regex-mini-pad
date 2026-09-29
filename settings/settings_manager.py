@@ -37,6 +37,7 @@ class EditorSettings:
     editor_background_color: str = "#ffffff"
     editor_text_color: str = "#202124"
     html_tag_color: str = "#0b5cad"
+    wordpress_core_block_color: str = "#667085"
     search_marker_color: str = "#ffff00"
     current_match_marker_color: str = "#ff9900"
     visible_space_marker_color: str = "#9a9a9a"
@@ -124,6 +125,9 @@ class SettingsManager:
             ),
             editor_text_color=_setting_str(load_data, "editor_text_color", "#202124"),
             html_tag_color=_setting_str(load_data, "html_tag_color", "#0b5cad"),
+            wordpress_core_block_color=_setting_str(
+                load_data, "wordpress_core_block_color", "#667085"
+            ),
             search_marker_color=_setting_str(
                 load_data, "search_marker_color", "#ffff00"
             ),
@@ -188,6 +192,7 @@ class SettingsManager:
         editor_background_color: str = "#ffffff",
         editor_text_color: str = "#202124",
         html_tag_color: str = "#0b5cad",
+        wordpress_core_block_color: str = "#667085",
         search_marker_color: str = "#ffff00",
         current_match_marker_color: str = "#ff9900",
         visible_space_marker_color: str = "#9a9a9a",
@@ -231,6 +236,7 @@ class SettingsManager:
             "editor_background_color": editor_background_color,
             "editor_text_color": editor_text_color,
             "html_tag_color": html_tag_color,
+            "wordpress_core_block_color": wordpress_core_block_color,
             "search_marker_color": search_marker_color,
             "current_match_marker_color": current_match_marker_color,
             "visible_space_marker_color": visible_space_marker_color,

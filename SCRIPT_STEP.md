@@ -1574,6 +1574,67 @@ Validation result:
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 - Full `pytest`: 230 passed.
 
+## Step13-section5 Modeless Grammar Check And Core Block Color
+
+Purpose:
+
+- Allow editing the main document while grammar check results remain visible.
+- Reduce fragile tag-count false positives by counting actual HTML tag tokens instead of broad text matches.
+- Make WordPress core block comment color configurable separately from ordinary HTML tag color.
+
+Changes:
+
+- Added a modeless grammar check results window:
+  - `dialogs/grammar_check_dialog.py`
+    - Added a reusable non-modal grammar check dialog.
+    - Shows the current result summary and a clickable list of issue rows.
+    - Clicking an issue moves the editor cursor to that line.
+    - Added a `Recheck` / `再チェック` button so the user can keep the results window open while editing.
+  - `main.py`
+    - Manual Grammar Check now opens/updates the modeless result window instead of blocking with `QMessageBox.warning()` or `QMessageBox.information()`.
+    - Save-time grammar confirmation remains modal because it protects the save operation.
+
+- Tightened lint token counting:
+  - `search/html_typo_lint.py`
+    - Counts `<p>`, `<pre>`, and `<code>` pairs from extracted `<...>` HTML tag tokens.
+    - Does not treat plain text such as `code` as a tag.
+    - Accepts compact WordPress block comments such as `<!--wp:paragraph-->` and `<!--/wp:paragraph-->` for simple count checks.
+
+- Added configurable core block color:
+  - `editor/text_editor.py`
+    - WordPress block comments can now use a separate configured color.
+  - `settings/settings_manager.py`, `dialogs/options_dialog.py`, and `main.py`
+    - Added `wordpress_core_block_color` to load/save, options, theme presets, and all-tab application.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added labels for core block color and grammar recheck.
+
+- Updated tests:
+  - `tests/test_main_window_search.py`
+    - Verifies grammar check uses a modeless result window and that issue rows can jump to the source line.
+  - `tests/test_html_typo_lint.py`
+    - Verifies `<code>code</code>` and compact WordPress comments do not trigger false count mismatches.
+  - `tests/test_options_dialog.py`, `tests/test_settings_manager.py`, and `tests/test_text_editor_visible_whitespace.py`
+    - Covered the new core block color setting.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_main_window_search.py tests\test_options_dialog.py tests\test_settings_manager.py tests\test_text_editor_visible_whitespace.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- JSON validation passed for both app translation files.
+- Targeted lint/main-window/options/settings/text-editor tests: 67 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 231 passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

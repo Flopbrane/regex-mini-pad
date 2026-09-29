@@ -45,6 +45,7 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.editor_background_color_combo.currentText() == "#ffffff"
     assert dialog.editor_text_color_combo.currentText() == "#202124"
     assert dialog.html_tag_color_combo.currentText() == "#0b5cad"
+    assert dialog.wordpress_core_block_color_combo.currentText() == "#667085"
     assert dialog.editor_background_color_button.text() == "色選択..."
     assert dialog.frame_alignment_combo.currentText() == "左寄せ"
     assert dialog.frame_display_combo.currentText() == (
@@ -113,6 +114,7 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             editor_background_color="#1f2933",
             editor_text_color="#f5f7fa",
             html_tag_color="#7cc4ff",
+            wordpress_core_block_color="#a8b3c2",
             search_marker_color="#9ed8ff",
             current_match_marker_color="#ffb3d9",
             visible_space_marker_color="#d9d9d9",
@@ -156,6 +158,7 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.editor_background_color == "#1f2933"
     assert values.editor_text_color == "#f5f7fa"
     assert values.html_tag_color == "#7cc4ff"
+    assert values.wordpress_core_block_color == "#a8b3c2"
     assert values.search_marker_color == "#9ed8ff"
     assert values.current_match_marker_color == "#ffb3d9"
     assert values.visible_space_marker_color == "#d9d9d9"

@@ -49,6 +49,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
 )
 
 from dialogs.find_replace_dialog import FindReplaceDialog
+from dialogs.grammar_check_dialog import GrammarCheckDialog
 from dialogs.options_dialog import OptionsDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
@@ -160,6 +161,7 @@ class MainWindow(QMainWindow):
         self.current_encoding = settings.default_encoding
         self.newline_code = settings.newline_code
         self.find_replace_dialog: FindReplaceDialog | None = None
+        self.grammar_check_dialog: GrammarCheckDialog | None = None
         self.regex_help_dialog: RegexHelpDialog | None = None
         self.tag_insert_dialog: TagInsertDialog | None = None
         self.user_help_dialog: UserHelpDialog | None = None
@@ -179,6 +181,7 @@ class MainWindow(QMainWindow):
         self.editor_background_color = settings.editor_background_color
         self.editor_text_color = settings.editor_text_color
         self.html_tag_color = settings.html_tag_color
+        self.wordpress_core_block_color = settings.wordpress_core_block_color
         self.startup_restore_enabled = settings.startup_restore_enabled
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
@@ -502,6 +505,7 @@ class MainWindow(QMainWindow):
             background_color=self.editor_background_color,
             text_color=self.editor_text_color,
             html_tag_color=self.html_tag_color,
+            wordpress_core_block_color=self.wordpress_core_block_color,
         )
         editor.set_fixed_column_wrap_options(
             enabled=self.fixed_column_wrap_enabled,
@@ -815,6 +819,7 @@ class MainWindow(QMainWindow):
         self.editor_background_color = settings.editor_background_color
         self.editor_text_color = settings.editor_text_color
         self.html_tag_color = settings.html_tag_color
+        self.wordpress_core_block_color = settings.wordpress_core_block_color
         self._apply_editor_colors_to_all_tabs()
         self._apply_editor_font_to_all_tabs()
         self.english_action.setChecked(settings.language_code == "en")
@@ -853,6 +858,7 @@ class MainWindow(QMainWindow):
             editor_background_color=self.editor_background_color,
             editor_text_color=self.editor_text_color,
             html_tag_color=self.html_tag_color,
+            wordpress_core_block_color=self.wordpress_core_block_color,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
             visible_space_marker_color=self.visible_space_marker_color,
@@ -939,6 +945,8 @@ class MainWindow(QMainWindow):
 
         if self.find_replace_dialog is not None:
             self.find_replace_dialog.apply_language()
+        if self.grammar_check_dialog is not None:
+            self.grammar_check_dialog.apply_language()
         if self.regex_help_dialog is not None:
             self.regex_help_dialog.apply_language()
         if self.tag_insert_dialog is not None:
@@ -1118,6 +1126,7 @@ class MainWindow(QMainWindow):
             editor_background_color=self.editor_background_color,
             editor_text_color=self.editor_text_color,
             html_tag_color=self.html_tag_color,
+            wordpress_core_block_color=self.wordpress_core_block_color,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
             visible_space_marker_color=self.visible_space_marker_color,
@@ -1162,6 +1171,7 @@ class MainWindow(QMainWindow):
         self.editor_background_color = values.editor_background_color
         self.editor_text_color = values.editor_text_color
         self.html_tag_color = values.html_tag_color
+        self.wordpress_core_block_color = values.wordpress_core_block_color
         self.search_marker_color = values.search_marker_color
         self.current_match_marker_color = values.current_match_marker_color
         self.visible_space_marker_color = values.visible_space_marker_color
@@ -1257,6 +1267,7 @@ class MainWindow(QMainWindow):
                     background_color=self.editor_background_color,
                     text_color=self.editor_text_color,
                     html_tag_color=self.html_tag_color,
+                    wordpress_core_block_color=self.wordpress_core_block_color,
                 )
 
     def _set_editor_tab_width(self, editor: TextEditor) -> None:
@@ -1325,23 +1336,34 @@ class MainWindow(QMainWindow):
         if not messages:
             status_message = self.translator.text("grammar_check.no_issues")
             self.statusBar().showMessage(status_message)
-            QMessageBox.information(
-                self,
-                self.translator.text("grammar_check.title"),
-                status_message,
-            )
+            self._show_grammar_check_dialog(status_message, [])
             return
 
         self._set_cursor_to_line(messages[0].line_number)
-        summary = self._grammar_check_summary(messages)
-        self.statusBar().showMessage(
-            self.translator.text("grammar_check.issues_found", count=len(messages))
+        status_message = self.translator.text(
+            "grammar_check.issues_found",
+            count=len(messages),
         )
-        QMessageBox.warning(
-            self,
-            self.translator.text("grammar_check.title"),
-            summary,
-        )
+        self.statusBar().showMessage(status_message)
+        rows = [
+            (message.line_number, self._html_typo_lint_message_text(message))
+            for message in messages
+        ]
+        self._show_grammar_check_dialog(status_message, rows)
+
+    def _show_grammar_check_dialog(
+        self,
+        summary: str,
+        rows: list[tuple[int, str]],
+    ) -> None:
+        if self.grammar_check_dialog is None:
+            self.grammar_check_dialog = GrammarCheckDialog(self.translator, self)
+            self.grammar_check_dialog.line_selected.connect(self._set_cursor_to_line)
+            self.grammar_check_dialog.refresh_requested.connect(self.run_grammar_check)
+        self.grammar_check_dialog.set_result(summary, rows)
+        self.grammar_check_dialog.show()
+        self.grammar_check_dialog.raise_()
+        self.grammar_check_dialog.activateWindow()
 
     def _confirm_save_after_grammar_check(self, save_data: str) -> bool:
         if not self.html_typo_lint_enabled:
