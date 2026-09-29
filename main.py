@@ -1,4 +1,4 @@
-# pylint: disable=C0302,C0301,C0411,C0413
+# pylint: disable=C0302,C0301,C0411,C0413,C0116
 # ruff: noqa:E402,RUF100
 """Main window class for the Regex Pad application."""
 #########################
@@ -13,6 +13,7 @@ import os
 import sys
 import uuid
 from collections.abc import Callable
+from datetime import datetime, timezone
 from html import escape, unescape
 from pathlib import Path
 from re import error as RegexError
@@ -36,6 +37,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QComboBox,
     QFileDialog,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QMainWindow,
     QMenu,
@@ -58,6 +60,10 @@ from editor.paragraph_splitter import (
     split_paragraph_insert_html,
     split_paragraph_insert_spacer,
     wrap_selection_as_decorated_block,
+)
+from editor.rectangular_selection import (
+    rectangular_selection_from_text_positions,
+    rectangular_text,
 )
 from editor.tag_insert import (
     WORDPRESS_GROUP_LABEL_KEY,
@@ -282,6 +288,9 @@ class MainWindow(QMainWindow):
         self.save_as_action.setShortcut("Ctrl+Shift+S")
         self.save_as_action.triggered.connect(self.save_file_as)
 
+        self.restore_file_backup_action = QAction(self)
+        self.restore_file_backup_action.triggered.connect(self.restore_file_backup)
+
         self.exit_action = QAction("E&xit", self)
         self.exit_action.setShortcut("Alt+F4")
         self.exit_action.triggered.connect(self.close)
@@ -299,6 +308,12 @@ class MainWindow(QMainWindow):
         self.select_all_action = QAction("Select &All", self)
         self.select_all_action.setShortcut("Ctrl+A")
         self.select_all_action.triggered.connect(self._select_all_current_editor)
+
+        self.copy_rectangular_selection_action = QAction(self)
+        self.copy_rectangular_selection_action.setShortcut("Ctrl+Alt+C")
+        self.copy_rectangular_selection_action.triggered.connect(
+            self.copy_rectangular_selection
+        )
 
         self.insert_br_action = QAction(self)
         self.insert_br_action.setShortcut("F8")
@@ -395,6 +410,7 @@ class MainWindow(QMainWindow):
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.save_action)
         self.file_menu.addAction(self.save_as_action)
+        self.file_menu.addAction(self.restore_file_backup_action)
         self.file_menu.addSeparator()
         self.file_menu.addAction(self.exit_action)
         menu_bar.addMenu(self.file_menu)
@@ -404,6 +420,7 @@ class MainWindow(QMainWindow):
         self.edit_menu.addAction(self.redo_action)
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.select_all_action)
+        self.edit_menu.addAction(self.copy_rectangular_selection_action)
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.insert_br_action)
         self.edit_menu.addAction(self.insert_br_br_action)
@@ -716,6 +733,37 @@ class MainWindow(QMainWindow):
         if editor is not None:
             editor.selectAll()
 
+    def copy_rectangular_selection(self) -> None:
+        """Copy the current multi-line selection as a rectangular text block."""
+        cursor = self.editor.textCursor()
+        if not cursor.hasSelection():
+            self.statusBar().showMessage(
+                self.translator.text("rectangular.copy_no_selection")
+            )
+            return
+
+        source_text = self.editor.toPlainText()
+        selection = rectangular_selection_from_text_positions(
+            source_text,
+            self.editor.cursor_position_to_text_position(cursor.selectionStart()),
+            self.editor.cursor_position_to_text_position(cursor.selectionEnd()),
+        )
+        copied_text = rectangular_text(source_text, selection)
+        if not copied_text:
+            self.statusBar().showMessage(
+                self.translator.text("rectangular.copy_empty")
+            )
+            return
+
+        QApplication.clipboard().setText(copied_text)
+        copied_line_count = copied_text.count("\n") + 1
+        self.statusBar().showMessage(
+            self.translator.text(
+                "rectangular.copy_done",
+                lines=copied_line_count,
+            )
+        )
+
     def _remove_tab(self, tab_index: int) -> None:
         """Remove the tab at the given index and clean up its associated resources."""
         widget = self.tab_widget.widget(tab_index)
@@ -831,10 +879,16 @@ class MainWindow(QMainWindow):
         )
         self.save_action.setText(self.translator.text("action.save"))
         self.save_as_action.setText(self.translator.text("action.save_as"))
+        self.restore_file_backup_action.setText(
+            self.translator.text("action.restore_file_backup")
+        )
         self.exit_action.setText(self.translator.text("action.exit"))
         self.undo_action.setText(self.translator.text("action.undo"))
         self.redo_action.setText(self.translator.text("action.redo"))
         self.select_all_action.setText(self.translator.text("action.select_all"))
+        self.copy_rectangular_selection_action.setText(
+            self.translator.text("action.copy_rectangular_selection")
+        )
         self.insert_br_action.setText(self.translator.text("action.insert_br"))
         self.insert_br_br_action.setText(self.translator.text("action.insert_br_br"))
         self.html_escape_action.setText(self.translator.text("action.html_escape"))
@@ -1776,6 +1830,80 @@ class MainWindow(QMainWindow):
         self._clear_unsaved_backup()
         self._update_window_title()
         return True
+
+    def restore_file_backup(self) -> None:
+        """Load a saved-file backup into the current editor as an unsaved change."""
+        if self.current_save_file_path is None:
+            QMessageBox.information(
+                self,
+                self.translator.text("dialog.file_backup_restore.title"),
+                self.translator.text("dialog.file_backup_restore.no_file"),
+            )
+            return
+
+        backups = self.file_backup_manager.backups_for_file(self.current_save_file_path)
+        if not backups:
+            QMessageBox.information(
+                self,
+                self.translator.text("dialog.file_backup_restore.title"),
+                self.translator.text("dialog.file_backup_restore.no_backup"),
+            )
+            return
+
+        backup_labels = [self._file_backup_label(backup_path) for backup_path in backups]
+        selected_label, accepted = QInputDialog.getItem(
+            self,
+            self.translator.text("dialog.file_backup_restore.title"),
+            self.translator.text("dialog.file_backup_restore.message"),
+            backup_labels,
+            0,
+            False,
+        )
+        if not accepted:
+            return
+        try:
+            backup_path = backups[backup_labels.index(selected_label)]
+        except ValueError:
+            return
+
+        if not self._confirm_discard_changes():
+            return
+
+        try:
+            load_data = self.file_manager.load_text(backup_path, self.current_encoding)
+        except (OSError, UnicodeError) as error:
+            QMessageBox.critical(
+                self,
+                self.translator.text("dialog.file_backup_restore.failed_title"),
+                self.translator.text(
+                    "dialog.encoding_failed",
+                    encoding=self.current_encoding,
+                    error=error,
+                ),
+            )
+            return
+
+        self.editor.setPlainText(load_data)
+        self.editor.moveCursor(QTextCursor.MoveOperation.Start)
+        self.editor.document().setModified(True)
+        self._set_current_file_state(self.current_save_file_path, self.current_encoding)
+        self._update_window_title()
+        self._set_encoding_status()
+        self.statusBar().showMessage(
+            self.translator.text("dialog.file_backup_restore.restored")
+        )
+
+    def _file_backup_label(self, backup_path: Path) -> str:
+        """Return a user-facing label for a saved-file backup."""
+        modified_at = datetime.fromtimestamp(
+            backup_path.stat().st_mtime,
+            timezone.utc,
+        ).astimezone()
+        return self.translator.text(
+            "dialog.file_backup_restore.item",
+            timestamp=modified_at.strftime("%Y-%m-%d %H:%M:%S"),
+            name=backup_path.name,
+        )
 
     def _save_unsaved_backup(self) -> None:
         """Save an unsaved backup of the current editor content if enabled and modified."""

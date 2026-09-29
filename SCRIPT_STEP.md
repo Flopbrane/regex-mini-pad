@@ -136,7 +136,7 @@ Progress on 2026-09-27:
 
 9. Rectangular selection
    - Rectangular selection mode.
-   - Copy rectangular selection.
+   - Copy rectangular selection. Initial normal-selection-to-rectangle copy is implemented in `Step13-section1`.
 
 10. Distribution
     - Review PyInstaller spec.
@@ -1307,7 +1307,7 @@ Policy notes:
 
 - Unsaved backup should remain temporary and scoped to crash recovery. Do not treat it as long-term version history.
 - Saved-file generation backup should run only when an existing file is about to be overwritten.
-- A restore UI is still pending. The current feature creates and prunes backup files, but does not yet provide an in-app recovery picker.
+- The restore UI is available from File > Restore from Backup. It loads a selected backup into the editor as an unsaved change, so the original file is not overwritten until the user saves.
 - The WordPress details snippet is provisional until real Gutenberg paste/save behavior is checked.
 - The new parameter consistency lint is intentionally targeted. It checks common high-risk core blocks first, not every possible WordPress block attribute.
 - Do not try to cover every core block attribute at once. When dictionaries add or change actual WordPress snippets, extend the lint with focused regression tests for those concrete attributes.
@@ -1331,6 +1331,98 @@ Validation result:
 - Full `ruff check .`: All checks passed.
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 - Full `pytest`: 221 passed.
+
+## Step12-section3 Saved-File Backup Restore UI
+
+Purpose:
+
+- Finish the saved-file generation backup loop by adding an in-app recovery path.
+- Keep restore behavior conservative: selected backups are loaded into the current editor as unsaved changes, not written directly over the original file.
+
+Changes:
+
+- Added File menu recovery action:
+  - `main.py`
+    - Added `Restore from Backup...` / `バックアップから復元...`.
+    - Shows a dated backup picker for the current saved file.
+    - Warns when no saved file is active or no backup exists for that file.
+    - Respects the existing unsaved-change confirmation before replacing editor text.
+    - Reads the backup using the current file encoding.
+    - Marks restored content as modified so the user can review before saving.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added localized action text, picker text, empty-state messages, and restore result text.
+  - `fileio/file_backup_manager.py`
+    - Backup listing and pruning now sort by generated backup file name instead of file mtime.
+    - This avoids unstable retention order when rapid consecutive backups inherit the same source-file mtime through `copy2`.
+
+- Added regression tests:
+  - `tests/test_main_window_backup.py`
+    - Restoring a saved-file backup loads the backup text into the editor.
+    - Restoring does not immediately overwrite the current disk file.
+    - Declining the unsaved-change confirmation leaves the current editor text intact.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_main_window_backup.py tests\test_file_backup_manager.py
+```
+
+Validation result:
+
+- Targeted backup tests: 10 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 227 passed.
+
+## Step13-section1 Rectangular Copy Foundation
+
+Purpose:
+
+- Start the rectangular-selection section with a safe, testable foundation.
+- Provide a usable first action before implementing a full mouse/keyboard rectangular selection mode.
+
+Changes:
+
+- Added rectangular text extraction helpers:
+  - `editor/rectangular_selection.py`
+    - Converts normal text selection positions into line/column rectangle coordinates.
+    - Extracts the same column range from each selected line.
+    - Preserves short lines as empty cells instead of padding or changing source text.
+
+- Added an Edit menu action:
+  - `main.py`
+    - Added `Copy as Rectangle` / `矩形としてコピー`.
+    - Shortcut: `Ctrl+Alt+C`.
+    - Copies the rectangular text to the clipboard.
+    - Leaves editor text and undo history unchanged.
+    - Shows status messages for no selection, empty rectangular copy, and successful copy.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added action and status text.
+
+- Added regression tests:
+  - `tests/test_rectangular_selection.py`
+    - Covers position-to-rectangle conversion and rectangular text extraction.
+  - `tests/test_main_window_rectangular_selection.py`
+    - Covers MainWindow action wiring through the clipboard.
+
+Remaining for this section:
+
+- Full rectangular selection mode is still pending.
+- Mouse-based rectangular selection and keyboard expansion are still pending.
+- Visual rectangular selection highlighting is still pending.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_rectangular_selection.py tests\test_main_window_rectangular_selection.py tests\test_app_translation.py
+```
+
+Validation result:
+
+- Targeted rectangular-copy tests: 7 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 227 passed.
 
 ## Validation Commands
 

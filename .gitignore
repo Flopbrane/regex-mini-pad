@@ -44,8 +44,10 @@ Thumbs.db
 .idea/
 CODEX_RULES.md
 NEXT_STEPS.md
+
 # Temporary files
 *.tmp
 *.bak
 .markdownlint.yaml
 CODEX_regex-pad_囲み枠挿入機能_改修指示書.md
+ADDITIONAL_FUNCTION_GUIDE.md

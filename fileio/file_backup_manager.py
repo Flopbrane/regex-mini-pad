@@ -37,7 +37,7 @@ class FileBackupManager:
             return []
         return sorted(
             (item for item in backup_folder.iterdir() if item.is_file()),
-            key=lambda item: item.stat().st_mtime,
+            key=lambda item: item.name,
             reverse=True,
         )
 
@@ -61,7 +61,7 @@ class FileBackupManager:
     ) -> None:
         backups = sorted(
             (item for item in backup_folder.iterdir() if item.is_file()),
-            key=lambda item: item.stat().st_mtime,
+            key=lambda item: item.name,
             reverse=True,
         )
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)

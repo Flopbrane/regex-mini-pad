@@ -9,3 +9,44 @@ class RectangularSelection:
     start_column: int
     end_line: int
     end_column: int
+
+
+def rectangular_selection_from_text_positions(
+    source_text: str,
+    selection_start: int,
+    selection_end: int,
+) -> RectangularSelection:
+    start_line, start_column = _line_column_at_position(source_text, selection_start)
+    end_line, end_column = _line_column_at_position(source_text, selection_end)
+    return RectangularSelection(
+        start_line=start_line,
+        start_column=start_column,
+        end_line=end_line,
+        end_column=end_column,
+    )
+
+
+def rectangular_text(source_text: str, selection: RectangularSelection) -> str:
+    top_line = min(selection.start_line, selection.end_line)
+    bottom_line = max(selection.start_line, selection.end_line)
+    left_column = min(selection.start_column, selection.end_column)
+    right_column = max(selection.start_column, selection.end_column)
+    if left_column == right_column:
+        return ""
+
+    lines = source_text.split("\n")
+    copied_lines: list[str] = []
+    for line_index in range(top_line, bottom_line + 1):
+        line = lines[line_index] if line_index < len(lines) else ""
+        copied_lines.append(line[left_column:right_column])
+    return "\n".join(copied_lines)
+
+
+def _line_column_at_position(source_text: str, text_position: int) -> tuple[int, int]:
+    bounded_position = min(max(text_position, 0), len(source_text))
+    preceding_text = source_text[:bounded_position]
+    line_number = preceding_text.count("\n")
+    if not preceding_text:
+        return 0, 0
+    column_number = len(preceding_text.rsplit("\n", maxsplit=1)[-1])
+    return line_number, column_number

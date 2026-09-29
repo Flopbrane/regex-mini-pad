@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
 
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from main import MainWindow
@@ -164,3 +164,80 @@ def test_main_window_saves_existing_file_backup_before_overwrite(
     assert len(backups) == 1
     assert backups[0].read_text(encoding="utf-8") == "old text"
     assert save_file_path.read_text(encoding="utf-8") == "new text"
+
+
+def test_main_window_restores_file_backup_into_editor(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    save_file_path = tmp_path / "saved.txt"
+    save_file_path.write_text("backup text", encoding="utf-8")
+    backup_folder = tmp_path / "backup"
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+        restore_unsaved_backup=False,
+    )
+    window.backup_folder = str(backup_folder)
+    window.file_backup_manager = window.file_backup_manager.__class__(
+        window._file_backup_folder_for_folder(window.backup_folder)
+    )
+    window.file_backup_manager.backup_existing_file(save_file_path)
+    save_file_path.write_text("current disk text", encoding="utf-8")
+    window._set_current_file_state(save_file_path, "utf-8")
+    window.editor.setPlainText("current editor text")
+    window.editor.document().setModified(False)
+
+    def select_first_backup(*args, **kwargs) -> tuple[str, bool]:
+        labels = args[3]
+        return labels[0], True
+
+    monkeypatch.setattr(QInputDialog, "getItem", select_first_backup)
+
+    window.restore_file_backup()
+
+    assert window.editor.toPlainText() == "backup text"
+    assert window.editor.document().isModified()
+    assert save_file_path.read_text(encoding="utf-8") == "current disk text"
+
+
+def test_main_window_keeps_modified_text_when_file_backup_restore_is_declined(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    save_file_path = tmp_path / "saved.txt"
+    save_file_path.write_text("backup text", encoding="utf-8")
+    backup_folder = tmp_path / "backup"
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+        restore_unsaved_backup=False,
+    )
+    window.backup_folder = str(backup_folder)
+    window.file_backup_manager = window.file_backup_manager.__class__(
+        window._file_backup_folder_for_folder(window.backup_folder)
+    )
+    window.file_backup_manager.backup_existing_file(save_file_path)
+    window._set_current_file_state(save_file_path, "utf-8")
+    window.editor.setPlainText("do not replace")
+    window.editor.document().setModified(True)
+
+    def select_first_backup(*args, **kwargs) -> tuple[str, bool]:
+        labels = args[3]
+        return labels[0], True
+
+    monkeypatch.setattr(QInputDialog, "getItem", select_first_backup)
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+
+    window.restore_file_backup()
+
+    assert window.editor.toPlainText() == "do not replace"
+    assert window.editor.document().isModified()
