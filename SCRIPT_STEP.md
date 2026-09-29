@@ -1697,6 +1697,120 @@ Validation result:
 - Full `pytest`: 236 passed.
 - Current `sample/test.wp_html` lint output: 16 issue rows across the expected categories.
 
+## Step13-section7 Escaped Code Display And Inline Tag Lint Order
+
+Purpose:
+
+- Re-check the grammar lint algorithm after `sample/test.wp_html` was mostly repaired.
+- Avoid false positives from escaped HTML shown inside code display blocks.
+- Report real inline HTML tag breakage at the source line instead of at a later unrelated matching tag.
+
+Findings:
+
+- Current `sample/test.wp_html` no longer has the previous broad set of sample breakages.
+- The remaining grammar-check output had three rows:
+  - 299 and 319 were `/code&gt;` fragments inside `wp:code` display content, not broken live HTML.
+  - The `<strong>` issue was still real in the file, but the old count-based check pointed at a later normal `<strong>` line.
+- Total tag counts are useful as a coarse fallback, but they are fragile for inline tags because a later valid close tag can mask where the actual omission started.
+
+Lint order policy:
+
+1. Read WordPress block comments first and identify block bodies.
+2. Treat escaped display content inside `wp:code` and `wp:html` as code text for fragile escaped-fragment checks.
+3. Run simple WordPress block structure checks.
+4. Run real HTML token checks with `HTMLParser`.
+5. For inline tags such as `strong`, `em`, `span`, `code`, and `a`, detect:
+   - Unclosed inline tags before a parent close such as `</p>`.
+   - Invalid closing order such as closing `</strong>` before `</span>`.
+6. Keep dictionary/tag/attribute and WordPress attribute-vs-HTML consistency checks as targeted warnings.
+
+Changes:
+
+- Updated `search/html_typo_lint.py`:
+  - Added inline-tag stack checks for unclosed inline tags before parent close tags.
+  - Added a separate document-end message for inline tags that remain open at EOF.
+  - Added closing-order checks for nested inline tags.
+  - Stopped using global `<strong>` count mismatch as the primary diagnostic.
+  - Ignored `/code&gt;` escaped-fragment warnings inside `wp:code` and `wp:html` bodies.
+
+- Updated localization:
+  - `resources/app_text_ja.json`
+  - `resources/app_text_en.json`
+  - Added repair-oriented messages for inline tag closing and closing-order issues.
+
+- Updated regression tests:
+  - `tests/test_html_typo_lint.py`
+    - Added tests for `<strong>` missing before `</p>`.
+    - Added tests for invalid inline nesting order.
+    - Added tests for inline tags left open at document end.
+    - Added tests confirming escaped HTML inside a WordPress code block is accepted.
+    - Adjusted the real sample check so repaired samples do not depend on old issue counts.
+
+Current sample result:
+
+- `sample/test.wp_html` now reports one remaining issue:
+  - 501行目: `<strong>` is not closed before `</p>`.
+- The former 299/319 `/code&gt;` rows are no longer reported.
+
+## Step13-section8 Planned Lint Ledger Refactor
+
+Purpose:
+
+- Prepare the next lint foundation pass before adding more individual rules.
+- Reduce false positives and missed errors by separating typo detection, WordPress block structure, and HTML tag structure.
+- Use the standard lint dictionary as the shared reference source instead of letting each check infer its own truth.
+
+Direction:
+
+- Treat `dictionaries/lint_reference.json` as the standard reference dictionary for known WordPress core blocks, HTML tags, HTML attributes, and allowed attribute prefixes.
+- Gradually change the grammar check into three comparison stages:
+  1. `Typo_lint`
+     - Detect simple textual damage and dictionary mismatches.
+     - Examples: unknown WordPress block names, unknown HTML tags, unknown attributes, `<\p>`, `margin:2en`, and fragile literal fragments.
+     - Do not decide complex open/close structure here.
+  2. `WP_lint`
+     - Parse only WordPress block comments such as `<!-- wp:paragraph -->` and `<!-- /wp:paragraph -->`.
+     - Build a WordPress block ledger with line numbers, open/close kind, block name, parent relationship, body range, and display-code/custom-HTML ranges.
+     - Do not deeply validate HTML tags in this stage.
+  3. `HTML_lint`
+     - Parse real HTML tags using the WP ledger as context.
+     - Ignore escaped display content inside `wp:code` and other ledger-marked display areas.
+     - Check tag open/close order, missing close tags, unexpected close tags, and inline-tag parent boundaries.
+
+Ledger policy:
+
+- Prefer in-memory ledgers for normal lint execution.
+- Use `lint_wp_blocks.json` and `lint_html_tags.json` only as optional debug output or inspection artifacts, not as always-on source-of-truth files.
+- Avoid depending on stale generated JSON during ordinary grammar checks.
+- If debug JSON output is added later, write it under a cache/debug location and make it explicitly regenerated per lint run.
+
+Planned internal records:
+
+- `WPBlockRecord`
+  - `line_number`
+  - `block_name`
+  - `kind` (`open` / `close`)
+  - `pair_id`
+  - `parent_pair_id`
+  - `body_start`
+  - `body_end`
+  - `is_display_code_area`
+- `HtmlTagRecord`
+  - `line_number`
+  - `tag_name`
+  - `kind` (`open` / `close` / `self_closing`)
+  - `pair_id`
+  - `wp_block_pair_id`
+  - `ignored_reason`
+
+Implementation notes for next pass:
+
+- Keep existing user-facing grammar-check output stable while replacing the internal structure.
+- First build ledger helpers inside `search/html_typo_lint.py` to avoid premature large-file/module splitting.
+- After behavior is stable, consider extracting to dedicated modules such as `linting_wp_block.py` and `linting_html_tag.py`.
+- Add regression tests for each migration step before removing old count-based checks.
+- Keep `wp:code` and inline `<code>&lt;...&gt;</code>` display content out of live HTML structural checks.
+
 ## Validation Commands
 
 Use the project virtual environment:

@@ -164,7 +164,64 @@ def test_lint_reports_nested_code_and_strong_count_mismatch() -> None:
     message_keys = {message.message_key for message in messages}
     assert "html_typo_lint.nested_html_tag" in message_keys
     assert "html_typo_lint.count_mismatch_code" in message_keys
-    assert "html_typo_lint.count_mismatch_strong" in message_keys
+    assert "html_typo_lint.inline_tag_unclosed_before_parent" in message_keys
+
+
+def test_lint_reports_inline_tag_unclosed_before_paragraph_close() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p>本文です。<br><br>\n"
+        "<strong>重要です。</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.inline_tag_unclosed_before_parent"
+        and message.line_number == 3
+        and message.values == {"tag": "strong", "parent": "p"}
+        for message in messages
+    )
+
+
+def test_lint_reports_inline_tag_closing_order() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        '<p><strong><span style="color: red;">重要です。</strong></span></p>\n'
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.inline_tag_closing_order"
+        and message.line_number == 2
+        and message.values == {"tag": "span", "closing_tag": "strong"}
+        for message in messages
+    )
+
+
+def test_lint_reports_inline_tag_unclosed_at_document_end() -> None:
+    messages = lint_html_typos("<p><strong>重要です。")
+
+    assert any(
+        message.message_key == "html_typo_lint.inline_tag_unclosed_at_document_end"
+        and message.line_number == 1
+        and message.values == {"tag": "strong"}
+        for message in messages
+    )
+
+
+def test_lint_accepts_escaped_html_inside_wordpress_code_block() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:code -->\n"
+        "<pre class=\"wp-block-code\"><code>&lt;!-- wp:paragraph --&gt;\n"
+        "&lt;p&gt;段落は &lt;code&gt;&amp;lt;p&amp;gt;&lt;/code&gt; タグで作ります。&lt;/p&gt;\n"
+        "&lt;!-- /wp:paragraph --&gt;</code></pre>\n"
+        "<!-- /wp:code -->"
+    )
+
+    assert not any(
+        message.message_key == "html_typo_lint.escaped_code_close_fragment"
+        for message in messages
+    )
 
 
 def test_lint_reports_orphan_empty_paragraph_and_break() -> None:
@@ -234,16 +291,18 @@ def test_lint_reports_real_sample_problem_categories() -> None:
 
     messages = lint_html_typos(sample_text)
 
-    message_keys = {message.message_key for message in messages}
-    assert len(messages) > 1
-    assert "html_typo_lint.count_mismatch_code" in message_keys
-    assert "html_typo_lint.nested_html_tag" in message_keys
-    assert "html_typo_lint.escaped_code_close_fragment" in message_keys
-    assert "html_typo_lint.wordpress_separator_contains_code" in message_keys
-    assert "html_typo_lint.duplicate_wordpress_paragraph" in message_keys
-    assert "html_typo_lint.count_mismatch_strong" in message_keys
-    assert "html_typo_lint.empty_paragraph_outside_wordpress_block" in message_keys
-    assert "html_typo_lint.break_outside_wordpress_block" in message_keys
+    assert not any(
+        message.message_key == "html_typo_lint.escaped_code_close_fragment"
+        and message.line_number in {299, 319}
+        for message in messages
+    )
+    if "<strong>ブロックの設定情報です。</p>" in sample_text:
+        assert any(
+            message.message_key == "html_typo_lint.inline_tag_unclosed_before_parent"
+            and message.line_number == 501
+            and message.values == {"tag": "strong", "parent": "p"}
+            for message in messages
+        )
 
 
 def test_lint_reports_known_fragile_typos() -> None:

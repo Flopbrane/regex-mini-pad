@@ -119,6 +119,52 @@ RESTRICTED_HTML_TAG_REASONS = {
     "canvas": "JavaScript drawing surface",
 }
 RESTRICTED_HTML_ATTRIBUTE_PREFIXES = ("on",)
+VOID_TAGS = {
+    "area",
+    "base",
+    "br",
+    "col",
+    "embed",
+    "hr",
+    "img",
+    "input",
+    "link",
+    "meta",
+    "param",
+    "source",
+    "track",
+    "wbr",
+}
+INLINE_TAGS = {
+    "a",
+    "b",
+    "code",
+    "em",
+    "i",
+    "mark",
+    "small",
+    "span",
+    "strong",
+}
+INLINE_PARENT_BOUNDARY_TAGS = {
+    "blockquote",
+    "dd",
+    "div",
+    "dt",
+    "figcaption",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "li",
+    "p",
+    "pre",
+    "td",
+    "th",
+}
+ESCAPED_FRAGMENT_IGNORED_WORDPRESS_BLOCKS = {"code", "html"}
 
 
 @dataclass(frozen=True)
@@ -191,13 +237,6 @@ def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage
             load_data,
             "code",
             "html_typo_lint.count_mismatch_code",
-        )
-    )
-    messages.extend(
-        _lint_html_tag_count(
-            load_data,
-            "strong",
-            "html_typo_lint.count_mismatch_strong",
         )
     )
     messages.extend(_lint_non_nestable_html_tag(load_data, "code"))
@@ -354,12 +393,15 @@ def _lint_orphan_html_lines_outside_wordpress_blocks(
 def _lint_known_fragile_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     line_starts = _line_start_positions(load_data)
-    typo_checks = (
+    ignored_ranges = _wordpress_block_body_ranges(
+        load_data,
+        ESCAPED_FRAGMENT_IGNORED_WORDPRESS_BLOCKS,
+    )
+    ordinary_checks = (
         (r"<\\p\s*>", "html_typo_lint.invalid_p_closing_tag"),
         (r"margin\s*:\s*2en\b", "html_typo_lint.known_typo_margin_2en"),
-        (r"/code&gt;", "html_typo_lint.escaped_code_close_fragment"),
     )
-    for pattern, message_key in typo_checks:
+    for pattern, message_key in ordinary_checks:
         for match in re.finditer(pattern, load_data, re.IGNORECASE):
             messages.append(
                 HtmlTypoLintMessage(
@@ -368,7 +410,43 @@ def _lint_known_fragile_typos(load_data: str) -> list[HtmlTypoLintMessage]:
                     _line_number_at(match.start(), line_starts),
                 )
             )
+    for match in re.finditer(r"/code&gt;", load_data, re.IGNORECASE):
+        if _position_in_ranges(match.start(), ignored_ranges):
+            continue
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.escaped_code_close_fragment",
+                _line_number_at(match.start(), line_starts),
+            )
+        )
     return messages
+
+
+def _wordpress_block_body_ranges(
+    load_data: str,
+    block_names: set[str],
+) -> list[tuple[int, int]]:
+    ranges: list[tuple[int, int]] = []
+    block_stack: list[tuple[str, int]] = []
+    for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
+        is_closing = bool(block_match.group(1))
+        block_name = _normalize_block_name(block_match.group(2))
+        if not is_closing:
+            block_stack.append((block_name, block_match.end()))
+            continue
+        if not block_stack:
+            continue
+        open_block_name, open_end = block_stack.pop()
+        if open_block_name != block_name:
+            continue
+        if block_name in block_names:
+            ranges.append((open_end, block_match.start()))
+    return ranges
+
+
+def _position_in_ranges(position: int, ranges: list[tuple[int, int]]) -> bool:
+    return any(start <= position < end for start, end in ranges)
 
 
 def _load_lint_reference() -> dict[str, Any]:
@@ -824,9 +902,15 @@ class HtmlTypoLintParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=False)
         self.messages: list[HtmlTypoLintMessage] = []
+        self.inline_stack: list[tuple[str, int]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._lint_tag_and_attrs(tag, attrs)
+        clean_tag = tag.lower()
+        if clean_tag in VOID_TAGS:
+            return
+        if clean_tag in INLINE_TAGS:
+            self.inline_stack.append((clean_tag, self.getpos()[0]))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._lint_tag_and_attrs(tag, attrs)
@@ -835,6 +919,11 @@ class HtmlTypoLintParser(HTMLParser):
         clean_tag = tag.lower()
         line_number = self.getpos()[0]
         self._lint_unknown_html_tag(clean_tag, line_number)
+        self._lint_inline_endtag(clean_tag, line_number)
+
+    def close(self) -> None:
+        super().close()
+        self._lint_unclosed_inline_tags_at_document_end()
 
     def _lint_tag_and_attrs(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         clean_tag = tag.lower()
@@ -844,6 +933,66 @@ class HtmlTypoLintParser(HTMLParser):
         attrs_dict = {name.lower(): value or "" for name, value in attrs}
         self._lint_unknown_html_attrs(clean_tag, attrs_dict, line_number)
         self._lint_restricted_html_attrs(clean_tag, attrs_dict, line_number)
+
+    def _lint_inline_endtag(self, tag: str, line_number: int) -> None:
+        if tag in INLINE_TAGS:
+            self._close_inline_tag(tag, line_number)
+            return
+        if tag in INLINE_PARENT_BOUNDARY_TAGS:
+            self._lint_unclosed_inline_tags_before_parent(tag)
+
+    def _close_inline_tag(self, tag: str, line_number: int) -> None:
+        if not self.inline_stack:
+            return
+        if self.inline_stack[-1][0] == tag:
+            self.inline_stack.pop()
+            return
+
+        matching_index = next(
+            (
+                index
+                for index in range(len(self.inline_stack) - 1, -1, -1)
+                if self.inline_stack[index][0] == tag
+            ),
+            None,
+        )
+        if matching_index is None:
+            return
+
+        expected_tag = self.inline_stack[-1][0]
+        self.messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.inline_tag_closing_order",
+                line_number,
+                {"tag": expected_tag, "closing_tag": tag},
+            )
+        )
+        del self.inline_stack[matching_index]
+
+    def _lint_unclosed_inline_tags_before_parent(self, parent_tag: str) -> None:
+        while self.inline_stack:
+            tag, line_number = self.inline_stack.pop()
+            self.messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.inline_tag_unclosed_before_parent",
+                    line_number,
+                    {"tag": tag, "parent": parent_tag},
+                )
+            )
+
+    def _lint_unclosed_inline_tags_at_document_end(self) -> None:
+        while self.inline_stack:
+            tag, line_number = self.inline_stack.pop()
+            self.messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.inline_tag_unclosed_at_document_end",
+                    line_number,
+                    {"tag": tag},
+                )
+            )
 
     def _lint_unknown_html_tag(self, tag: str, line_number: int) -> None:
         if tag in KNOWN_HTML_TAGS or "-" in tag or ":" in tag:
