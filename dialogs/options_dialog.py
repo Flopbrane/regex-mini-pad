@@ -81,6 +81,19 @@ FRAME_TEXT_COLOR_PRESETS: tuple[tuple[str, str], ...] = (
     ("options.frame_text_color.green", "#214c32"),
     ("options.frame_text_color.gray", "#666666"),
 )
+EDITOR_THEME_PRESETS: tuple[tuple[str, str, str, str, str], ...] = (
+    ("options.editor_theme.light", "light", "#ffffff", "#202124", "#0b5cad"),
+    ("options.editor_theme.soft", "soft", "#fffaf0", "#333333", "#8a4b00"),
+    ("options.editor_theme.dark", "dark", "#1f2933", "#f5f7fa", "#7cc4ff"),
+    (
+        "options.editor_theme.high_contrast",
+        "high_contrast",
+        "#000000",
+        "#ffffff",
+        "#00d9ff",
+    ),
+    ("options.editor_theme.custom", "custom", "#ffffff", "#202124", "#0b5cad"),
+)
 
 
 @dataclass(frozen=True)
@@ -107,6 +120,10 @@ class OptionsDialogValues:
     font_family: str
     font_size: int
     tab_width: int
+    editor_theme: str
+    editor_background_color: str
+    editor_text_color: str
+    html_tag_color: str
     search_marker_color: str
     current_match_marker_color: str
     visible_space_marker_color: str
@@ -166,6 +183,13 @@ class OptionsDialog(QDialog):
         self.font_family_combo = QComboBox(self)
         self.font_size_spin = QSpinBox(self)
         self.tab_width_spin = QSpinBox(self)
+        self.editor_theme_combo = QComboBox(self)
+        self.editor_background_color_combo = QComboBox(self)
+        self.editor_background_color_button = QPushButton(self)
+        self.editor_text_color_combo = QComboBox(self)
+        self.editor_text_color_button = QPushButton(self)
+        self.html_tag_color_combo = QComboBox(self)
+        self.html_tag_color_button = QPushButton(self)
         self.search_marker_color_combo = QComboBox(self)
         self.search_marker_color_button = QPushButton(self)
         self.current_match_marker_color_combo = QComboBox(self)
@@ -318,6 +342,23 @@ class OptionsDialog(QDialog):
         self.font_size_spin.setValue(settings.font_size)
         self.tab_width_spin.setRange(1, 16)
         self.tab_width_spin.setValue(settings.tab_width)
+        self._set_translation_combo(
+            self.editor_theme_combo,
+            self._editor_theme_options(),
+            settings.editor_theme,
+        )
+        self._set_color_combo(
+            self.editor_background_color_combo,
+            settings.editor_background_color,
+        )
+        self._set_color_combo(
+            self.editor_text_color_combo,
+            settings.editor_text_color,
+        )
+        self._set_color_combo(
+            self.html_tag_color_combo,
+            settings.html_tag_color,
+        )
         self._set_color_combo(
             self.search_marker_color_combo,
             settings.search_marker_color,
@@ -368,6 +409,12 @@ class OptionsDialog(QDialog):
             font_family=self.font_family_combo.currentText(),
             font_size=self.font_size_spin.value(),
             tab_width=self.tab_width_spin.value(),
+            editor_theme=str(self.editor_theme_combo.currentData()),
+            editor_background_color=str(
+                self.editor_background_color_combo.currentData()
+            ),
+            editor_text_color=str(self.editor_text_color_combo.currentData()),
+            html_tag_color=str(self.html_tag_color_combo.currentData()),
             search_marker_color=str(self.search_marker_color_combo.currentData()),
             current_match_marker_color=str(
                 self.current_match_marker_color_combo.currentData()
@@ -544,6 +591,34 @@ class OptionsDialog(QDialog):
         layout.addRow(self.translator.text("options.font_family"), self.font_family_combo)
         layout.addRow(self.translator.text("options.font_size"), self.font_size_spin)
         layout.addRow(self.translator.text("options.item.tab_width"), self.tab_width_spin)
+        self._populate_color_combo(self.editor_background_color_combo)
+        self._populate_color_combo(self.editor_text_color_combo)
+        self._populate_color_combo(self.html_tag_color_combo)
+        layout.addRow(
+            self.translator.text("options.editor_theme"),
+            self.editor_theme_combo,
+        )
+        layout.addRow(
+            self.translator.text("options.editor_background_color"),
+            self._color_picker_row(
+                self.editor_background_color_combo,
+                self.editor_background_color_button,
+            ),
+        )
+        layout.addRow(
+            self.translator.text("options.editor_text_color"),
+            self._color_picker_row(
+                self.editor_text_color_combo,
+                self.editor_text_color_button,
+            ),
+        )
+        layout.addRow(
+            self.translator.text("options.html_tag_color"),
+            self._color_picker_row(
+                self.html_tag_color_combo,
+                self.html_tag_color_button,
+            ),
+        )
         tab.setLayout(layout)
         return tab
 
@@ -595,6 +670,18 @@ class OptionsDialog(QDialog):
         )
         self.frame_display_combo.currentIndexChanged.connect(
             self._set_frame_display_description
+        )
+        self.editor_theme_combo.currentIndexChanged.connect(
+            self._apply_editor_theme_preset
+        )
+        self.editor_background_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.editor_background_color_combo)
+        )
+        self.editor_text_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.editor_text_color_combo)
+        )
+        self.html_tag_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.html_tag_color_combo)
         )
         self.frame_background_color_button.clicked.connect(
             lambda: self._choose_color_for_combo(self.frame_background_color_combo)
@@ -678,6 +765,25 @@ class OptionsDialog(QDialog):
                 current_index = 0
         combo_box.setCurrentIndex(current_index)
 
+    def _editor_theme_options(self) -> tuple[tuple[str, str], ...]:
+        return tuple((label_key, value) for label_key, value, *_ in EDITOR_THEME_PRESETS)
+
+    def _apply_editor_theme_preset(self) -> None:
+        theme_value = str(self.editor_theme_combo.currentData())
+        for (
+            _label_key,
+            preset_value,
+            background_color,
+            text_color,
+            html_tag_color,
+        ) in EDITOR_THEME_PRESETS:
+            if preset_value != theme_value or preset_value == "custom":
+                continue
+            self._set_color_combo(self.editor_background_color_combo, background_color)
+            self._set_color_combo(self.editor_text_color_combo, text_color)
+            self._set_color_combo(self.html_tag_color_combo, html_tag_color)
+            return
+
     def _set_frame_display_description(self) -> None:
         display_value = str(self.frame_display_combo.currentData())
         key_suffix = display_value.replace("-", "_")
@@ -732,6 +838,9 @@ class OptionsDialog(QDialog):
 
     def _color_buttons(self) -> tuple[QPushButton, ...]:
         return (
+            self.editor_background_color_button,
+            self.editor_text_color_button,
+            self.html_tag_color_button,
             self.frame_background_color_button,
             self.frame_text_color_button,
             self.search_marker_color_button,

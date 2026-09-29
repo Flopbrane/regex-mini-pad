@@ -41,6 +41,11 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.frame_outer_spacing_combo.count() == 4
     assert dialog.frame_background_color_combo.count() == 6
     assert dialog.frame_text_color_combo.count() == 6
+    assert dialog.editor_theme_combo.count() == 5
+    assert dialog.editor_background_color_combo.currentText() == "#ffffff"
+    assert dialog.editor_text_color_combo.currentText() == "#202124"
+    assert dialog.html_tag_color_combo.currentText() == "#0b5cad"
+    assert dialog.editor_background_color_button.text() == "色選択..."
     assert dialog.frame_alignment_combo.currentText() == "左寄せ"
     assert dialog.frame_display_combo.currentText() == (
         "文字幅に合わせる（inline-block）"
@@ -104,6 +109,10 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             font_family="Consolas",
             font_size=14,
             tab_width=8,
+            editor_theme="dark",
+            editor_background_color="#1f2933",
+            editor_text_color="#f5f7fa",
+            html_tag_color="#7cc4ff",
             search_marker_color="#9ed8ff",
             current_match_marker_color="#ffb3d9",
             visible_space_marker_color="#d9d9d9",
@@ -143,6 +152,10 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.backup_retention_days == 45
     assert values.font_size == 14
     assert values.tab_width == 8
+    assert values.editor_theme == "dark"
+    assert values.editor_background_color == "#1f2933"
+    assert values.editor_text_color == "#f5f7fa"
+    assert values.html_tag_color == "#7cc4ff"
     assert values.search_marker_color == "#9ed8ff"
     assert values.current_match_marker_color == "#ffb3d9"
     assert values.visible_space_marker_color == "#d9d9d9"

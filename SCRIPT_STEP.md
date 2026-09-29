@@ -1517,6 +1517,63 @@ Validation result:
 - Full `ruff check .`: All checks passed.
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 
+## Step13-section4 Editor Theme And HTML Syntax Highlighting
+
+Purpose:
+
+- Add full editor-side HTML tag coloring to make HTML and WordPress snippets easier to inspect in the main text editor.
+- Add editor-wide theme switching with saved background, text, and HTML tag colors.
+- Keep the implementation local and portable through the existing settings JSON.
+
+Changes:
+
+- Added editor-side HTML highlighting:
+  - `editor/text_editor.py`
+    - Added a `QSyntaxHighlighter` for HTML tags and WordPress block comments.
+    - Tags such as `<div>`, `</p>`, and `<br>` are highlighted in the configured HTML tag color.
+    - WordPress block comments such as `<!-- wp:paragraph -->` are highlighted in a softer comment color.
+    - The highlighter is visual only and does not modify the source text.
+
+- Added editor theme settings:
+  - `settings/settings_manager.py`
+    - Added persistent keys for `editor_theme`, `editor_background_color`, `editor_text_color`, and `html_tag_color`.
+  - `dialogs/options_dialog.py`
+    - Added theme presets: light, soft paper, dark, high contrast, and custom.
+    - Added color picker rows for editor background, editor text, and HTML tag color.
+  - `main.py`
+    - Applies the saved editor colors to all open tabs.
+    - Applies the selected colors immediately after accepting the Options dialog.
+    - Applies the saved colors to newly created tabs.
+
+- Updated localization and tests:
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added labels for editor theme controls and color rows.
+  - `tests/test_settings_manager.py`
+    - Covered saving/loading the new theme fields.
+  - `tests/test_options_dialog.py`
+    - Covered the new theme controls and returned values.
+  - `tests/test_text_editor_visible_whitespace.py`
+    - Covered editor color application to the text editor stylesheet.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_options_dialog.py tests\test_settings_manager.py tests\test_text_editor_visible_whitespace.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- JSON validation passed for both app translation files.
+- Targeted options/settings/text-editor tests: 13 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 230 passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

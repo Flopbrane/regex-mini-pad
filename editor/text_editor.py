@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from PySide6.QtCore import QRect, QSize, Qt
@@ -9,8 +10,10 @@ from PySide6.QtGui import (
     QPainter,
     QPaintEvent,
     QResizeEvent,
+    QSyntaxHighlighter,
     QTextCharFormat,
     QTextCursor,
+    QTextDocument,
     QTextOption,
 )
 from PySide6.QtWidgets import QPlainTextEdit, QTextEdit
@@ -24,6 +27,33 @@ from search.search_engine import SearchMatch
 class VisibleWhitespaceMark:
     text_position: int
     marker: str
+
+
+class HtmlSyntaxHighlighter(QSyntaxHighlighter):
+    def __init__(self, document: QTextDocument) -> None:
+        super().__init__(document)
+        self.enabled = True
+        self.tag_format = QTextCharFormat()
+        self.tag_format.setForeground(QColor("#0b5cad"))
+        self.comment_format = QTextCharFormat()
+        self.comment_format.setForeground(QColor("#667085"))
+
+    def set_tag_color(self, color_code: str) -> None:
+        color = QColor(color_code)
+        self.tag_format.setForeground(color if color.isValid() else QColor("#0b5cad"))
+        self.rehighlight()
+
+    def set_enabled(self, enabled: bool) -> None:
+        self.enabled = enabled
+        self.rehighlight()
+
+    def highlightBlock(self, text: str) -> None:
+        if not self.enabled:
+            return
+        for match in re.finditer(r"<!--\s*/?wp:[^>]*-->", text):
+            self.setFormat(match.start(), match.end() - match.start(), self.comment_format)
+        for match in re.finditer(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*)?/?>", text):
+            self.setFormat(match.start(), match.end() - match.start(), self.tag_format)
 
 
 class TextEditor(QPlainTextEdit):
@@ -44,8 +74,13 @@ class TextEditor(QPlainTextEdit):
         self.word_wrap_enabled = False
         self.fixed_column_wrap_enabled = False
         self.fixed_column_wrap_column = 80
+        self.editor_background_color = "#ffffff"
+        self.editor_text_color = "#202124"
+        self.html_tag_color = "#0b5cad"
+        self.html_highlighter = HtmlSyntaxHighlighter(self.document())
 
         self.setFont(QFont("Consolas", 11))
+        self._apply_editor_colors()
         self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.setTabStopDistance(self.fontMetrics().horizontalAdvance(" ") * 4)
         self.blockCountChanged.connect(self.update_line_number_area_width)
@@ -63,6 +98,30 @@ class TextEditor(QPlainTextEdit):
         self._apply_line_wrap_mode()
         self.update_editor_margins()
         self.viewport().update()
+
+    def set_editor_colors(
+        self,
+        *,
+        background_color: str,
+        text_color: str,
+        html_tag_color: str,
+    ) -> None:
+        self.editor_background_color = _valid_color_or_default(
+            background_color,
+            "#ffffff",
+        )
+        self.editor_text_color = _valid_color_or_default(text_color, "#202124")
+        self.html_tag_color = _valid_color_or_default(html_tag_color, "#0b5cad")
+        self._apply_editor_colors()
+        self.html_highlighter.set_tag_color(self.html_tag_color)
+
+    def _apply_editor_colors(self) -> None:
+        self.setStyleSheet(
+            "QPlainTextEdit {"
+            f" background-color: {self.editor_background_color};"
+            f" color: {self.editor_text_color};"
+            "}"
+        )
 
     def _apply_line_wrap_mode(self) -> None:
         enabled = self.word_wrap_enabled or self.fixed_column_wrap_enabled
@@ -449,3 +508,10 @@ class TextEditor(QPlainTextEdit):
         for line_number in marked_lines:
             marker_y = round((line_number / block_count) * area_height)
             painter.drawRect(2, marker_y, area_width - 4, 3)
+
+
+def _valid_color_or_default(color_code: str, default: str) -> str:
+    color = QColor(color_code)
+    if color.isValid():
+        return color.name()
+    return default

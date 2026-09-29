@@ -33,6 +33,10 @@ class EditorSettings:
     font_family: str = "Consolas"
     font_size: int = 11
     tab_width: int = 4
+    editor_theme: str = "light"
+    editor_background_color: str = "#ffffff"
+    editor_text_color: str = "#202124"
+    html_tag_color: str = "#0b5cad"
     search_marker_color: str = "#ffff00"
     current_match_marker_color: str = "#ff9900"
     visible_space_marker_color: str = "#9a9a9a"
@@ -114,6 +118,12 @@ class SettingsManager:
             font_family=_setting_str(load_data, "font_family", "Consolas"),
             font_size=_setting_int_min(load_data, "font_size", 11, minimum=1),
             tab_width=_setting_int_min(load_data, "tab_width", 4, minimum=1),
+            editor_theme=_setting_str(load_data, "editor_theme", "light"),
+            editor_background_color=_setting_str(
+                load_data, "editor_background_color", "#ffffff"
+            ),
+            editor_text_color=_setting_str(load_data, "editor_text_color", "#202124"),
+            html_tag_color=_setting_str(load_data, "html_tag_color", "#0b5cad"),
             search_marker_color=_setting_str(
                 load_data, "search_marker_color", "#ffff00"
             ),
@@ -174,6 +184,10 @@ class SettingsManager:
         font_family: str = "Consolas",
         font_size: int = 11,
         tab_width: int = 4,
+        editor_theme: str = "light",
+        editor_background_color: str = "#ffffff",
+        editor_text_color: str = "#202124",
+        html_tag_color: str = "#0b5cad",
         search_marker_color: str = "#ffff00",
         current_match_marker_color: str = "#ff9900",
         visible_space_marker_color: str = "#9a9a9a",
@@ -213,6 +227,10 @@ class SettingsManager:
             "font_family": font_family,
             "font_size": font_size,
             "tab_width": max(1, tab_width),
+            "editor_theme": editor_theme,
+            "editor_background_color": editor_background_color,
+            "editor_text_color": editor_text_color,
+            "html_tag_color": html_tag_color,
             "search_marker_color": search_marker_color,
             "current_match_marker_color": current_match_marker_color,
             "visible_space_marker_color": visible_space_marker_color,

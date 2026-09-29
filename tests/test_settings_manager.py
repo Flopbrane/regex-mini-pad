@@ -34,6 +34,10 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.font_family == "Consolas"
     assert settings.font_size == 11
     assert settings.tab_width == 4
+    assert settings.editor_theme == "light"
+    assert settings.editor_background_color == "#ffffff"
+    assert settings.editor_text_color == "#202124"
+    assert settings.html_tag_color == "#0b5cad"
     assert settings.search_marker_color == "#ffff00"
     assert settings.current_match_marker_color == "#ff9900"
     assert settings.visible_space_marker_color == "#9a9a9a"
@@ -77,6 +81,10 @@ def test_save_and_load_settings(tmp_path) -> None:
         font_family="Meiryo",
         font_size=14,
         tab_width=8,
+        editor_theme="dark",
+        editor_background_color="#1f2933",
+        editor_text_color="#f5f7fa",
+        html_tag_color="#7cc4ff",
         search_marker_color="#9ed8ff",
         current_match_marker_color="#ffb3d9",
         visible_space_marker_color="#d9d9d9",
@@ -117,6 +125,10 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.font_family == "Meiryo"
     assert settings.font_size == 14
     assert settings.tab_width == 8
+    assert settings.editor_theme == "dark"
+    assert settings.editor_background_color == "#1f2933"
+    assert settings.editor_text_color == "#f5f7fa"
+    assert settings.html_tag_color == "#7cc4ff"
     assert settings.search_marker_color == "#9ed8ff"
     assert settings.current_match_marker_color == "#ffb3d9"
     assert settings.visible_space_marker_color == "#d9d9d9"

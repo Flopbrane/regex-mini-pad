@@ -91,6 +91,25 @@ def test_visible_whitespace_marker_colors_are_configurable(
     assert editor._visible_whitespace_marker_color("\n") == "#ff9900"
 
 
+def test_editor_colors_apply_to_stylesheet_and_html_highlighter(
+    app: QApplication,
+) -> None:
+    _ = app
+    editor = TextEditor()
+
+    editor.set_editor_colors(
+        background_color="#101820",
+        text_color="#f0f6ff",
+        html_tag_color="#33ccff",
+    )
+
+    assert editor.editor_background_color == "#101820"
+    assert editor.editor_text_color == "#f0f6ff"
+    assert editor.html_tag_color == "#33ccff"
+    assert "background-color: #101820" in editor.styleSheet()
+    assert "color: #f0f6ff" in editor.styleSheet()
+
+
 def test_visible_whitespace_paint_path_renders(app: QApplication) -> None:
     editor = TextEditor()
     source_text = "a b\tc\n"

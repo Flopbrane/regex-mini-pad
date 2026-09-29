@@ -175,6 +175,10 @@ class MainWindow(QMainWindow):
         self.font_family = settings.font_family
         self.font_size = settings.font_size
         self.tab_width = settings.tab_width
+        self.editor_theme = settings.editor_theme
+        self.editor_background_color = settings.editor_background_color
+        self.editor_text_color = settings.editor_text_color
+        self.html_tag_color = settings.html_tag_color
         self.startup_restore_enabled = settings.startup_restore_enabled
         self.search_marker_color = settings.search_marker_color
         self.current_match_marker_color = settings.current_match_marker_color
@@ -494,6 +498,11 @@ class MainWindow(QMainWindow):
         )
         editor.setFont(QFont(self.font_family, self.font_size))
         self._set_editor_tab_width(editor)
+        editor.set_editor_colors(
+            background_color=self.editor_background_color,
+            text_color=self.editor_text_color,
+            html_tag_color=self.html_tag_color,
+        )
         editor.set_fixed_column_wrap_options(
             enabled=self.fixed_column_wrap_enabled,
             column=self.fixed_column_wrap_column,
@@ -802,6 +811,11 @@ class MainWindow(QMainWindow):
         self.visible_tabs_enabled = settings.visible_tabs_enabled
         self.visible_newlines_enabled = settings.visible_newlines_enabled
         self._apply_visible_whitespace_options_to_all_tabs()
+        self.editor_theme = settings.editor_theme
+        self.editor_background_color = settings.editor_background_color
+        self.editor_text_color = settings.editor_text_color
+        self.html_tag_color = settings.html_tag_color
+        self._apply_editor_colors_to_all_tabs()
         self._apply_editor_font_to_all_tabs()
         self.english_action.setChecked(settings.language_code == "en")
         self.japanese_action.setChecked(settings.language_code != "en")
@@ -835,6 +849,10 @@ class MainWindow(QMainWindow):
             font_family=self.font_family,
             font_size=self.font_size,
             tab_width=self.tab_width,
+            editor_theme=self.editor_theme,
+            editor_background_color=self.editor_background_color,
+            editor_text_color=self.editor_text_color,
+            html_tag_color=self.html_tag_color,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
             visible_space_marker_color=self.visible_space_marker_color,
@@ -1096,6 +1114,10 @@ class MainWindow(QMainWindow):
             font_family=self.font_family,
             font_size=self.font_size,
             tab_width=self.tab_width,
+            editor_theme=self.editor_theme,
+            editor_background_color=self.editor_background_color,
+            editor_text_color=self.editor_text_color,
+            html_tag_color=self.html_tag_color,
             search_marker_color=self.search_marker_color,
             current_match_marker_color=self.current_match_marker_color,
             visible_space_marker_color=self.visible_space_marker_color,
@@ -1136,6 +1158,10 @@ class MainWindow(QMainWindow):
         self.backup_retention_days = values.backup_retention_days
         self.font_family = values.font_family
         self.font_size = values.font_size
+        self.editor_theme = values.editor_theme
+        self.editor_background_color = values.editor_background_color
+        self.editor_text_color = values.editor_text_color
+        self.html_tag_color = values.html_tag_color
         self.search_marker_color = values.search_marker_color
         self.current_match_marker_color = values.current_match_marker_color
         self.visible_space_marker_color = values.visible_space_marker_color
@@ -1163,6 +1189,7 @@ class MainWindow(QMainWindow):
             self._file_backup_folder_for_folder(self.backup_folder)
         )
         self._apply_editor_font_to_all_tabs()
+        self._apply_editor_colors_to_all_tabs()
         self._apply_search_marker_colors_to_all_tabs()
         self._apply_visible_whitespace_options_to_all_tabs()
         self._apply_visible_whitespace_marker_colors_to_all_tabs()
@@ -1220,6 +1247,17 @@ class MainWindow(QMainWindow):
             if editor_tab is not None:
                 editor_tab.ruler.set_editor(editor)
                 editor_tab.ruler.update()
+
+    def _apply_editor_colors_to_all_tabs(self) -> None:
+        """Apply the current editor theme colors to all open tabs."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None:
+                editor.set_editor_colors(
+                    background_color=self.editor_background_color,
+                    text_color=self.editor_text_color,
+                    html_tag_color=self.html_tag_color,
+                )
 
     def _set_editor_tab_width(self, editor: TextEditor) -> None:
         """Apply the configured TAB width to one editor."""
