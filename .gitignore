@@ -32,6 +32,7 @@ sample.txt
 *output.txt
 *output.md
 回帰テスト用サンプル.md
+CODEX_regex-pad_linter_HTMLタグ閉じ忘れ診断_改修指示書.md
 
 # Local settings
 settings.json
