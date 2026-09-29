@@ -1424,6 +1424,99 @@ Validation result:
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 - Full `pytest`: 227 passed.
 
+## Step13-section2 HTML Dictionary Help Topic
+
+Purpose:
+
+- Add a beginner-friendly HTML dictionary separate from the existing HTML attribute guide.
+- Make RegexPad usable as a reference when writing ordinary HTML pages, not only WordPress snippets.
+
+Changes:
+
+- Added a new Help topic:
+  - `dialogs/user_help_dialog.py`
+    - Added `HTML Dictionary` / `HTML辞典`.
+    - Covers the overview of HTML, CSS, and JavaScript responsibilities.
+    - Includes a basic full-page HTML structure with `doctype`, `html`, `head`, `body`, `meta`, CSS, and script placement.
+    - Lists common text, layout, media, form, table, and `head` tags, including tags not currently provided as snippets.
+    - Explains what data can be placed inside tags: text, child HTML, attributes, metadata, CSS, JavaScript, and JSON data for scripts.
+    - Adds META and JavaScript writing examples.
+    - Adds a practical list of tags/features likely to be removed or restricted outside Normal mode, such as `script`, event attributes, `style`, `iframe`, embed tags, forms, SVG with script, `canvas`, and body-level `meta`/`link`.
+    - Keeps code examples copyable from the Help viewer.
+
+- Updated regression tests:
+  - `tests/test_user_help_dialog.py`
+    - Updated topic ordering after inserting `HTML辞典`.
+    - Added Japanese and English content checks for the new dictionary.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_user_help_dialog.py
+```
+
+Validation result:
+
+- Targeted user help tests: 6 passed.
+
+## Step13-section3 HTML Tag Expansion, Risk Lint, And Color Picker
+
+Purpose:
+
+- Connect the new HTML dictionary to practical tag insertion.
+- Add lightweight pre-save visibility for HTML tags and attributes that are often removed or restricted in stricter WordPress/security contexts.
+- Improve existing color settings with visible swatches and a `#RRGGBB` color picker.
+- Confirm that regex token coloring in Find / Replace already exists before changing that area.
+
+Changes:
+
+- Expanded HTML tag snippets:
+  - `dictionaries/html_dict.json`
+    - Added semantic/page-structure snippets: `header`, `nav`, `main`, `section`, `article`, `aside`, `footer`.
+    - Added form/media snippets: `form`, `button`, `video`, `audio`.
+  - `editor/tag_insert.py`
+    - Categorized the new snippets into existing HTML menu groups.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added labels and hover hints for the new snippets.
+
+- Added restricted HTML warnings:
+  - `search/html_typo_lint.py`
+    - Warns for tags that are likely to be removed or restricted by stricter WordPress/site settings, such as `script`, `style`, `iframe`, `object`, `embed`, form controls, `button`, and `canvas`.
+    - Warns for event-handler attributes such as `onclick`.
+    - Keeps these as warnings because they may be valid in normal standalone HTML.
+  - `resources/app_text_ja.json` and `resources/app_text_en.json`
+    - Added localized warning messages.
+
+- Improved color selection UI:
+  - `dialogs/options_dialog.py`
+    - Existing color settings now show small color swatches in their combo boxes.
+    - Added `色選択...` / `Choose Color...` buttons next to the existing color combo boxes.
+    - The dialog accepts arbitrary colors through Qt's color picker and stores them as `#rrggbb`.
+    - Applied to search marker colors, visible whitespace marker colors, and WordPress frame background/text colors.
+
+- Confirmed existing regex coloring:
+  - `dialogs/regex_input_edit.py`
+    - `RegexInputHighlighter` already colors regex tokens when regex mode is enabled in the Find / Replace dialog.
+    - No behavior change was made there in this section.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool dictionaries\html_dict.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_tag_insert.py tests\test_html_typo_lint.py tests\test_options_dialog.py tests\test_find_replace_dialog.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+```
+
+Validation result:
+
+- JSON validation passed for the HTML dictionary and both app translation files.
+- Targeted tag/lint/options/find-replace tests: 90 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+
 ## Validation Commands
 
 Use the project virtual environment:

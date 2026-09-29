@@ -35,7 +35,8 @@ def test_user_help_dialog_uses_application_language(app: QApplication) -> None:
     assert "WordPress HTML モード" in dialog.help_browser.toPlainText()
     assert "候補から隠します" in dialog.help_browser.toPlainText()
     assert dialog.topic_list.item(4).text() == "HTML属性図鑑"
-    assert dialog.topic_list.item(5).text() == "WPパラメータ記述の注意事項"
+    assert dialog.topic_list.item(5).text() == "HTML辞典"
+    assert dialog.topic_list.item(6).text() == "WPパラメータ記述の注意事項"
 
     translator.set_language("en")
     dialog.apply_language()
@@ -43,7 +44,8 @@ def test_user_help_dialog_uses_application_language(app: QApplication) -> None:
     assert dialog.windowTitle() == "Help"
     assert dialog.topic_list.item(3).text() == "Tag Insertion"
     assert dialog.topic_list.item(4).text() == "HTML Attribute Guide"
-    assert dialog.topic_list.item(5).text() == "WordPress Parameter Notes"
+    assert dialog.topic_list.item(5).text() == "HTML Dictionary"
+    assert dialog.topic_list.item(6).text() == "WordPress Parameter Notes"
     assert "Tag Insertion" in dialog.help_browser.toPlainText()
     assert "WordPress HTML Modes" in dialog.help_browser.toPlainText()
     assert "hide risky snippets" in dialog.help_browser.toPlainText()
@@ -72,12 +74,24 @@ def test_user_help_dialog_can_navigate_topics(app: QApplication) -> None:
 
     help_text = dialog.help_browser.toPlainText()
 
+    assert "HTML辞典" in help_text
+    assert "基本のページ構造" in help_text
+    assert "<!doctype html>" in help_text
+    assert "<meta name=\"viewport\"" in help_text
+    assert "JavaScriptの記述例" in help_text
+    assert "Normalモード以外で消される可能性が高いタグ" in help_text
+    assert "<script>" in help_text
+
+    dialog.topic_list.setCurrentRow(6)
+
+    help_text = dialog.help_browser.toPlainText()
+
     assert "WPパラメータ記述の注意事項" in help_text
     assert '{"level":3}' in help_text
     assert "ブロックコメント側とHTML側" in help_text
     assert "Gutenbergで作成して保存した後のHTML" in help_text
 
-    dialog.topic_list.setCurrentRow(6)
+    dialog.topic_list.setCurrentRow(7)
 
     assert "ステータスバー" in dialog.help_browser.toPlainText()
 
@@ -98,6 +112,24 @@ def test_user_help_dialog_has_english_attribute_guide(app: QApplication) -> None
     assert "style=\"color: #333;" in help_text
 
 
+def test_user_help_dialog_has_english_html_dictionary(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = UserHelpDialog(translator)
+
+    dialog.topic_list.setCurrentRow(5)
+
+    help_text = dialog.help_browser.toPlainText()
+
+    assert "HTML Dictionary" in help_text
+    assert "Basic Page Structure" in help_text
+    assert "<!doctype html>" in help_text
+    assert "<meta name=\"viewport\"" in help_text
+    assert "JavaScript Examples" in help_text
+    assert "Tags Likely To Be Removed Or Restricted Outside Normal Mode" in help_text
+    assert "<script>" in help_text
+
+
 def test_user_help_dialog_has_english_wordpress_parameter_notes(
     app: QApplication,
 ) -> None:
@@ -105,7 +137,7 @@ def test_user_help_dialog_has_english_wordpress_parameter_notes(
     translator = Translator(Path("resources"), "en")
     dialog = UserHelpDialog(translator)
 
-    dialog.topic_list.setCurrentRow(5)
+    dialog.topic_list.setCurrentRow(6)
 
     help_text = dialog.help_browser.toPlainText()
 

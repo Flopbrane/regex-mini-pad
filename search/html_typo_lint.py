@@ -100,6 +100,20 @@ COMMON_HTML_ATTRIBUTE_TYPOS = {
     "taret": "target",
     "titel": "title",
 }
+RESTRICTED_HTML_TAG_REASONS = {
+    "script": "arbitrary JavaScript",
+    "style": "embedded CSS",
+    "iframe": "external embed",
+    "object": "external object/embed",
+    "embed": "external object/embed",
+    "form": "form submission",
+    "input": "form control",
+    "textarea": "form control",
+    "select": "form control",
+    "button": "form or script control",
+    "canvas": "JavaScript drawing surface",
+}
+RESTRICTED_HTML_ATTRIBUTE_PREFIXES = ("on",)
 
 
 @dataclass(frozen=True)
@@ -679,8 +693,10 @@ class HtmlTypoLintParser(HTMLParser):
         clean_tag = tag.lower()
         line_number = self.getpos()[0]
         self._lint_unknown_html_tag(clean_tag, line_number)
+        self._lint_restricted_html_tag(clean_tag, line_number)
         attrs_dict = {name.lower(): value or "" for name, value in attrs}
         self._lint_unknown_html_attrs(clean_tag, attrs_dict, line_number)
+        self._lint_restricted_html_attrs(clean_tag, attrs_dict, line_number)
 
     def _lint_unknown_html_tag(self, tag: str, line_number: int) -> None:
         if tag in KNOWN_HTML_TAGS or "-" in tag or ":" in tag:
@@ -696,6 +712,19 @@ class HtmlTypoLintParser(HTMLParser):
                 "html_typo_lint.unknown_html_tag",
                 line_number,
                 values,
+            )
+        )
+
+    def _lint_restricted_html_tag(self, tag: str, line_number: int) -> None:
+        reason = RESTRICTED_HTML_TAG_REASONS.get(tag)
+        if reason is None:
+            return
+        self.messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.restricted_html_tag",
+                line_number,
+                {"tag": tag, "reason": reason},
             )
         )
 
@@ -721,5 +750,27 @@ class HtmlTypoLintParser(HTMLParser):
                     "html_typo_lint.unknown_html_attribute",
                     line_number,
                     values,
+                )
+            )
+
+    def _lint_restricted_html_attrs(
+        self,
+        tag: str,
+        attrs: dict[str, str],
+        line_number: int,
+    ) -> None:
+        for attr_name in attrs:
+            if not attr_name.startswith(RESTRICTED_HTML_ATTRIBUTE_PREFIXES):
+                continue
+            self.messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.restricted_html_attribute",
+                    line_number,
+                    {
+                        "tag": tag,
+                        "attribute": attr_name,
+                        "reason": "inline JavaScript event handler",
+                    },
                 )
             )

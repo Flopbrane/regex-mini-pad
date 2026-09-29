@@ -175,6 +175,8 @@ def _html_category_key(label_key: str) -> str:
         "tag.html.heading2",
         "tag.html.heading3",
         "tag.html.heading4",
+        "tag.html.header",
+        "tag.html.main",
     }:
         return "tag.category.basic"
     if label_key in {
@@ -190,6 +192,8 @@ def _html_category_key(label_key: str) -> str:
         "tag.html.link_blank",
         "tag.html.image",
         "tag.html.figure",
+        "tag.html.video",
+        "tag.html.audio",
     }:
         return "tag.category.link_image"
     if label_key in {
@@ -207,6 +211,13 @@ def _html_category_key(label_key: str) -> str:
         "tag.html.span",
         "tag.html.details",
         "tag.html.table_2x2",
+        "tag.html.nav",
+        "tag.html.section",
+        "tag.html.article",
+        "tag.html.aside",
+        "tag.html.footer",
+        "tag.html.form_basic",
+        "tag.html.button",
     }:
         return "tag.category.layout"
     return "tag.category.utility"

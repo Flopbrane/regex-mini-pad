@@ -153,6 +153,238 @@ Inline style example:
 """,
         ),
         (
+            "HTML Dictionary",
+            """# HTML Dictionary
+
+This topic is a beginner-friendly reminder for writing ordinary HTML pages, not only WordPress snippets.
+
+## What HTML Does
+
+- HTML describes the meaning and structure of a page.
+- CSS changes appearance, such as colors, spacing, columns, and fonts.
+- JavaScript adds behavior, such as buttons, form checks, menus, and dynamic updates.
+- A browser reads HTML from top to bottom and builds the page from nested elements.
+
+## Basic Page Structure
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page title</title>
+  <meta name="description" content="Short page description">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Site or page title</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>Section title</h2>
+      <p>Body text.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Example</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
+```
+
+## Important Areas
+
+| Area | Purpose | Typical contents |
+| --- | --- | --- |
+| `<!doctype html>` | Declares modern HTML. | Put it at the very beginning. |
+| `<html>` | Root of the page. | Use `lang` such as `lang="en"` or `lang="ja"`. |
+| `<head>` | Page metadata. | `meta`, `title`, CSS links, scripts that must load early. |
+| `<body>` | Visible page content. | Text, headings, images, tables, forms, scripts at the end. |
+
+## Common Tags
+
+| Tag | Purpose | Basic use |
+| --- | --- | --- |
+| `<h1>` - `<h6>` | Headings. | Use one main `<h1>`, then structure sections with `<h2>` and lower. |
+| `<p>` | Paragraph. | Ordinary text blocks. |
+| `<br>` | Forced line break. | Use sparingly; prefer paragraphs for normal text. |
+| `<hr>` | Thematic break. | Separates topics. |
+| `<strong>` | Important text. | Usually bold by default. |
+| `<em>` | Emphasized text. | Usually italic by default. |
+| `<small>` | Side note or fine print. | Legal note, footnote-like text. |
+| `<mark>` | Highlighted text. | Draws attention to a phrase. |
+| `<a>` | Link. | Needs `href`. |
+| `<img>` | Image. | Needs `src`; should have `alt`. |
+| `<figure>` | Figure container. | Image, chart, code sample, or media with caption. |
+| `<figcaption>` | Figure caption. | Caption inside `<figure>`. |
+| `<ul>` | Bullet list. | Contains `<li>`. |
+| `<ol>` | Numbered list. | Contains `<li>`. |
+| `<li>` | List item. | Only inside list tags. |
+| `<blockquote>` | Quoted block. | Longer quotation. |
+| `<cite>` | Citation source. | Title or source name, not ordinary quoted text. |
+| `<code>` | Inline code. | Short code phrase. |
+| `<pre>` | Preformatted block. | Keeps spaces and line breaks. |
+| `<table>` | Table. | Use for tabular data, not page layout. |
+| `<thead>` | Table header group. | Header rows. |
+| `<tbody>` | Table body group. | Main data rows. |
+| `<tfoot>` | Table footer group. | Summary/footer rows. |
+| `<tr>` | Table row. | Contains cells. |
+| `<th>` | Header cell. | Column or row heading. |
+| `<td>` | Data cell. | Ordinary table value. |
+| `<div>` | Generic block. | Use when no semantic tag fits. |
+| `<span>` | Generic inline range. | Use for styling a small inline part. |
+
+## Layout And Semantic Tags
+
+| Tag | Purpose | Basic use |
+| --- | --- | --- |
+| `<header>` | Intro area for a page or section. | Logo, title, navigation. |
+| `<nav>` | Navigation links. | Main menu, table of contents. |
+| `<main>` | Main content. | Use once per page. |
+| `<section>` | Thematic section. | Usually has a heading. |
+| `<article>` | Independent article-like content. | Blog post, news item, card that can stand alone. |
+| `<aside>` | Related side content. | Sidebar, note, related links. |
+| `<footer>` | Footer for a page or section. | Copyright, links, metadata. |
+| `<address>` | Contact information. | Contact for the page/article owner. |
+| `<details>` | Collapsible disclosure. | Contains `<summary>` and hidden/visible details. |
+| `<summary>` | Disclosure title. | First visible line inside `<details>`. |
+| `<dialog>` | Dialog box. | Needs JavaScript to open/close in many cases. |
+
+## Media Tags
+
+| Tag | Purpose | Basic use |
+| --- | --- | --- |
+| `<picture>` | Responsive images. | Contains `<source>` and fallback `<img>`. |
+| `<source>` | Media source option. | Used inside `<picture>`, `<video>`, or `<audio>`. |
+| `<video>` | Video player. | Use `controls` for normal playback controls. |
+| `<audio>` | Audio player. | Use `controls`. |
+| `<track>` | Captions/subtitles. | Used inside `<video>` or `<audio>`. |
+| `<iframe>` | Embed another page. | Maps, videos, external widgets; often restricted by services. |
+| `<canvas>` | Drawing area. | Requires JavaScript. |
+| `<svg>` | Vector graphics. | Inline icon/diagram; may be restricted in some editors. |
+
+## Form Tags
+
+| Tag | Purpose | Basic use |
+| --- | --- | --- |
+| `<form>` | Form container. | Contains inputs and submit controls. |
+| `<label>` | Label for form control. | Connect with `for="input-id"`. |
+| `<input>` | One-line input/control. | Types: `text`, `email`, `checkbox`, `radio`, `file`, `submit`. |
+| `<textarea>` | Multi-line text input. | Message fields. |
+| `<select>` | Drop-down list. | Contains `<option>`. |
+| `<option>` | Choice item. | Inside `<select>` or `<datalist>`. |
+| `<button>` | Button. | Use `type="button"` or `type="submit"`. |
+| `<fieldset>` | Group form controls. | Related fields. |
+| `<legend>` | Fieldset title. | First item inside `<fieldset>`. |
+| `<datalist>` | Suggestions for input. | Connected by `list="id"`. |
+| `<output>` | Calculation result. | Usually updated by JavaScript. |
+
+## Head And Metadata Tags
+
+| Tag | Purpose | Basic use |
+| --- | --- | --- |
+| `<title>` | Browser tab / search result title. | Required in ordinary pages. |
+| `<meta>` | Metadata. | Charset, viewport, description, robots, social metadata. |
+| `<link>` | External resource relation. | CSS, favicon, preload, canonical URL. |
+| `<style>` | Embedded CSS. | Useful for small standalone pages. |
+| `<script>` | JavaScript. | Inline script or external `src`. |
+| `<base>` | Base URL for relative links. | Use carefully; it affects relative paths. |
+| `<noscript>` | Fallback when JavaScript is disabled. | Message or alternate content. |
+
+## Data Inside Tags
+
+- Text: write it directly inside tags such as `<p>Text</p>`.
+- HTML children: put other tags inside container tags such as `<section>...</section>`.
+- Attributes: write settings in the opening tag, such as `<img src="photo.jpg" alt="Photo">`.
+- Metadata: use `<meta>` in `<head>`.
+- CSS: use `<link rel="stylesheet" href="style.css">`, `<style>...</style>`, or `style="..."`.
+- JavaScript: use `<script src="main.js"></script>` or `<script>...</script>`.
+- JSON data for scripts: use a non-JavaScript script type.
+
+```html
+<script type="application/json" id="page-data">
+{
+  "title": "Sample",
+  "items": ["one", "two"]
+}
+</script>
+```
+
+## Meta Examples
+
+```html
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Short page description">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="Social sharing title">
+<meta property="og:image" content="https://www.example.com/cover.jpg">
+```
+
+## JavaScript Examples
+
+External file:
+
+```html
+<script src="main.js"></script>
+```
+
+Inline script:
+
+```html
+<button type="button" id="hello-button">Say hello</button>
+
+<script>
+document.getElementById("hello-button").addEventListener("click", () => {
+  alert("Hello");
+});
+</script>
+```
+
+Safer placement:
+
+- Put scripts near the end of `<body>` when they operate on visible page elements.
+- Use `defer` when loading an external script from `<head>`.
+
+```html
+<script src="main.js" defer></script>
+```
+
+## Tags Likely To Be Removed Or Restricted Outside Normal Mode
+
+In this app, stricter WordPress modes hide snippets that are more likely to be blocked, rewritten, or unsafe in business/high-security editing. Actual WordPress behavior also depends on user role, theme, plugins, and site security settings.
+
+| Tag or feature | Why it is risky |
+| --- | --- |
+| `<script>` | Allows arbitrary JavaScript. Often removed for users without high permissions. |
+| Inline event attributes such as `onclick` | JavaScript inside HTML attributes is commonly blocked. |
+| `<style>` | Embedded CSS can be stripped or rewritten by editors/security filters. |
+| `style` attribute | Inline CSS may be partly removed depending on settings. |
+| `<iframe>` | External embeds are often restricted to trusted providers. |
+| `<object>`, `<embed>` | Plugin/embed containers are high-risk and often blocked. |
+| `<form>`, `<input>`, `<textarea>`, `<select>`, `<button>` | Forms can conflict with CMS behavior and security policies. |
+| `<svg>` with scripts or event attributes | Plain SVG may work in some contexts, but scripted SVG is risky. |
+| `<canvas>` | Needs JavaScript, so it often fails where scripts are blocked. |
+| `<link>` inside body | Resource loading belongs in `<head>` and may be stripped in content editors. |
+| `<meta>` inside body | Metadata belongs in `<head>` and may be ignored or removed in content editors. |
+
+## Safe Writing Habits
+
+- Start with semantic tags: `main`, `section`, `article`, `h2`, `p`, `ul`, `table`.
+- Use CSS classes for repeated designs.
+- Use inline `style` only for small, one-off HTML files or temporary tests.
+- Keep one clear `<h1>` for a normal full HTML page.
+- Use meaningful `alt` text for images.
+- Test full HTML pages in a browser, and test WordPress HTML in Gutenberg after saving.
+""",
+        ),
+        (
             "WordPress Parameter Notes",
             """# WordPress Parameter Notes
 
@@ -390,6 +622,238 @@ style の記述例:
 - 画像には、内容が分かる `alt` を入れておくと安全です。
 - `target="_blank"` を使う場合は、`rel="noopener noreferrer"` も一緒に入れるのがおすすめです。
 - class 名は、`note-box` や `lead-text` のように短く分かりやすくすると管理しやすくなります。
+""",
+        ),
+        (
+            "HTML辞典",
+            """# HTML辞典
+
+初心者の確認用、または「ど忘れした時」に見るためのHTML辞典です。WordPress用だけでなく、普通のHTMLページを書く時にも使えます。
+
+## HTMLの役割
+
+- HTMLは、ページの意味と構造を書きます。
+- CSSは、色、余白、段組み、フォントなどの見た目を変えます。
+- JavaScriptは、ボタン操作、入力チェック、メニュー開閉、動的表示などの動きを足します。
+- ブラウザはHTMLを上から読み、入れ子になった要素としてページを組み立てます。
+
+## 基本のページ構造
+
+```html
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ページタイトル</title>
+  <meta name="description" content="ページの短い説明">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>サイト名またはページ名</h1>
+  </header>
+
+  <main>
+    <section>
+      <h2>セクション見出し</h2>
+      <p>本文です。</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 Example</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
+```
+
+## 重要な場所
+
+| 場所 | 目的 | よく入るもの |
+| --- | --- | --- |
+| `<!doctype html>` | 現代のHTMLとして扱う宣言です。 | ファイルの一番先頭に書きます。 |
+| `<html>` | ページ全体の根っこです。 | `lang="ja"` や `lang="en"` を指定します。 |
+| `<head>` | ページ情報を書く場所です。 | `meta`、`title`、CSSリンク、早めに必要なscript。 |
+| `<body>` | 画面に見える本文を書く場所です。 | 文章、見出し、画像、表、フォーム、末尾のscript。 |
+
+## よく使うタグ
+
+| タグ | 目的 | 使い方 |
+| --- | --- | --- |
+| `<h1>` - `<h6>` | 見出し。 | `<h1>` は主見出し、以降は階層に合わせて使います。 |
+| `<p>` | 段落。 | 通常の本文ブロック。 |
+| `<br>` | 強制改行。 | 通常の段落分けには `<p>` を使い、`<br>` は控えめにします。 |
+| `<hr>` | 話題の区切り。 | 章や話題を区切ります。 |
+| `<strong>` | 重要な語句。 | 多くのブラウザでは太字になります。 |
+| `<em>` | 文脈上の強調。 | 多くのブラウザでは斜体になります。 |
+| `<small>` | 補足や注記。 | 小さめの注記、細則など。 |
+| `<mark>` | ハイライト。 | 読者に注目してほしい語句。 |
+| `<a>` | リンク。 | `href` が必要です。 |
+| `<img>` | 画像。 | `src` が必要で、`alt` も入れるのが安全です。 |
+| `<figure>` | 図版のまとまり。 | 画像、図、コード例、メディアとキャプションをまとめます。 |
+| `<figcaption>` | 図版キャプション。 | `<figure>` の中に入れます。 |
+| `<ul>` | 箇条書き。 | 中に `<li>` を入れます。 |
+| `<ol>` | 番号付きリスト。 | 中に `<li>` を入れます。 |
+| `<li>` | リスト項目。 | リストタグの中で使います。 |
+| `<blockquote>` | 引用ブロック。 | 長めの引用文。 |
+| `<cite>` | 引用元。 | 作品名や出典名。引用本文そのものではありません。 |
+| `<code>` | インラインコード。 | 短いコードやコマンド名。 |
+| `<pre>` | 整形済みブロック。 | 空白や改行を保ちます。 |
+| `<table>` | 表。 | 表形式のデータに使います。レイアウト目的では使いません。 |
+| `<thead>` | 表のヘッダー部分。 | 見出し行。 |
+| `<tbody>` | 表の本文部分。 | 主なデータ行。 |
+| `<tfoot>` | 表のフッター部分。 | 合計や注記行。 |
+| `<tr>` | 表の行。 | セルを入れます。 |
+| `<th>` | 見出しセル。 | 列名や行名。 |
+| `<td>` | データセル。 | 通常の値。 |
+| `<div>` | 汎用ブロック。 | 意味に合うタグが無い時に使います。 |
+| `<span>` | 汎用インライン範囲。 | 文中の一部だけを装飾したい時に使います。 |
+
+## レイアウト・意味づけタグ
+
+| タグ | 目的 | 使い方 |
+| --- | --- | --- |
+| `<header>` | ページやセクションの導入部分。 | ロゴ、タイトル、ナビなど。 |
+| `<nav>` | ナビゲーション。 | メニュー、目次、ページ内リンク。 |
+| `<main>` | ページの主内容。 | 通常は1ページに1つ。 |
+| `<section>` | 主題ごとのまとまり。 | 見出しを付けることが多いです。 |
+| `<article>` | 独立した記事的な内容。 | ブログ記事、ニュース、単独で読めるカード。 |
+| `<aside>` | 関連情報。 | サイドバー、補足、関連リンク。 |
+| `<footer>` | ページやセクションの末尾。 | 著作権、リンク、補足情報。 |
+| `<address>` | 連絡先情報。 | ページや記事の管理者連絡先。 |
+| `<details>` | 折りたたみ開閉。 | 中に `<summary>` と詳細本文を書きます。 |
+| `<summary>` | 折りたたみの見出し。 | `<details>` の最初に置きます。 |
+| `<dialog>` | ダイアログ。 | 開閉にはJavaScriptが必要なことが多いです。 |
+
+## メディア系タグ
+
+| タグ | 目的 | 使い方 |
+| --- | --- | --- |
+| `<picture>` | 画面幅などに応じた画像切替。 | `<source>` と予備の `<img>` を入れます。 |
+| `<source>` | メディア候補。 | `<picture>`、`<video>`、`<audio>` の中で使います。 |
+| `<video>` | 動画プレイヤー。 | 通常は `controls` を付けます。 |
+| `<audio>` | 音声プレイヤー。 | 通常は `controls` を付けます。 |
+| `<track>` | 字幕やキャプション。 | `<video>` や `<audio>` の中で使います。 |
+| `<iframe>` | 別ページの埋め込み。 | 地図、動画、外部ウィジェットなど。制限されやすいタグです。 |
+| `<canvas>` | 描画領域。 | JavaScriptが必要です。 |
+| `<svg>` | ベクター画像。 | アイコンや図形。環境によって制限されることがあります。 |
+
+## フォーム系タグ
+
+| タグ | 目的 | 使い方 |
+| --- | --- | --- |
+| `<form>` | フォーム全体。 | 入力欄や送信ボタンを入れます。 |
+| `<label>` | 入力欄のラベル。 | `for="input-id"` で入力欄と結びます。 |
+| `<input>` | 1行入力や部品。 | `text`、`email`、`checkbox`、`radio`、`file`、`submit` など。 |
+| `<textarea>` | 複数行入力。 | お問い合わせ本文など。 |
+| `<select>` | 選択リスト。 | 中に `<option>` を入れます。 |
+| `<option>` | 選択肢。 | `<select>` や `<datalist>` の中で使います。 |
+| `<button>` | ボタン。 | `type="button"` または `type="submit"` を指定します。 |
+| `<fieldset>` | 入力欄のグループ。 | 関連する項目をまとめます。 |
+| `<legend>` | fieldsetの見出し。 | `<fieldset>` の最初に入れます。 |
+| `<datalist>` | 入力候補。 | `list="id"` でinputと結びます。 |
+| `<output>` | 計算結果。 | JavaScriptで更新することが多いです。 |
+
+## head内で使うタグ
+
+| タグ | 目的 | 使い方 |
+| --- | --- | --- |
+| `<title>` | ブラウザタブや検索結果のタイトル。 | 通常ページでは必須です。 |
+| `<meta>` | メタ情報。 | 文字コード、viewport、説明文、robots、SNS用情報。 |
+| `<link>` | 外部リソースとの関係。 | CSS、favicon、preload、canonical URL。 |
+| `<style>` | HTML内に書くCSS。 | 小さな単体ページでは便利です。 |
+| `<script>` | JavaScript。 | 外部 `src` または直接記述。 |
+| `<base>` | 相対URLの基準。 | 相対パス全体に影響するので慎重に使います。 |
+| `<noscript>` | JavaScript無効時の表示。 | 代替案内やメッセージ。 |
+
+## タグに内包できるデータ
+
+- テキスト: `<p>本文</p>` のように直接書きます。
+- HTMLの子要素: `<section>...</section>` のようにタグの中へ別タグを入れます。
+- 属性: `<img src="photo.jpg" alt="写真">` のように開始タグへ設定を書きます。
+- META情報: `<head>` 内で `<meta>` に書きます。
+- CSS: `<link rel="stylesheet" href="style.css">`、`<style>...</style>`、または `style="..."` に書きます。
+- JavaScript: `<script src="main.js"></script>` または `<script>...</script>` に書きます。
+- スクリプト用JSON: JavaScriptとして実行しない `type` を指定して入れます。
+
+```html
+<script type="application/json" id="page-data">
+{
+  "title": "サンプル",
+  "items": ["one", "two"]
+}
+</script>
+```
+
+## METAの記述例
+
+```html
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="ページの短い説明">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="SNS共有用タイトル">
+<meta property="og:image" content="https://www.example.com/cover.jpg">
+```
+
+## JavaScriptの記述例
+
+外部ファイル:
+
+```html
+<script src="main.js"></script>
+```
+
+HTML内に直接書く場合:
+
+```html
+<button type="button" id="hello-button">あいさつ</button>
+
+<script>
+document.getElementById("hello-button").addEventListener("click", () => {
+  alert("こんにちは");
+});
+</script>
+```
+
+安全寄りの置き場所:
+
+- 画面上の要素を操作するscriptは、`body` の末尾に置くと扱いやすいです。
+- `<head>` から外部scriptを読む場合は `defer` を使うと、本文読み込み後に実行されます。
+
+```html
+<script src="main.js" defer></script>
+```
+
+## Normalモード以外で消される可能性が高いタグ・機能
+
+このアプリの厳しめの WordPress HTML モードでは、企業・事業所や Hi-security で問題になりやすいスニペットを隠します。実際にWordPressで消えるかどうかは、ユーザー権限、テーマ、プラグイン、サイトのセキュリティ設定にも左右されます。
+
+| タグ・機能 | 危険になりやすい理由 |
+| --- | --- |
+| `<script>` | 任意のJavaScriptを実行できるため、権限が低いユーザーでは削除されやすいです。 |
+| `onclick` などのイベント属性 | HTML属性内のJavaScriptはブロックされやすいです。 |
+| `<style>` | HTML内CSSは、エディターやセキュリティ設定で削除・変更されることがあります。 |
+| `style` 属性 | インラインCSSは、設定によって一部削除されることがあります。 |
+| `<iframe>` | 外部埋め込みは、許可済みサービス以外だと制限されやすいです。 |
+| `<object>`、`<embed>` | 埋め込み系で危険度が高く、ブロックされやすいです。 |
+| `<form>`、`<input>`、`<textarea>`、`<select>`、`<button>` | CMSの動作やセキュリティ設定と衝突しやすいです。 |
+| JavaScript付きの `<svg>` | 単純なSVGは通る場合もありますが、scriptやイベント属性付きは危険です。 |
+| `<canvas>` | JavaScript前提のため、script禁止環境では動きません。 |
+| body内の `<link>` | 外部リソース読み込みは本来 `<head>` 向けで、本文エディターでは消されることがあります。 |
+| body内の `<meta>` | メタ情報は本来 `<head>` 向けで、本文エディターでは無視・削除されやすいです。 |
+
+## 安全寄りの書き方
+
+- まずは意味のあるタグ、`main`、`section`、`article`、`h2`、`p`、`ul`、`table` から組み立てます。
+- 同じ見た目を繰り返す時はCSS classを使います。
+- `style` は、小さな単体HTMLや一時確認の時だけにすると管理しやすいです。
+- 普通のHTMLページでは、主見出し `<h1>` を分かりやすく1つ置きます。
+- 画像には意味のある `alt` を入れます。
+- 通常HTMLページはブラウザで確認し、WordPress用HTMLはGutenbergへ貼り付けて保存後の表示も確認します。
 """,
         ),
         (

@@ -65,6 +65,41 @@
     "template": "<figure>\n  <img src=\"{cursor}\" alt=\"{selection}\">\n  <figcaption>{selection}</figcaption>\n</figure>"
   },
   {
+    "label_key": "tag.html.header",
+    "hint_key": "tag.hint.html.header",
+    "template": "<header>\n  <h1>{selection}{cursor}</h1>\n</header>"
+  },
+  {
+    "label_key": "tag.html.nav",
+    "hint_key": "tag.hint.html.nav",
+    "template": "<nav aria-label=\"主なメニュー\">\n  <ul>\n    <li><a href=\"{cursor}\">{selection}</a></li>\n  </ul>\n</nav>"
+  },
+  {
+    "label_key": "tag.html.main",
+    "hint_key": "tag.hint.html.main",
+    "template": "<main>\n  {selection}{cursor}\n</main>"
+  },
+  {
+    "label_key": "tag.html.section",
+    "hint_key": "tag.hint.html.section",
+    "template": "<section>\n  <h2>{cursor}</h2>\n  <p>{selection}</p>\n</section>"
+  },
+  {
+    "label_key": "tag.html.article",
+    "hint_key": "tag.hint.html.article",
+    "template": "<article>\n  <h2>{cursor}</h2>\n  <p>{selection}</p>\n</article>"
+  },
+  {
+    "label_key": "tag.html.aside",
+    "hint_key": "tag.hint.html.aside",
+    "template": "<aside>\n  <p>{selection}{cursor}</p>\n</aside>"
+  },
+  {
+    "label_key": "tag.html.footer",
+    "hint_key": "tag.hint.html.footer",
+    "template": "<footer>\n  <p>{selection}{cursor}</p>\n</footer>"
+  },
+  {
     "label_key": "tag.html.div",
     "hint_key": "tag.hint.html.div",
     "template": "<div class=\"{cursor}\">{selection}</div>"
@@ -108,6 +143,26 @@
     "label_key": "tag.html.table_2x2",
     "hint_key": "tag.hint.html.table_2x2",
     "template": "<table>\n  <thead>\n    <tr><th>項目</th><th>内容</th></tr>\n  </thead>\n  <tbody>\n    <tr><td>{selection}{cursor}</td><td></td></tr>\n  </tbody>\n</table>"
+  },
+  {
+    "label_key": "tag.html.form_basic",
+    "hint_key": "tag.hint.html.form_basic",
+    "template": "<form action=\"{cursor}\" method=\"post\">\n  <label for=\"name\">名前</label>\n  <input id=\"name\" name=\"name\" type=\"text\">\n  <button type=\"submit\">送信</button>\n</form>"
+  },
+  {
+    "label_key": "tag.html.button",
+    "hint_key": "tag.hint.html.button",
+    "template": "<button type=\"button\">{selection}{cursor}</button>"
+  },
+  {
+    "label_key": "tag.html.video",
+    "hint_key": "tag.hint.html.video",
+    "template": "<video src=\"{cursor}\" controls>\n  お使いのブラウザは video タグに対応していません。\n</video>"
+  },
+  {
+    "label_key": "tag.html.audio",
+    "hint_key": "tag.hint.html.audio",
+    "template": "<audio src=\"{cursor}\" controls>\n  お使いのブラウザは audio タグに対応していません。\n</audio>"
   },
   {
     "label_key": "tag.html.line_break",

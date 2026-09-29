@@ -305,3 +305,15 @@ def test_lint_uses_startup_reference_cache_without_rereading_json() -> None:
         and message.values.get("suggestion") == "class"
         for message in messages
     )
+
+
+def test_lint_warns_about_restricted_html_tags_and_event_attributes() -> None:
+    messages = lint_html_typos(
+        '<script>alert("x")</script>\n'
+        '<iframe src="https://example.com"></iframe>\n'
+        '<button type="button" onclick="alert(1)">押す</button>'
+    )
+    message_keys = [message.message_key for message in messages]
+
+    assert message_keys.count("html_typo_lint.restricted_html_tag") >= 3
+    assert "html_typo_lint.restricted_html_attribute" in message_keys

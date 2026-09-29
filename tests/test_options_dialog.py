@@ -73,6 +73,8 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.visible_space_marker_color_combo.count() > 0
     assert dialog.visible_tab_marker_color_combo.count() > 0
     assert dialog.visible_newline_marker_color_combo.count() > 0
+    assert dialog.search_marker_color_combo.itemIcon(0).isNull() is False
+    assert dialog.search_marker_color_button.text() == "色選択..."
 
 
 def test_options_dialog_returns_editable_values(app: QApplication) -> None:

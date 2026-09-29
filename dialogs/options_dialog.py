@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtGui import QFontDatabase
+from PySide6.QtGui import QColor, QFontDatabase, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
+    QColorDialog,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -150,7 +151,9 @@ class OptionsDialog(QDialog):
         self.frame_display_combo = QComboBox(self)
         self.frame_outer_spacing_combo = QComboBox(self)
         self.frame_background_color_combo = QComboBox(self)
+        self.frame_background_color_button = QPushButton(self)
         self.frame_text_color_combo = QComboBox(self)
+        self.frame_text_color_button = QPushButton(self)
         self.frame_display_description_label = QLabel(self)
         self.hover_hints_checkbox = QCheckBox(self)
         self.user_dictionary_folder_edit = QLineEdit(self)
@@ -164,10 +167,15 @@ class OptionsDialog(QDialog):
         self.font_size_spin = QSpinBox(self)
         self.tab_width_spin = QSpinBox(self)
         self.search_marker_color_combo = QComboBox(self)
+        self.search_marker_color_button = QPushButton(self)
         self.current_match_marker_color_combo = QComboBox(self)
+        self.current_match_marker_color_button = QPushButton(self)
         self.visible_space_marker_color_combo = QComboBox(self)
+        self.visible_space_marker_color_button = QPushButton(self)
         self.visible_tab_marker_color_combo = QComboBox(self)
+        self.visible_tab_marker_color_button = QPushButton(self)
         self.visible_newline_marker_color_combo = QComboBox(self)
+        self.visible_newline_marker_color_button = QPushButton(self)
         self.regex_lint_checkbox = QCheckBox(self)
         self.html_typo_lint_checkbox = QCheckBox(self)
         self.reduced_error_check_checkbox = QCheckBox(self)
@@ -235,6 +243,8 @@ class OptionsDialog(QDialog):
         self.reduced_error_check_checkbox.setText(
             self.translator.text("options.item.reduced_error_check")
         )
+        for button in self._color_buttons():
+            button.setText(self.translator.text("options.choose_color"))
 
     def set_values(self, settings: EditorSettings) -> None:
         self.line_numbers_checkbox.setChecked(settings.line_numbers_enabled)
@@ -433,19 +443,28 @@ class OptionsDialog(QDialog):
         self._populate_color_combo(self.visible_space_marker_color_combo)
         layout.addRow(
             self.translator.text("options.item.visible_space_marker_color"),
-            self.visible_space_marker_color_combo,
+            self._color_picker_row(
+                self.visible_space_marker_color_combo,
+                self.visible_space_marker_color_button,
+            ),
         )
         layout.addRow(self.visible_tabs_checkbox)
         self._populate_color_combo(self.visible_tab_marker_color_combo)
         layout.addRow(
             self.translator.text("options.item.visible_tab_marker_color"),
-            self.visible_tab_marker_color_combo,
+            self._color_picker_row(
+                self.visible_tab_marker_color_combo,
+                self.visible_tab_marker_color_button,
+            ),
         )
         layout.addRow(self.visible_newlines_checkbox)
         self._populate_color_combo(self.visible_newline_marker_color_combo)
         layout.addRow(
             self.translator.text("options.item.visible_newline_marker_color"),
-            self.visible_newline_marker_color_combo,
+            self._color_picker_row(
+                self.visible_newline_marker_color_combo,
+                self.visible_newline_marker_color_button,
+            ),
         )
         layout.addRow(self._disabled_checkbox("options.item.theme"))
         tab.setLayout(layout)
@@ -477,11 +496,17 @@ class OptionsDialog(QDialog):
         )
         layout.addRow(
             self.translator.text("options.frame_background_color"),
-            self.frame_background_color_combo,
+            self._color_picker_row(
+                self.frame_background_color_combo,
+                self.frame_background_color_button,
+            ),
         )
         layout.addRow(
             self.translator.text("options.frame_text_color"),
-            self.frame_text_color_combo,
+            self._color_picker_row(
+                self.frame_text_color_combo,
+                self.frame_text_color_button,
+            ),
         )
         layout.addRow(self.hover_hints_checkbox)
         folder_layout = QHBoxLayout()
@@ -529,11 +554,17 @@ class OptionsDialog(QDialog):
         self._populate_color_combo(self.current_match_marker_color_combo)
         layout.addRow(
             self.translator.text("options.item.search_marker_color"),
-            self.search_marker_color_combo,
+            self._color_picker_row(
+                self.search_marker_color_combo,
+                self.search_marker_color_button,
+            ),
         )
         layout.addRow(
             self.translator.text("options.item.current_match_color"),
-            self.current_match_marker_color_combo,
+            self._color_picker_row(
+                self.current_match_marker_color_combo,
+                self.current_match_marker_color_button,
+            ),
         )
         layout.addRow(self.regex_lint_checkbox)
         layout.addRow(self.html_typo_lint_checkbox)
@@ -564,6 +595,27 @@ class OptionsDialog(QDialog):
         )
         self.frame_display_combo.currentIndexChanged.connect(
             self._set_frame_display_description
+        )
+        self.frame_background_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.frame_background_color_combo)
+        )
+        self.frame_text_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.frame_text_color_combo)
+        )
+        self.search_marker_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.search_marker_color_combo)
+        )
+        self.current_match_marker_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.current_match_marker_color_combo)
+        )
+        self.visible_space_marker_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.visible_space_marker_color_combo)
+        )
+        self.visible_tab_marker_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.visible_tab_marker_color_combo)
+        )
+        self.visible_newline_marker_color_button.clicked.connect(
+            lambda: self._choose_color_for_combo(self.visible_newline_marker_color_combo)
         )
 
     def _choose_backup_folder(self) -> None:
@@ -646,11 +698,52 @@ class OptionsDialog(QDialog):
     def _populate_color_combo(self, combo_box: QComboBox) -> None:
         combo_box.clear()
         for label, color_code in COLOR_PRESETS:
-            combo_box.addItem(f"{label} ({color_code})", color_code)
+            combo_box.addItem(_color_icon(color_code), f"{label} ({color_code})", color_code)
 
     def _set_color_combo(self, combo_box: QComboBox, color_code: str) -> None:
         color_index = combo_box.findData(color_code)
         if color_index == -1:
-            combo_box.insertItem(0, color_code, color_code)
+            combo_box.insertItem(0, _color_icon(color_code), color_code, color_code)
             color_index = 0
         combo_box.setCurrentIndex(color_index)
+
+    def _color_picker_row(self, combo_box: QComboBox, button: QPushButton) -> QWidget:
+        widget = QWidget(self)
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(combo_box, 1)
+        layout.addWidget(button)
+        widget.setLayout(layout)
+        return widget
+
+    def _choose_color_for_combo(self, combo_box: QComboBox) -> None:
+        current_color_code = str(combo_box.currentData())
+        initial_color = QColor(current_color_code)
+        if not initial_color.isValid():
+            initial_color = QColor("#ffffff")
+        selected_color = QColorDialog.getColor(
+            initial_color,
+            self,
+            self.translator.text("options.choose_color"),
+        )
+        if not selected_color.isValid():
+            return
+        self._set_color_combo(combo_box, selected_color.name())
+
+    def _color_buttons(self) -> tuple[QPushButton, ...]:
+        return (
+            self.frame_background_color_button,
+            self.frame_text_color_button,
+            self.search_marker_color_button,
+            self.current_match_marker_color_button,
+            self.visible_space_marker_color_button,
+            self.visible_tab_marker_color_button,
+            self.visible_newline_marker_color_button,
+        )
+
+
+def _color_icon(color_code: str) -> QIcon:
+    pixmap = QPixmap(16, 16)
+    color = QColor(color_code)
+    pixmap.fill(color if color.isValid() else QColor("#ffffff"))
+    return QIcon(pixmap)

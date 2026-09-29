@@ -424,9 +424,11 @@ def test_html_snippets_are_loaded_from_json() -> None:
     html_group = tag_snippet_groups()[0]
 
     assert html_group.label_key == "tag.group.html"
-    assert len(html_group.snippets) == 24
+    assert len(html_group.snippets) == 35
     assert html_group.snippets[0].label_key == "tag.html.paragraph"
     assert html_group.snippets[-1].label_key == "tag.html.horizontal_rule"
+    assert any(snippet.label_key == "tag.html.main" for snippet in html_group.snippets)
+    assert any(snippet.label_key == "tag.html.form_basic" for snippet in html_group.snippets)
 
 
 def test_tag_dictionary_rejects_empty_required_values(tmp_path: Path) -> None:
