@@ -1635,6 +1635,68 @@ Validation result:
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 - Full `pytest`: 231 passed.
 
+## Step13-section6 Sample-Based Grammar Lint Expansion
+
+Purpose:
+
+- Reduce the gap between RegexPad's grammar check and the real `sample/test.wp_html` problems found during external review.
+- Stop collapsing several different HTML/WP breakages into only one `<code>` count mismatch.
+- Preserve the lightweight lint approach while adding regression coverage for the current sample.
+
+Findings:
+
+- `sample/test.wp_html` no longer had the old global backslash escaping issue.
+- RegexPad reported only one `<code>` count mismatch because the existing lint mostly checked total open/close counts.
+- The sample actually had several different issue categories:
+  - Empty `<p></p>` outside a WordPress block.
+  - Duplicated paragraph openings after the embed section.
+  - Broken `/code&gt;` fragments.
+  - Nested/unclosed `<code>` tags.
+  - `<code>` contamination inside a separator block.
+  - Missing `</strong>`.
+  - Lone `<br>` outside a WordPress block.
+
+Changes:
+
+- Expanded `search/html_typo_lint.py`:
+  - Added `<strong>` count mismatch checks.
+  - Added non-nestable `<code>` nesting checks so broken code snippets are reported near their source.
+  - Added orphan line checks for standalone `<p></p>` and `<br>` outside WordPress blocks.
+  - Added a separator-body check that warns when `<code>` tags are mixed into a separator block.
+  - Added a broken escaped close-fragment check for `/code&gt;`.
+  - Added a lightweight duplicate WordPress paragraph opening check based on normalized visible paragraph text.
+  - Adjusted the first mismatch position logic so an unclosed/nested `<code>` reports near the first nested problem instead of only near the final imbalance.
+
+- Updated localization:
+  - `resources/app_text_ja.json`
+  - `resources/app_text_en.json`
+  - Added user-facing messages for the new lint categories.
+
+- Updated regression tests:
+  - `tests/test_html_typo_lint.py`
+    - Added focused tests for nested `<code>`, missing `</strong>`, orphan `<p></p>` / `<br>`, separator code contamination, `/code&gt;`, duplicate paragraph openings, and the real `sample/test.wp_html` problem categories.
+    - The sample now produces multiple issue categories instead of only one `<code>` count mismatch.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_main_window_search.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- JSON validation passed for both app translation files.
+- Targeted lint/main-window tests: 59 passed.
+- Full `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 236 passed.
+- Current `sample/test.wp_html` lint output: 16 issue rows across the expected categories.
+
 ## Validation Commands
 
 Use the project virtual environment:

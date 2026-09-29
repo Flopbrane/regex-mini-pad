@@ -4,6 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from difflib import get_close_matches
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -192,6 +193,15 @@ def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage
             "html_typo_lint.count_mismatch_code",
         )
     )
+    messages.extend(
+        _lint_html_tag_count(
+            load_data,
+            "strong",
+            "html_typo_lint.count_mismatch_strong",
+        )
+    )
+    messages.extend(_lint_non_nestable_html_tag(load_data, "code"))
+    messages.extend(_lint_orphan_html_lines_outside_wordpress_blocks(load_data))
     messages.extend(_lint_known_fragile_typos(load_data))
     return messages
 
@@ -262,6 +272,8 @@ def _first_count_problem_position(
     last_close_position = 0
     for position, token_type in sorted(tokens):
         if token_type == "open":
+            if open_count > close_count and balance > 0:
+                return position
             balance += 1
             last_open_position = position
         else:
@@ -276,12 +288,76 @@ def _first_count_problem_position(
     return 0
 
 
+def _lint_non_nestable_html_tag(
+    load_data: str,
+    name: str,
+) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    line_starts = _line_start_positions(load_data)
+    open_positions: list[int] = []
+    for tag_match in HTML_TAG_TOKEN_PATTERN.finditer(load_data):
+        tag_name = tag_match.group(2).lower()
+        if tag_name != name:
+            continue
+        if tag_match.group(1):
+            if open_positions:
+                open_positions.pop()
+            continue
+        if tag_match.group(3):
+            continue
+        if open_positions:
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.nested_html_tag",
+                    _line_number_at(tag_match.start(), line_starts),
+                    {"tag": name},
+                )
+            )
+            continue
+        open_positions.append(tag_match.start())
+    return messages
+
+
+def _lint_orphan_html_lines_outside_wordpress_blocks(
+    load_data: str,
+) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    block_depth = 0
+    for line_number, line in enumerate(load_data.splitlines(), start=1):
+        stripped_line = line.strip()
+        if block_depth == 0:
+            if re.fullmatch(r"<p\s*>\s*</p\s*>", stripped_line, re.IGNORECASE):
+                messages.append(
+                    HtmlTypoLintMessage(
+                        "warning",
+                        "html_typo_lint.empty_paragraph_outside_wordpress_block",
+                        line_number,
+                    )
+                )
+            if re.fullmatch(r"<br\s*/?\s*>", stripped_line, re.IGNORECASE):
+                messages.append(
+                    HtmlTypoLintMessage(
+                        "warning",
+                        "html_typo_lint.break_outside_wordpress_block",
+                        line_number,
+                    )
+                )
+        for block_match in BLOCK_COMMENT_PATTERN.finditer(line):
+            if block_match.group(1):
+                block_depth = max(0, block_depth - 1)
+            else:
+                block_depth += 1
+    return messages
+
+
 def _lint_known_fragile_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     line_starts = _line_start_positions(load_data)
     typo_checks = (
         (r"<\\p\s*>", "html_typo_lint.invalid_p_closing_tag"),
         (r"margin\s*:\s*2en\b", "html_typo_lint.known_typo_margin_2en"),
+        (r"/code&gt;", "html_typo_lint.escaped_code_close_fragment"),
     )
     for pattern, message_key in typo_checks:
         for match in re.finditer(pattern, load_data, re.IGNORECASE):
@@ -386,6 +462,7 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
     messages: list[HtmlTypoLintMessage] = []
     line_starts = _line_start_positions(load_data)
     block_stack: list[tuple[str, int, int, dict[str, Any]]] = []
+    paragraph_prefix_lines: dict[str, int] = {}
 
     for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
         is_closing = bool(block_match.group(1))
@@ -452,6 +529,27 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
         if block_name == "paragraph":
             messages.extend(
                 _lint_wordpress_paragraph_body(
+                    block_body,
+                    open_line_number,
+                )
+            )
+            paragraph_key = _paragraph_duplicate_key(block_body)
+            if paragraph_key:
+                previous_line = paragraph_prefix_lines.get(paragraph_key)
+                if previous_line is not None:
+                    messages.append(
+                        HtmlTypoLintMessage(
+                            "warning",
+                            "html_typo_lint.duplicate_wordpress_paragraph",
+                            open_line_number,
+                            {"previous_line": str(previous_line)},
+                        )
+                    )
+                else:
+                    paragraph_prefix_lines[paragraph_key] = open_line_number
+        if block_name == "separator":
+            messages.extend(
+                _lint_wordpress_separator_body(
                     block_body,
                     open_line_number,
                 )
@@ -659,6 +757,31 @@ def _lint_wordpress_paragraph_body(
             )
         )
     return messages
+
+
+def _lint_wordpress_separator_body(
+    block_body: str,
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    if not re.search(r"</?code(?:\s|>)", block_body, re.IGNORECASE):
+        return []
+    return [
+        HtmlTypoLintMessage(
+            "warning",
+            "html_typo_lint.wordpress_separator_contains_code",
+            line_number,
+        )
+    ]
+
+
+def _paragraph_duplicate_key(block_body: str) -> str:
+    without_comments = BLOCK_COMMENT_PATTERN.sub(" ", block_body)
+    without_tags = re.sub(r"<[^<>]+>", " ", without_comments)
+    text = unescape(without_tags)
+    normalized_text = re.sub(r"\s+", "", text)
+    if len(normalized_text) < 30:
+        return ""
+    return normalized_text[:30]
 
 
 def _line_start_positions(load_data: str) -> list[int]:

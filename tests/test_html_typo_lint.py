@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 from search.html_typo_lint import lint_html_typos
@@ -152,6 +153,67 @@ def test_lint_reports_pre_and_code_count_mismatches() -> None:
     assert "html_typo_lint.count_mismatch_pre" not in message_keys
 
 
+def test_lint_reports_nested_code_and_strong_count_mismatch() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p><code>one <code>two</code></p>\n"
+        "<p><strong>strong text</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.nested_html_tag" in message_keys
+    assert "html_typo_lint.count_mismatch_code" in message_keys
+    assert "html_typo_lint.count_mismatch_strong" in message_keys
+
+
+def test_lint_reports_orphan_empty_paragraph_and_break() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p>本文</p>\n"
+        "<!-- /wp:paragraph -->\n"
+        "<p></p>\n"
+        "<br>\n"
+    )
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.empty_paragraph_outside_wordpress_block" in message_keys
+    assert "html_typo_lint.break_outside_wordpress_block" in message_keys
+
+
+def test_lint_reports_separator_code_contamination_and_escaped_code_fragment() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p><code>&lt;!-- wp:paragraph --&gt;/code&gt;</code></p>\n"
+        "<!-- /wp:paragraph -->\n"
+        "<!-- wp:separator -->\n"
+        '<hr class="wp-block-separator has-alpha-channel-opacity"><code><code>\n'
+        "<!-- /wp:separator -->"
+    )
+
+    message_keys = {message.message_key for message in messages}
+    assert "html_typo_lint.wordpress_separator_contains_code" in message_keys
+    assert "html_typo_lint.escaped_code_close_fragment" in message_keys
+
+
+def test_lint_reports_duplicate_wordpress_paragraph_opening() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p>ただし、制限が強いWordPressでは、埋め込みがうまく残らない場合があります。</p>\n"
+        "<!-- /wp:paragraph -->\n"
+        "<!-- wp:paragraph -->\n"
+        "<p>ただし、制限が強いWordPressでは、埋め込みがうまく残らない時があります。</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.duplicate_wordpress_paragraph"
+        and message.values
+        and message.values["previous_line"] == "1"
+        for message in messages
+    )
+
+
 def test_lint_counts_only_html_tag_tokens_for_code() -> None:
     messages = lint_html_typos(
         "<!--wp:paragraph-->\n"
@@ -162,6 +224,26 @@ def test_lint_counts_only_html_tag_tokens_for_code() -> None:
     message_keys = {message.message_key for message in messages}
     assert "html_typo_lint.count_mismatch_code" not in message_keys
     assert "html_typo_lint.count_mismatch_wordpress_paragraph" not in message_keys
+
+
+def test_lint_reports_real_sample_problem_categories() -> None:
+    sample_path = Path("sample/test.wp_html")
+    if not sample_path.exists():
+        return
+    sample_text = sample_path.read_text(encoding="utf-8")
+
+    messages = lint_html_typos(sample_text)
+
+    message_keys = {message.message_key for message in messages}
+    assert len(messages) > 1
+    assert "html_typo_lint.count_mismatch_code" in message_keys
+    assert "html_typo_lint.nested_html_tag" in message_keys
+    assert "html_typo_lint.escaped_code_close_fragment" in message_keys
+    assert "html_typo_lint.wordpress_separator_contains_code" in message_keys
+    assert "html_typo_lint.duplicate_wordpress_paragraph" in message_keys
+    assert "html_typo_lint.count_mismatch_strong" in message_keys
+    assert "html_typo_lint.empty_paragraph_outside_wordpress_block" in message_keys
+    assert "html_typo_lint.break_outside_wordpress_block" in message_keys
 
 
 def test_lint_reports_known_fragile_typos() -> None:

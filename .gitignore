@@ -17,6 +17,8 @@ htmlcov/
 *.yaml
 .pylintrc
 pyrightconfig.json
+sample/
+autosave/
 # Build outputs
 build/
 dist/
