@@ -1811,6 +1811,185 @@ Implementation notes for next pass:
 - Add regression tests for each migration step before removing old count-based checks.
 - Keep `wp:code` and inline `<code>&lt;...&gt;</code>` display content out of live HTML structural checks.
 
+## Step13-section9 Grammar Issue Background Highlight
+
+Purpose:
+
+- Make grammar-check findings visible directly in the main editor while the check result is active.
+- Restore the editor to the normal theme/background when the warning context is gone or the text changes.
+
+Changes:
+
+- Updated `editor/text_editor.py`:
+  - Added a separate grammar issue line highlight state.
+  - Combined grammar issue selections with existing search selections instead of replacing search highlights.
+  - Uses a faint red full-line background for grammar issue lines.
+
+- Updated `main.py`:
+  - Manual Grammar Check now highlights all issue lines in the current editor.
+  - A no-issue result clears existing grammar issue highlights.
+  - Editing the text clears stale grammar issue highlights.
+  - Save-time grammar confirmation highlights issue lines only while the confirmation is active, then clears them.
+  - Closing/hiding the modeless grammar-check dialog clears the highlights.
+
+- Updated `dialogs/grammar_check_dialog.py`:
+  - Added a `dismissed` signal emitted when the dialog is hidden.
+
+- Updated `tests/test_main_window_search.py`:
+  - Added regression tests for issue-line highlighting.
+  - Added tests for clearing highlights after no-issue checks, edits, and dialog hide.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_main_window_search.py tests\test_text_editor_visible_whitespace.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check editor\text_editor.py dialogs\grammar_check_dialog.py main.py tests\test_main_window_search.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+```
+
+Validation result:
+
+- Targeted grammar/search/editor tests: 43 passed.
+- Targeted Ruff: All checks passed.
+- Pyright: 0 errors, 0 warnings, 0 informations.
+
+## Step13-section10 Line Selection From Gutter
+
+Purpose:
+
+- Make line selection easier while reviewing lint results or editing line-based text.
+- Allow clicking the line-number area to select exactly that line.
+- When line numbers are hidden, allow the far-left line head area to perform the same line selection.
+
+Changes:
+
+- Updated `editor/line_number_area.py`:
+  - Left-clicking the line number gutter selects the clicked line.
+
+- Updated `editor/text_editor.py`:
+  - Added shared line-selection helpers based on visible block position.
+  - Added a small left-edge hit area for line selection when line numbers are hidden.
+  - Kept ordinary clicks unchanged outside that narrow left-edge area.
+
+- Updated `tests/test_text_editor_visible_whitespace.py`:
+  - Added tests for selecting a line by clicking the line-number area.
+  - Added tests for selecting a line by clicking the line head when line numbers are hidden.
+
+Related validation fix:
+
+- Updated `fileio/file_backup_manager.py` after full-suite validation exposed an existing backup-retention instability.
+  - Fast repeated backups could collide or sort inconsistently when relying on timestamps alone.
+  - Backup filenames now include a manager-local monotonic sequence.
+  - Backup file mtime is refreshed after copy so retention-days checks use the backup creation time rather than the source file timestamp.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_file_backup_manager.py tests\test_text_editor_visible_whitespace.py tests\test_main_window_search.py
+```
+
+Validation result:
+
+- Targeted file-backup/editor/search tests: 48 passed.
+
+## Step13-section11 Backup Scope Policy
+
+Purpose:
+
+- Clarify the backup feature policy after the line-selection and lint-highlight pass.
+- Keep backup behavior simple and local instead of turning it into a full long-term generation history system.
+
+Policy:
+
+- Saved-file backups are treated as a per-file recovery ring, similar to an external Undo/Redo safety net.
+- Keep about 20 recent backups per original file by default.
+- Do not expand this into a separate heavy generation-backup feature unless requirements change.
+- The temporary unsaved backup remains separate:
+  - It is for tab/window crash recovery.
+  - It is not long-term file history.
+- The default backup location should remain inside the RegexPad project folder:
+  - Unsaved temporary backup: `autosave/unsaved_backup.json`
+  - Saved-file recovery backups: `autosave/file_backups`
+- The current Options-based backup folder override is sufficient:
+  - Empty setting uses the RegexPad-local default.
+  - A configured folder stores the same backup data under that user-selected location.
+
+Implementation note:
+
+- The current saved-file backup manager already keeps backups per original file path and defaults to 20 entries.
+- Keep the restore UI conservative: selected backup content is loaded into the editor as an unsaved change, not written directly over the original file.
+
+## Step13-section12 Paragraph Split Insertion Baseline
+
+Purpose:
+
+- Make the paragraph split insertion start point match the user's actual editing gesture.
+- Reduce accidental paragraph splitting when inserting spacer, HTML code, or decorated frame blocks.
+
+Changes:
+
+- Updated `editor/paragraph_splitter.py`:
+  - Spacer insertion now only works from an empty line inside a simple `wp:paragraph`.
+  - Non-empty-line spacer insertion is rejected with a clear message asking the user to right-click an empty line created by Enter.
+  - HTML code block wrapping and decorated frame wrapping now expand a partial selection to whole content lines before splitting the paragraph.
+  - The selected line range becomes the inserted `wp:html` block content, while before/after lines remain normal paragraph blocks.
+
+- Updated `main.py`:
+  - Right-clicking the editor moves the cursor to the clicked position only when there is no active selection.
+  - HTML insertion now uses the same selection-wrapping path as the code-block wrapper, so selected text is contained instead of inserting an empty block at the cursor.
+
+- Updated `tests/test_paragraph_splitter.py`:
+  - Added spacer-empty-line behavior coverage.
+  - Added nonblank-line spacer rejection coverage.
+  - Added partial-selection-to-line-range coverage for HTML code and decorated frame wrapping.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_paragraph_splitter.py
+```
+
+Validation result:
+
+- Paragraph splitter tests: 10 passed.
+
+## Step13-section13 Linter Token Inventory Hardening
+
+Purpose:
+
+- Continue hardening the Grammar Check / HTML-WP linter foundation.
+- Move fragile count checks toward separate token inventories for WordPress block comments and live HTML tags.
+- Keep displayed escaped code examples out of live HTML tag counting.
+
+Changes:
+
+- Updated `search/html_typo_lint.py`:
+  - Added an internal `_LintToken` model for detected WordPress block comments and HTML tags.
+  - WordPress block count checks now use a WordPress-comment token list instead of ad hoc per-rule counting.
+  - HTML `<p>`, `<pre>`, and `<code>` count checks now use `HTMLParser`-collected live tag tokens.
+  - Nested `<code>` detection now uses the same live tag token stream.
+  - WordPress block mismatch handling no longer consumes the currently open block when the closing comment name is wrong and no matching block exists on the stack.
+
+- Updated `tests/test_html_typo_lint.py`:
+  - Added coverage that escaped display examples such as `&lt;code&gt;...&lt;/code&gt;` do not trip live `<code>` counts.
+  - Added coverage that a wrong closing WordPress block comment does not hide a later valid closing comment for the still-open block.
+
+Sample check:
+
+- `sample/test.wp_html` currently reports only the expected `<strong>` before `</p>` issue at line 501.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check search\html_typo_lint.py tests\test_html_typo_lint.py
+```
+
+Validation result:
+
+- HTML typo linter tests: 33 passed.
+- Targeted Ruff: All checks passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

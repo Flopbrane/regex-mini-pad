@@ -328,6 +328,81 @@ def test_grammar_check_reports_html_and_wordpress_typos(
     assert window.editor.textCursor().blockNumber() == 2
 
 
+def test_grammar_check_highlights_issue_lines(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText(
+        "<p>本文</p>\n"
+        '<p clas="lead"><spna>誤字</spna></p>\n'
+        "<!-- wp:paragaph -->\n"
+    )
+
+    window.run_grammar_check()
+
+    issue_selections = [
+        selection
+        for selection in window.editor.extraSelections()
+        if selection.format.background().color().name() == "#ffe3e3"
+    ]
+    assert len(issue_selections) == 2
+    assert window.editor.grammar_issue_lines == [2, 3]
+
+
+def test_grammar_check_clears_issue_highlights_when_no_issues(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText('<p clas="lead">誤字</p>')
+    window.run_grammar_check()
+    assert window.editor.grammar_issue_lines == [1]
+
+    window.editor.setPlainText(
+        "<!-- wp:paragraph -->\n"
+        '<p class="lead">本文</p>\n'
+        "<!-- /wp:paragraph -->\n"
+    )
+    window.run_grammar_check()
+
+    assert window.editor.grammar_issue_lines == []
+    assert not [
+        selection
+        for selection in window.editor.extraSelections()
+        if selection.format.background().color().name() == "#ffe3e3"
+    ]
+
+
+def test_grammar_check_clears_issue_highlights_on_edit(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText('<p clas="lead">誤字</p>')
+    window.run_grammar_check()
+    assert window.editor.grammar_issue_lines == [1]
+
+    window.editor.insertPlainText("修正中")
+
+    assert window.editor.grammar_issue_lines == []
+
+
+def test_grammar_check_clears_issue_highlights_when_dialog_hides(
+    app: QApplication,
+) -> None:
+    window = MainWindow()
+    window.editor.setPlainText('<p clas="lead">誤字</p>')
+    window.run_grammar_check()
+    assert window.grammar_check_dialog is not None
+    assert window.editor.grammar_issue_lines == [1]
+
+    window.grammar_check_dialog.hide()
+    app.processEvents()
+
+    assert window.editor.grammar_issue_lines == []
+
+
 def test_grammar_check_reports_no_issues(
     app: QApplication,
 ) -> None:

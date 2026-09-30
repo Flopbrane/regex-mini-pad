@@ -9,6 +9,7 @@ from pathlib import Path
 class FileBackupManager:
     def __init__(self, backup_root: Path) -> None:
         self.backup_root = backup_root
+        self._backup_sequence = 0
 
     def backup_existing_file(
         self,
@@ -22,8 +23,9 @@ class FileBackupManager:
 
         backup_folder = self._backup_folder_for_file(load_file_path)
         backup_folder.mkdir(parents=True, exist_ok=True)
-        backup_path = backup_folder / self._backup_file_name(load_file_path)
+        backup_path = self._unique_backup_path(backup_folder, load_file_path)
         shutil.copy2(load_file_path, backup_path)
+        backup_path.touch()
         self._prune_backups(
             backup_folder,
             retention_count=max(1, retention_count),
@@ -48,9 +50,21 @@ class FileBackupManager:
         return self.backup_root / f"{safe_name}-{path_hash}"
 
     def _backup_file_name(self, load_file_path: Path) -> str:
+        self._backup_sequence += 1
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+        timestamp = f"{timestamp}-{self._backup_sequence:08d}"
         safe_name = _safe_path_part(load_file_path.name) or "file.txt"
         return f"{timestamp}-{safe_name}"
+
+    def _unique_backup_path(self, backup_folder: Path, load_file_path: Path) -> Path:
+        backup_path = backup_folder / self._backup_file_name(load_file_path)
+        counter = 1
+        while backup_path.exists():
+            backup_path = backup_path.with_name(
+                f"{backup_path.stem}-{counter}{backup_path.suffix}"
+            )
+            counter += 1
+        return backup_path
 
     def _prune_backups(
         self,

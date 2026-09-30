@@ -115,10 +115,12 @@ def build_decorated_block(content: str = "") -> str:
 
 
 def split_paragraph_insert_spacer(text: str, cursor_pos: int) -> ParagraphReplacement:
+    block = _paragraph_block_for_range(text, cursor_pos, cursor_pos)
+    start, end = _blank_line_range_at_cursor(text, block, cursor_pos)
     return _replace_current_paragraph_selection(
         text,
-        cursor_pos,
-        cursor_pos,
+        start,
+        end,
         _BuiltBlock(build_spacer_block(), len(build_spacer_block())),
     )
 
@@ -139,6 +141,11 @@ def wrap_selection_as_code_block(
     selection_start: int,
     selection_end: int,
 ) -> ParagraphReplacement:
+    selection_start, selection_end = _expand_selection_to_content_lines(
+        text,
+        selection_start,
+        selection_end,
+    )
     selected_text = _selected_text(text, selection_start, selection_end)
     html_block = build_html_code_block(selected_text)
     cursor_offset = html_block.index("</code>")
@@ -155,6 +162,11 @@ def wrap_selection_as_decorated_block(
     selection_start: int,
     selection_end: int,
 ) -> ParagraphReplacement:
+    selection_start, selection_end = _expand_selection_to_content_lines(
+        text,
+        selection_start,
+        selection_end,
+    )
     selected_text = _selected_text(text, selection_start, selection_end)
     decorated_block = build_decorated_block(selected_text)
     cursor_offset = decorated_block.index("</div>")
@@ -206,6 +218,47 @@ def _paragraph_block_for_range(text: str, start: int, end: int) -> ParagraphBloc
     if start < block.content_start or end > block.content_end:
         raise ParagraphSplitError("現在の位置では段落分割できません。")
     return block
+
+
+def _blank_line_range_at_cursor(
+    text: str,
+    block: ParagraphBlock,
+    cursor_pos: int,
+) -> tuple[int, int]:
+    content = text[block.content_start : block.content_end]
+    relative_pos = min(max(cursor_pos - block.content_start, 0), len(content))
+    line_start = content.rfind("\n", 0, relative_pos) + 1
+    line_end = content.find("\n", relative_pos)
+    if line_end == -1:
+        line_end = len(content)
+
+    if content[line_start:line_end].strip():
+        raise ParagraphSplitError(
+            "スペーサー挿入は、ユーザーが改行して作った空行で右クリックしてください。"
+        )
+    return block.content_start + line_start, block.content_start + line_end
+
+
+def _expand_selection_to_content_lines(
+    text: str,
+    selection_start: int,
+    selection_end: int,
+) -> tuple[int, int]:
+    start = min(selection_start, selection_end)
+    end = max(selection_start, selection_end)
+    if start == end:
+        return start, end
+
+    block = _paragraph_block_for_range(text, start, end)
+    content = text[block.content_start : block.content_end]
+    relative_start = start - block.content_start
+    relative_end = end - block.content_start
+    line_start = content.rfind("\n", 0, relative_start) + 1
+    line_end_lookup = max(relative_start, relative_end - 1)
+    line_end = content.find("\n", line_end_lookup)
+    if line_end == -1:
+        line_end = len(content)
+    return block.content_start + line_start, block.content_start + line_end
 
 
 def _join_split_blocks(

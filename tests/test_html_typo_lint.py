@@ -283,6 +283,41 @@ def test_lint_counts_only_html_tag_tokens_for_code() -> None:
     assert "html_typo_lint.count_mismatch_wordpress_paragraph" not in message_keys
 
 
+def test_lint_counts_ignore_escaped_html_code_examples() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p>表示例は <code>&lt;code&gt;本文&lt;/code&gt;</code> です。</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert not any(
+        message.message_key == "html_typo_lint.count_mismatch_code"
+        for message in messages
+    )
+
+
+def test_lint_wordpress_mismatch_does_not_consume_valid_open_block() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph -->\n"
+        "<p>本文</p>\n"
+        "<!-- /wp:html -->\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.mismatched_wordpress_block"
+        and message.line_number == 3
+        and message.values == {"open_block": "paragraph", "close_block": "html"}
+        for message in messages
+    )
+    assert not any(
+        message.message_key == "html_typo_lint.missing_wordpress_closing_block"
+        and message.values
+        and message.values.get("block") == "paragraph"
+        for message in messages
+    )
+
+
 def test_lint_reports_real_sample_problem_categories() -> None:
     sample_path = Path("sample/test.wp_html")
     if not sample_path.exists():

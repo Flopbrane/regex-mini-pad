@@ -58,8 +58,8 @@ from editor.editor_tab import EditorTab
 from editor.paragraph_splitter import (
     ParagraphReplacement,
     ParagraphSplitError,
-    split_paragraph_insert_html,
     split_paragraph_insert_spacer,
+    wrap_selection_as_code_block,
     wrap_selection_as_decorated_block,
 )
 from editor.rectangular_selection import (
@@ -517,6 +517,7 @@ class MainWindow(QMainWindow):
         editor.textChanged.connect(self._update_tab_titles)
         editor.textChanged.connect(self._save_unsaved_backup)
         editor.textChanged.connect(self._refresh_search_highlights_from_dialog)
+        editor.textChanged.connect(editor.clear_grammar_issue_lines)
         editor.cursorPositionChanged.connect(self._update_status_bar)
         editor.document().modificationChanged.connect(self._update_tab_titles)
         editor.document().modificationChanged.connect(self._update_window_title)
@@ -1045,6 +1046,8 @@ class MainWindow(QMainWindow):
 
     def _show_editor_context_menu(self, position: QPoint) -> None:
         """Show the context menu for the editor at the given position."""
+        if not self.editor.textCursor().hasSelection():
+            self.editor.setTextCursor(self.editor.cursorForPosition(position))
         context_menu = self._create_editor_context_menu()
         context_menu.exec(self.editor.mapToGlobal(position))
 
@@ -1334,11 +1337,13 @@ class MainWindow(QMainWindow):
         source_text = self.editor.toPlainText()
         messages = lint_html_typos(source_text)
         if not messages:
+            self.editor.clear_grammar_issue_lines()
             status_message = self.translator.text("grammar_check.no_issues")
             self.statusBar().showMessage(status_message)
             self._show_grammar_check_dialog(status_message, [])
             return
 
+        self._set_grammar_issue_highlights(messages)
         self._set_cursor_to_line(messages[0].line_number)
         status_message = self.translator.text(
             "grammar_check.issues_found",
@@ -1360,6 +1365,9 @@ class MainWindow(QMainWindow):
             self.grammar_check_dialog = GrammarCheckDialog(self.translator, self)
             self.grammar_check_dialog.line_selected.connect(self._set_cursor_to_line)
             self.grammar_check_dialog.refresh_requested.connect(self.run_grammar_check)
+            self.grammar_check_dialog.dismissed.connect(
+                self._clear_grammar_issue_highlights
+            )
         self.grammar_check_dialog.set_result(summary, rows)
         self.grammar_check_dialog.show()
         self.grammar_check_dialog.raise_()
@@ -1371,23 +1379,39 @@ class MainWindow(QMainWindow):
 
         messages = lint_html_typos(save_data)
         if not messages:
+            self.editor.clear_grammar_issue_lines()
             return True
 
+        self._set_grammar_issue_highlights(messages)
         self._set_cursor_to_line(messages[0].line_number)
         summary = self._grammar_check_summary(messages)
-        result = QMessageBox.question(
-            self,
-            self.translator.text("grammar_check.save_warning.title"),
-            "\n\n".join(
-                (
-                    self.translator.text("grammar_check.save_warning.message"),
-                    summary,
-                )
-            ),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
+        try:
+            result = QMessageBox.question(
+                self,
+                self.translator.text("grammar_check.save_warning.title"),
+                "\n\n".join(
+                    (
+                        self.translator.text("grammar_check.save_warning.message"),
+                        summary,
+                    )
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+        finally:
+            self.editor.clear_grammar_issue_lines()
         return result == QMessageBox.StandardButton.Yes
+
+    def _set_grammar_issue_highlights(
+        self,
+        messages: list[HtmlTypoLintMessage],
+    ) -> None:
+        self.editor.set_grammar_issue_lines(
+            [message.line_number for message in messages]
+        )
+
+    def _clear_grammar_issue_highlights(self) -> None:
+        self.editor.clear_grammar_issue_lines()
 
     def _grammar_check_summary(
         self,
@@ -1490,10 +1514,8 @@ class MainWindow(QMainWindow):
         )
 
     def insert_paragraph_split_html(self) -> None:
-        """Split the current paragraph and insert an empty HTML code block."""
-        self._apply_paragraph_split_operation(
-            lambda text, start, _end: split_paragraph_insert_html(text, start)
-        )
+        """Split the current paragraph and wrap the selection as an HTML code block."""
+        self._apply_paragraph_split_operation(wrap_selection_as_code_block)
 
     def wrap_paragraph_split_decorated_block(self) -> None:
         """Split the current paragraph and wrap the selection as a decorated block."""

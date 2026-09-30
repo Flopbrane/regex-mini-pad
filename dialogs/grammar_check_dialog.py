@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QHideEvent
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -18,6 +19,7 @@ from localization.translator import Translator
 class GrammarCheckDialog(QDialog):
     line_selected = Signal(int)
     refresh_requested = Signal()
+    dismissed = Signal()
 
     def __init__(
         self,
@@ -78,3 +80,7 @@ class GrammarCheckDialog(QDialog):
         line_number = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(line_number, int):
             self.line_selected.emit(line_number)
+
+    def hideEvent(self, event: QHideEvent) -> None:
+        super().hideEvent(event)
+        self.dismissed.emit()

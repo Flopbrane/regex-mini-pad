@@ -190,6 +190,14 @@ class LintReferenceCache:
     allowed_attribute_prefixes: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class _LintToken:
+    position: int
+    line_number: int
+    name: str
+    token_type: str
+
+
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     messages.extend(_lint_wordpress_simple_structure(load_data))
@@ -204,94 +212,89 @@ def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
 
 def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
+    wordpress_tokens = _wordpress_block_tokens(load_data)
+    html_tokens = _html_tag_tokens(load_data)
     messages.extend(
         _lint_wordpress_block_comment_count(
-            load_data,
+            wordpress_tokens,
             "paragraph",
             "html_typo_lint.count_mismatch_wordpress_paragraph",
         )
     )
     messages.extend(
         _lint_wordpress_block_comment_count(
-            load_data,
+            wordpress_tokens,
             "html",
             "html_typo_lint.count_mismatch_wordpress_html",
         )
     )
     messages.extend(
         _lint_html_tag_count(
-            load_data,
+            html_tokens,
             "p",
             "html_typo_lint.count_mismatch_p",
         )
     )
     messages.extend(
         _lint_html_tag_count(
-            load_data,
+            html_tokens,
             "pre",
             "html_typo_lint.count_mismatch_pre",
         )
     )
     messages.extend(
         _lint_html_tag_count(
-            load_data,
+            html_tokens,
             "code",
             "html_typo_lint.count_mismatch_code",
         )
     )
-    messages.extend(_lint_non_nestable_html_tag(load_data, "code"))
+    messages.extend(_lint_non_nestable_html_tag(html_tokens, "code"))
     messages.extend(_lint_orphan_html_lines_outside_wordpress_blocks(load_data))
     messages.extend(_lint_known_fragile_typos(load_data))
     return messages
 
 
 def _lint_wordpress_block_comment_count(
-    load_data: str,
+    tokens: list[_LintToken],
     name: str,
     message_key: str,
 ) -> list[HtmlTypoLintMessage]:
-    tokens = [
-        (match.start(), "close" if match.group(1) else "open")
-        for match in BLOCK_COMMENT_PATTERN.finditer(load_data)
-        if _normalize_block_name(match.group(2)) == name
-    ]
-    return _lint_token_count(load_data, name, tokens, message_key)
+    return _lint_token_count(
+        name,
+        [token for token in tokens if token.name == name],
+        message_key,
+    )
 
 
 def _lint_html_tag_count(
-    load_data: str,
+    tokens: list[_LintToken],
     name: str,
     message_key: str,
 ) -> list[HtmlTypoLintMessage]:
-    tokens: list[tuple[int, str]] = []
-    for tag_match in HTML_TAG_TOKEN_PATTERN.finditer(load_data):
-        tag_name = tag_match.group(2).lower()
-        if tag_name != name:
-            continue
-        if tag_match.group(1):
-            tokens.append((tag_match.start(), "close"))
-        elif not tag_match.group(3):
-            tokens.append((tag_match.start(), "open"))
-    return _lint_token_count(load_data, name, tokens, message_key)
+    return _lint_token_count(
+        name,
+        [token for token in tokens if token.name == name],
+        message_key,
+    )
 
 
 def _lint_token_count(
-    load_data: str,
     name: str,
-    tokens: list[tuple[int, str]],
+    tokens: list[_LintToken],
     message_key: str,
 ) -> list[HtmlTypoLintMessage]:
-    open_count = sum(1 for _position, token_type in tokens if token_type == "open")
-    close_count = sum(1 for _position, token_type in tokens if token_type == "close")
+    open_count = sum(1 for token in tokens if token.token_type == "open")
+    close_count = sum(1 for token in tokens if token.token_type == "close")
     if open_count == close_count:
         return []
 
-    first_problem_position = _first_count_problem_position(tokens, open_count, close_count)
+    first_problem_token = _first_count_problem_token(tokens, open_count, close_count)
     return [
         HtmlTypoLintMessage(
             "warning",
             message_key,
-            _line_number_at(first_problem_position, _line_start_positions(load_data)),
+            first_problem_token.line_number if first_problem_token else 1,
             {
                 "name": name,
                 "open_count": str(open_count),
@@ -301,60 +304,56 @@ def _lint_token_count(
     ]
 
 
-def _first_count_problem_position(
-    tokens: list[tuple[int, str]],
+def _first_count_problem_token(
+    tokens: list[_LintToken],
     open_count: int,
     close_count: int,
-) -> int:
+) -> _LintToken | None:
     balance = 0
-    last_open_position = 0
-    last_close_position = 0
-    for position, token_type in sorted(tokens):
-        if token_type == "open":
+    last_open_token: _LintToken | None = None
+    last_close_token: _LintToken | None = None
+    for token in sorted(tokens, key=lambda item: item.position):
+        if token.token_type == "open":
             if open_count > close_count and balance > 0:
-                return position
+                return token
             balance += 1
-            last_open_position = position
+            last_open_token = token
         else:
             balance -= 1
-            last_close_position = position
+            last_close_token = token
         if balance < 0:
-            return position
+            return token
     if open_count > close_count:
-        return last_open_position
-    if last_close_position:
-        return last_close_position
-    return 0
+        return last_open_token
+    return last_close_token
 
 
 def _lint_non_nestable_html_tag(
-    load_data: str,
+    tokens: list[_LintToken],
     name: str,
 ) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
-    line_starts = _line_start_positions(load_data)
-    open_positions: list[int] = []
-    for tag_match in HTML_TAG_TOKEN_PATTERN.finditer(load_data):
-        tag_name = tag_match.group(2).lower()
-        if tag_name != name:
+    open_tokens: list[_LintToken] = []
+    for token in sorted(tokens, key=lambda item: item.position):
+        if token.name != name:
             continue
-        if tag_match.group(1):
-            if open_positions:
-                open_positions.pop()
+        if token.token_type == "close":
+            if open_tokens:
+                open_tokens.pop()
             continue
-        if tag_match.group(3):
+        if token.token_type != "open":
             continue
-        if open_positions:
+        if open_tokens:
             messages.append(
                 HtmlTypoLintMessage(
                     "warning",
                     "html_typo_lint.nested_html_tag",
-                    _line_number_at(tag_match.start(), line_starts),
+                    token.line_number,
                     {"tag": name},
                 )
             )
             continue
-        open_positions.append(tag_match.start())
+        open_tokens.append(token)
     return messages
 
 
@@ -447,6 +446,39 @@ def _wordpress_block_body_ranges(
 
 def _position_in_ranges(position: int, ranges: list[tuple[int, int]]) -> bool:
     return any(start <= position < end for start, end in ranges)
+
+
+def _wordpress_block_tokens(load_data: str) -> list[_LintToken]:
+    line_starts = _line_start_positions(load_data)
+    tokens: list[_LintToken] = []
+    for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
+        block_name = _normalize_block_name(block_match.group(2))
+        tokens.append(
+            _LintToken(
+                position=block_match.start(),
+                line_number=_line_number_at(block_match.start(), line_starts),
+                name=block_name,
+                token_type="close" if block_match.group(1) else "open",
+            )
+        )
+    return tokens
+
+
+def _html_tag_tokens(load_data: str) -> list[_LintToken]:
+    collector = _HtmlTagTokenCollector(_line_start_positions(load_data))
+    collector.feed(load_data)
+    collector.close()
+    return collector.tokens
+
+
+def _position_from_parser_pos(
+    line_starts: list[int],
+    line_number: int,
+    column_number: int,
+) -> int:
+    if line_number <= 0 or line_number > len(line_starts):
+        return 0
+    return line_starts[line_number - 1] + column_number
 
 
 def _load_lint_reference() -> dict[str, Any]:
@@ -591,7 +623,7 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             )
             continue
 
-        open_block_name, open_end, open_line_number, block_attributes = block_stack.pop()
+        open_block_name, open_end, open_line_number, block_attributes = block_stack[-1]
         if open_block_name != block_name:
             messages.append(
                 HtmlTypoLintMessage(
@@ -601,8 +633,15 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     {"open_block": open_block_name, "close_block": block_name},
                 )
             )
+            matching_index = _last_open_wordpress_block_index(block_stack, block_name)
+            if matching_index is None:
+                continue
+            for unclosed_block in reversed(block_stack[matching_index + 1 :]):
+                messages.append(_missing_wordpress_block_message(unclosed_block))
+            del block_stack[matching_index:]
             continue
 
+        block_stack.pop()
         block_body = load_data[open_end : block_match.start()]
         if block_name == "paragraph":
             messages.extend(
@@ -641,19 +680,34 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             )
         )
 
-    for block_name, _open_end, open_line_number, _block_attributes in block_stack:
-        message_key = "html_typo_lint.missing_wordpress_closing_block"
-        if block_name == "html":
-            message_key = "html_typo_lint.missing_wordpress_html_closing_block"
-        messages.append(
-            HtmlTypoLintMessage(
-                "warning",
-                message_key,
-                open_line_number,
-                {"block": block_name},
-            )
-        )
+    for block in block_stack:
+        messages.append(_missing_wordpress_block_message(block))
     return messages
+
+
+def _last_open_wordpress_block_index(
+    block_stack: list[tuple[str, int, int, dict[str, Any]]],
+    block_name: str,
+) -> int | None:
+    for index in range(len(block_stack) - 1, -1, -1):
+        if block_stack[index][0] == block_name:
+            return index
+    return None
+
+
+def _missing_wordpress_block_message(
+    block: tuple[str, int, int, dict[str, Any]],
+) -> HtmlTypoLintMessage:
+    block_name, _open_end, open_line_number, _block_attributes = block
+    message_key = "html_typo_lint.missing_wordpress_closing_block"
+    if block_name == "html":
+        message_key = "html_typo_lint.missing_wordpress_html_closing_block"
+    return HtmlTypoLintMessage(
+        "warning",
+        message_key,
+        open_line_number,
+        {"block": block_name},
+    )
 
 
 def _parse_wordpress_block_attributes(attributes_text: str | None) -> dict[str, Any] | None:
@@ -1070,3 +1124,34 @@ class HtmlTypoLintParser(HTMLParser):
                     },
                 )
             )
+
+
+class _HtmlTagTokenCollector(HTMLParser):
+    def __init__(self, line_starts: list[int]) -> None:
+        super().__init__(convert_charrefs=False)
+        self.line_starts = line_starts
+        self.tokens: list[_LintToken] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._append_token(tag, "open")
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._append_token(tag, "self_close")
+
+    def handle_endtag(self, tag: str) -> None:
+        self._append_token(tag, "close")
+
+    def _append_token(self, tag: str, token_type: str) -> None:
+        line_number, column_number = self.getpos()
+        self.tokens.append(
+            _LintToken(
+                position=_position_from_parser_pos(
+                    self.line_starts,
+                    line_number,
+                    column_number,
+                ),
+                line_number=line_number,
+                name=tag.lower(),
+                token_type=token_type,
+            )
+        )

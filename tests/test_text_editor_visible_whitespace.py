@@ -4,7 +4,8 @@ import os
 import sys
 
 import pytest
-from PySide6.QtGui import QImage
+from PySide6.QtCore import QEvent, QPointF, Qt
+from PySide6.QtGui import QImage, QMouseEvent
 from PySide6.QtWidgets import QApplication, QPlainTextEdit
 
 from editor.text_editor import TextEditor
@@ -154,3 +155,59 @@ def test_fixed_column_wrap_overrides_wrap_mode_without_modifying_text(
     editor.set_fixed_column_wrap_options(enabled=False, column=12)
 
     assert editor.lineWrapMode() == QPlainTextEdit.LineWrapMode.NoWrap
+
+
+def test_line_number_area_click_selects_line(app: QApplication) -> None:
+    editor = TextEditor()
+    editor.setPlainText("first\nsecond\nthird")
+    editor.resize(320, 160)
+    editor.show()
+    app.processEvents()
+
+    y_position = _block_center_y(editor, 1)
+    event = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        QPointF(4, y_position),
+        QPointF(4, y_position),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+    editor.line_number_area.mousePressEvent(event)
+
+    assert editor.textCursor().selectedText() == "second"
+
+
+def test_line_head_click_selects_line_when_line_numbers_hidden(
+    app: QApplication,
+) -> None:
+    editor = TextEditor()
+    editor.setPlainText("first\nsecond\nthird")
+    editor.resize(320, 160)
+    editor.set_line_numbers_enabled(False)
+    editor.show()
+    app.processEvents()
+
+    y_position = _block_center_y(editor, 1)
+    event = QMouseEvent(
+        QEvent.Type.MouseButtonPress,
+        QPointF(1, y_position),
+        QPointF(1, y_position),
+        Qt.MouseButton.LeftButton,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+
+    editor.mousePressEvent(event)
+
+    assert editor.textCursor().selectedText() == "second"
+
+
+def _block_center_y(editor: TextEditor, block_number: int) -> float:
+    block = editor.document().findBlockByNumber(block_number)
+    block_geometry = editor.blockBoundingGeometry(block).translated(
+        editor.contentOffset()
+    )
+    block_rect = editor.blockBoundingRect(block)
+    return block_geometry.top() + (block_rect.height() / 2)

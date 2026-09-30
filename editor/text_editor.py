@@ -7,13 +7,16 @@ from PySide6.QtCore import QRect, QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
+    QMouseEvent,
     QPainter,
     QPaintEvent,
     QResizeEvent,
     QSyntaxHighlighter,
+    QTextBlock,
     QTextCharFormat,
     QTextCursor,
     QTextDocument,
+    QTextFormat,
     QTextOption,
 )
 from PySide6.QtWidgets import QPlainTextEdit, QTextEdit
@@ -64,6 +67,8 @@ class HtmlSyntaxHighlighter(QSyntaxHighlighter):
 
 
 class TextEditor(QPlainTextEdit):
+    line_head_selection_width = 8
+
     def __init__(self) -> None:
         super().__init__()
         self.line_number_area = LineNumberArea(self)
@@ -72,6 +77,8 @@ class TextEditor(QPlainTextEdit):
         self.search_matches: list[SearchMatch] = []
         self.search_marker_color = "#ffff00"
         self.current_match_marker_color = "#ff9900"
+        self.grammar_issue_lines: list[int] = []
+        self.grammar_issue_background_color = "#ffe3e3"
         self.visible_spaces_enabled = False
         self.visible_tabs_enabled = False
         self.visible_newlines_enabled = False
@@ -252,6 +259,44 @@ class TextEditor(QPlainTextEdit):
         self._paint_fixed_column_wrap_guide(event)
         self._paint_visible_whitespace(event)
 
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if (
+            not self.line_numbers_enabled
+            and event.button() == Qt.MouseButton.LeftButton
+            and event.position().x() <= self.line_head_selection_width
+        ):
+            self.select_line_at_view_y(round(event.position().y()))
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def select_line_at_view_y(self, y_position: int) -> None:
+        block = self._visible_block_at_y(y_position)
+        if not block.isValid():
+            return
+
+        cursor = QTextCursor(block)
+        cursor.select(QTextCursor.SelectionType.LineUnderCursor)
+        self.setTextCursor(cursor)
+        self.setFocus()
+
+    def _visible_block_at_y(self, y_position: int) -> QTextBlock:
+        block = self.firstVisibleBlock()
+        top = round(
+            self.blockBoundingGeometry(block)
+            .translated(self.contentOffset())
+            .top()
+        )
+        bottom = top + round(self.blockBoundingRect(block).height())
+
+        while block.isValid():
+            if block.isVisible() and top <= y_position < bottom:
+                return block
+            block = block.next()
+            top = bottom
+            bottom = top + round(self.blockBoundingRect(block).height())
+        return block
+
     def _paint_fixed_column_wrap_guide(self, event: QPaintEvent) -> None:
         line_x = self.fixed_column_wrap_line_x()
         if line_x is None:
@@ -263,7 +308,7 @@ class TextEditor(QPlainTextEdit):
 
     def set_search_matches(self, matches: list[SearchMatch]) -> None:
         self.search_matches = matches
-        self._apply_search_highlights()
+        self._apply_extra_selections()
         self.search_marker_area.update()
 
     def clear_search_matches(self) -> None:
@@ -276,8 +321,20 @@ class TextEditor(QPlainTextEdit):
     ) -> None:
         self.search_marker_color = search_marker_color
         self.current_match_marker_color = current_match_marker_color
-        self._apply_search_highlights()
+        self._apply_extra_selections()
         self.search_marker_area.update()
+
+    def set_grammar_issue_lines(self, line_numbers: list[int]) -> None:
+        self.grammar_issue_lines = sorted(
+            {line_number for line_number in line_numbers if line_number > 0}
+        )
+        self._apply_extra_selections()
+
+    def clear_grammar_issue_lines(self) -> None:
+        if not self.grammar_issue_lines:
+            return
+        self.grammar_issue_lines = []
+        self._apply_extra_selections()
 
     def set_visible_whitespace_options(
         self,
@@ -428,6 +485,31 @@ class TextEditor(QPlainTextEdit):
         return self.visible_space_marker_color
 
     def _apply_search_highlights(self) -> None:
+        self._apply_extra_selections()
+
+    def _apply_extra_selections(self) -> None:
+        selections = self._grammar_issue_selections()
+        selections.extend(self._search_match_selections())
+        self.setExtraSelections(selections)
+
+    def _grammar_issue_selections(self) -> list[QTextEdit.ExtraSelection]:
+        issue_format = QTextCharFormat()
+        issue_format.setBackground(QColor(self.grammar_issue_background_color))
+        issue_format.setProperty(QTextFormat.Property.FullWidthSelection, True)
+
+        selections: list[QTextEdit.ExtraSelection] = []
+        for line_number in self.grammar_issue_lines:
+            block = self.document().findBlockByNumber(line_number - 1)
+            if not block.isValid():
+                continue
+            cursor = QTextCursor(block)
+            selection = QTextEdit.ExtraSelection()
+            selection.format = issue_format
+            selection.cursor = cursor
+            selections.append(selection)
+        return selections
+
+    def _search_match_selections(self) -> list[QTextEdit.ExtraSelection]:
         highlight_format = QTextCharFormat()
         highlight_format.setBackground(QColor(self.search_marker_color))
         current_highlight_format = QTextCharFormat()
@@ -454,7 +536,7 @@ class TextEditor(QPlainTextEdit):
             )
             selection.cursor = match_cursor
             selections.append(selection)
-        self.setExtraSelections(selections)
+        return selections
 
     def text_position_to_cursor_position(self, text_position: int) -> int:
         source_text = self.toPlainText()
