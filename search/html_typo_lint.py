@@ -165,6 +165,7 @@ INLINE_PARENT_BOUNDARY_TAGS = {
     "th",
 }
 ESCAPED_FRAGMENT_IGNORED_WORDPRESS_BLOCKS = {"code", "html"}
+STRUCTURAL_HTML_TAGS = {"code", "p", "pre"}
 
 
 @dataclass(frozen=True)
@@ -250,6 +251,7 @@ def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage
         )
     )
     messages.extend(_lint_non_nestable_html_tag(html_tokens, "code"))
+    messages.extend(_lint_html_tag_structure(html_tokens, STRUCTURAL_HTML_TAGS))
     messages.extend(_lint_orphan_html_lines_outside_wordpress_blocks(load_data))
     messages.extend(_lint_known_fragile_typos(load_data))
     return messages
@@ -355,6 +357,67 @@ def _lint_non_nestable_html_tag(
             continue
         open_tokens.append(token)
     return messages
+
+
+def _lint_html_tag_structure(
+    tokens: list[_LintToken],
+    tag_names: set[str],
+) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    open_tokens: list[_LintToken] = []
+    for token in sorted(tokens, key=lambda item: item.position):
+        if token.name not in tag_names or token.token_type == "self_close":
+            continue
+        if token.token_type == "open":
+            open_tokens.append(token)
+            continue
+
+        matching_index = _last_open_html_tag_index(open_tokens, token.name)
+        if matching_index is None:
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.unexpected_html_closing_tag",
+                    token.line_number,
+                    {"tag": token.name},
+                )
+            )
+            continue
+        if matching_index != len(open_tokens) - 1:
+            expected_token = open_tokens[-1]
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.mismatched_html_tag",
+                    token.line_number,
+                    {
+                        "open_tag": expected_token.name,
+                        "close_tag": token.name,
+                    },
+                )
+            )
+        del open_tokens[matching_index]
+
+    for token in open_tokens:
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.missing_html_closing_tag",
+                token.line_number,
+                {"tag": token.name},
+            )
+        )
+    return messages
+
+
+def _last_open_html_tag_index(
+    open_tokens: list[_LintToken],
+    tag_name: str,
+) -> int | None:
+    for index in range(len(open_tokens) - 1, -1, -1):
+        if open_tokens[index].name == tag_name:
+            return index
+    return None
 
 
 def _lint_orphan_html_lines_outside_wordpress_blocks(

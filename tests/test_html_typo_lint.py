@@ -153,6 +153,39 @@ def test_lint_reports_pre_and_code_count_mismatches() -> None:
     assert "html_typo_lint.count_mismatch_pre" not in message_keys
 
 
+def test_lint_reports_html_tag_closing_order_for_tracked_tags() -> None:
+    messages = lint_html_typos("<pre><code>sample</pre></code>")
+
+    assert any(
+        message.message_key == "html_typo_lint.mismatched_html_tag"
+        and message.line_number == 1
+        and message.values == {"open_tag": "code", "close_tag": "pre"}
+        for message in messages
+    )
+
+
+def test_lint_reports_unexpected_html_closing_tag_for_tracked_tags() -> None:
+    messages = lint_html_typos("<p>text</p>\n</pre>")
+
+    assert any(
+        message.message_key == "html_typo_lint.unexpected_html_closing_tag"
+        and message.line_number == 2
+        and message.values == {"tag": "pre"}
+        for message in messages
+    )
+
+
+def test_lint_reports_missing_html_closing_tag_for_tracked_tags() -> None:
+    messages = lint_html_typos("<pre><code>sample</code>")
+
+    assert any(
+        message.message_key == "html_typo_lint.missing_html_closing_tag"
+        and message.line_number == 1
+        and message.values == {"tag": "pre"}
+        for message in messages
+    )
+
+
 def test_lint_reports_nested_code_and_strong_count_mismatch() -> None:
     messages = lint_html_typos(
         "<!-- wp:paragraph -->\n"

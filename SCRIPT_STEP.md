@@ -1990,6 +1990,47 @@ Validation result:
 - HTML typo linter tests: 33 passed.
 - Targeted Ruff: All checks passed.
 
+## Step13-section14 HTML Structural Tag Lint Hardening
+
+Purpose:
+
+- Continue hardening the Grammar Check / HTML-WP linter after the token inventory baseline.
+- Detect malformed live HTML tag order that count-only checks can miss.
+- Keep the first pass conservative by limiting the structural stack check to `<p>`, `<pre>`, and `<code>`.
+
+Changes:
+
+- Updated `search/html_typo_lint.py`:
+  - Added a structural stack pass over the existing live HTML tag token stream.
+  - Detects tracked closing tags with no matching opener.
+  - Detects crossed closing order such as `<pre><code>...</pre></code>`.
+  - Detects tracked tags left open at the end of the document.
+
+- Updated `resources/app_text_ja.json` and `resources/app_text_en.json`:
+  - Added localized messages for unexpected, mismatched, and missing HTML closing tags.
+
+- Updated `tests/test_html_typo_lint.py`:
+  - Added regression tests for tracked-tag closing order, extra closing tags, and missing closing tags.
+
+Sample check:
+
+- `sample/test.wp_html` still reports only the expected `<strong>` before `</p>` issue at line 501.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check search\html_typo_lint.py tests\test_html_typo_lint.py
+```
+
+Validation result:
+
+- HTML typo linter and app translation tests: 39 passed.
+- JSON syntax checks: passed.
+- Targeted Ruff: All checks passed.
+
 ## Validation Commands
 
 Use the project virtual environment:
