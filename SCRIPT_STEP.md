@@ -2031,6 +2031,54 @@ Validation result:
 - JSON syntax checks: passed.
 - Targeted Ruff: All checks passed.
 
+## Step13-section15 Separator Code Cascade Suppression
+
+Purpose:
+
+- Reduce noisy cascade errors in Grammar Check when a separator block contains accidental `<code>` tags.
+- Keep the root cause visible as one representative warning.
+- Preserve line numbers and normal HTML tag checks outside the contaminated separator block.
+
+Changes:
+
+- Updated `search/html_typo_lint.py`:
+  - Added detection for separator block bodies containing `<code>` tags.
+  - Masks only those contaminated separator bodies before the general live-HTML tag checks run.
+  - Preserves newlines while masking so later warning line numbers stay stable.
+  - Keeps the WordPress separator-specific warning on the original source text.
+
+- Updated `resources/app_text_ja.json` and `resources/app_text_en.json`:
+  - Expanded the separator `<code>` warning to explain that it can confuse later tag checks and should first be repaired to `<hr ... />` only.
+
+- Updated `tests/test_html_typo_lint.py`:
+  - Added a regression test that `<hr ...><code><code>` inside `wp:separator` reports only the representative separator warning instead of cascading into `<code>` count, nesting, and missing-close warnings.
+
+Sample check:
+
+- `sample/test_sample.wp_html` now reports 8 review items instead of 14.
+- The 130-line separator issue remains, while the six 131-line `<code>` cascade items are suppressed.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check search\html_typo_lint.py tests\test_html_typo_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- HTML typo linter and app translation tests: 40 passed.
+- JSON syntax checks: passed.
+- Targeted Ruff: All checks passed.
+- Full Ruff: All checks passed.
+- Pyright: 0 errors, 0 warnings, 0 informations.
+- Full pytest: 255 passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

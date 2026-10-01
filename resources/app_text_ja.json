@@ -506,7 +506,7 @@
   "html_typo_lint.missing_html_closing_tag": "`<{tag}>` に対応する `</{tag}>` 終了タグが見つかりません。",
   "html_typo_lint.empty_paragraph_outside_wordpress_block": "空の `<p></p>` が WordPress ブロック外に単独であります。不要な空段落の可能性があります。",
   "html_typo_lint.break_outside_wordpress_block": "`<br>` が WordPress ブロック外に単独であります。不要な改行タグの可能性があります。",
-  "html_typo_lint.wordpress_separator_contains_code": "separator ブロック内に `<code>` タグが混入しています。`<hr ... />` だけにしてください。",
+  "html_typo_lint.wordpress_separator_contains_code": "separator ブロック内に不要な `<code>` タグが混入しています。この影響で後続のタグ検査が崩れる可能性があります。まず `<hr ... />` だけに修正してください。",
   "html_typo_lint.duplicate_wordpress_paragraph": "直前の文章とよく似た段落が再登場しています。重複段落の可能性があります（前回: {previous_line}行目）。",
   "html_typo_lint.invalid_p_closing_tag": "`<\\p>` のような誤った p 閉じタグがあります。`</p>` に修正してください。",
   "html_typo_lint.known_typo_margin_2en": "`margin:2en` のような既知の typo があります。`2em` に修正してください。",

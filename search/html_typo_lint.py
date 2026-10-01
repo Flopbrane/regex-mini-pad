@@ -200,12 +200,16 @@ class _LintToken:
 
 
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
+    html_lint_data = _mask_ranges(
+        load_data,
+        _contaminated_wordpress_separator_body_ranges(load_data),
+    )
     messages: list[HtmlTypoLintMessage] = []
-    messages.extend(_lint_wordpress_simple_structure(load_data))
+    messages.extend(_lint_wordpress_simple_structure(html_lint_data))
     messages.extend(_lint_wordpress_block_typos(load_data))
     messages.extend(_lint_wordpress_block_structure(load_data))
     parser = HtmlTypoLintParser()
-    parser.feed(load_data)
+    parser.feed(html_lint_data)
     parser.close()
     messages.extend(parser.messages)
     return sorted(messages, key=lambda message: message.line_number)
@@ -505,6 +509,27 @@ def _wordpress_block_body_ranges(
         if block_name in block_names:
             ranges.append((open_end, block_match.start()))
     return ranges
+
+
+def _contaminated_wordpress_separator_body_ranges(load_data: str) -> list[tuple[int, int]]:
+    ranges: list[tuple[int, int]] = []
+    for start, end in _wordpress_block_body_ranges(load_data, {"separator"}):
+        block_body = load_data[start:end]
+        if re.search(r"</?code(?:\s|>)", block_body, re.IGNORECASE):
+            ranges.append((start, end))
+    return ranges
+
+
+def _mask_ranges(load_data: str, ranges: list[tuple[int, int]]) -> str:
+    if not ranges:
+        return load_data
+
+    characters = list(load_data)
+    for start, end in ranges:
+        for index in range(start, end):
+            if characters[index] != "\n":
+                characters[index] = " "
+    return "".join(characters)
 
 
 def _position_in_ranges(position: int, ranges: list[tuple[int, int]]) -> bool:

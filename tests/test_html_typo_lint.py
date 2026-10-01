@@ -286,6 +286,20 @@ def test_lint_reports_separator_code_contamination_and_escaped_code_fragment() -
     assert "html_typo_lint.escaped_code_close_fragment" in message_keys
 
 
+def test_lint_suppresses_separator_code_cascade_errors() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:separator -->\n"
+        '<hr class="wp-block-separator has-alpha-channel-opacity"><code><code>\n'
+        "<!-- /wp:separator -->\n"
+        '<!-- wp:heading {"level":3} -->\n'
+        '<h3 class="wp-block-heading">Sub block</h3>\n'
+        "<!-- /wp:heading -->"
+    )
+
+    message_keys = [message.message_key for message in messages]
+    assert message_keys == ["html_typo_lint.wordpress_separator_contains_code"]
+
+
 def test_lint_reports_duplicate_wordpress_paragraph_opening() -> None:
     messages = lint_html_typos(
         "<!-- wp:paragraph -->\n"
