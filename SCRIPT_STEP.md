@@ -2079,6 +2079,98 @@ Validation result:
 - Pyright: 0 errors, 0 warnings, 0 informations.
 - Full pytest: 255 passed.
 
+## Step13-section16 WordPress Block Message Clarity
+
+Purpose:
+
+- Keep independent Grammar Check findings as separate rows even when line numbers repeat.
+- Improve WordPress block findings so each row gives a concrete repair direction.
+- Preserve the separator cascade suppression and the 8-item `test_sample.wp_html` result.
+
+Changes:
+
+- Updated `resources/app_text_ja.json` and `resources/app_text_en.json`:
+  - `unexpected_wordpress_closing_block` now explains either removing the extra closing comment or adding the intended opening comment.
+  - `mismatched_wordpress_block` now shows the expected closing comment before the currently encountered closing comment.
+  - `missing_wordpress_closing_block` now shows the exact closing comment to add.
+
+- Updated `tests/test_html_typo_lint.py`:
+  - Added `sample/test_sample.wp_html` regression coverage for the current 8 finding rows.
+  - Locked in the rule that independent findings remain separate while the separator `<code>` cascade stays suppressed.
+
+Sample check:
+
+- `sample/test_sample.wp_html` reports 8 review items:
+  - line 31 `<strong>` before `</p>`
+  - line 35 `<span>` before `</strong>`
+  - line 49 `<a>` before `</p>`
+  - line 78 missing `<!-- /wp:list-item -->`
+  - line 85 close `<!-- /wp:list-item -->` before `<!-- /wp:list -->`
+  - line 98 broken `/code&gt;`
+  - line 130 separator `<code>` contamination representative warning
+  - line 148 `<span>` before `</p>`
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- HTML typo linter and app translation tests: 41 passed.
+- JSON syntax checks: passed.
+- Full Ruff: All checks passed.
+- Pyright: 0 errors, 0 warnings, 0 informations.
+- Full pytest: 256 passed.
+
+## Step13-section17 Grammar Check Copy List And Wider Dialog
+
+Purpose:
+
+- Make the Grammar Check dialog wide enough for longer Japanese repair hints.
+- Let the user copy the current review list as plain text for notes or external review.
+
+Changes:
+
+- Updated `dialogs/grammar_check_dialog.py`:
+  - Set the initial dialog size to `930 x 360`.
+  - Added a copy-list action button.
+  - Store the current result rows as newline-separated plain text.
+  - Disable the copy button when there are no findings.
+
+- Updated `resources/app_text_ja.json` and `resources/app_text_en.json`:
+  - Added the localized copy-list button label.
+
+- Updated `tests/test_main_window_search.py`:
+  - Added regression coverage for the `930` width.
+  - Added clipboard-copy coverage for Grammar Check findings.
+  - Added no-issue coverage that keeps the copy button disabled.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_main_window_search.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- Main window search and app translation tests: 39 passed.
+- JSON syntax checks: passed.
+- Full Ruff: All checks passed.
+- Pyright: 0 errors, 0 warnings, 0 informations.
+- Full pytest: 256 passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

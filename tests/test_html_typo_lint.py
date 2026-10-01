@@ -387,6 +387,53 @@ def test_lint_reports_real_sample_problem_categories() -> None:
         )
 
 
+def test_lint_reports_test_sample_without_separator_cascade() -> None:
+    sample_path = Path("sample/test_sample.wp_html")
+    if not sample_path.exists():
+        return
+    sample_text = sample_path.read_text(encoding="utf-8")
+
+    messages = lint_html_typos(sample_text)
+
+    assert [
+        (message.line_number, message.message_key, message.values)
+        for message in messages
+    ] == [
+        (
+            31,
+            "html_typo_lint.inline_tag_unclosed_before_parent",
+            {"tag": "strong", "parent": "p"},
+        ),
+        (
+            35,
+            "html_typo_lint.inline_tag_closing_order",
+            {"tag": "span", "closing_tag": "strong"},
+        ),
+        (
+            49,
+            "html_typo_lint.inline_tag_unclosed_before_parent",
+            {"tag": "a", "parent": "p"},
+        ),
+        (
+            78,
+            "html_typo_lint.missing_wordpress_closing_block",
+            {"block": "list-item"},
+        ),
+        (
+            85,
+            "html_typo_lint.mismatched_wordpress_block",
+            {"open_block": "list-item", "close_block": "list"},
+        ),
+        (98, "html_typo_lint.escaped_code_close_fragment", None),
+        (130, "html_typo_lint.wordpress_separator_contains_code", None),
+        (
+            148,
+            "html_typo_lint.inline_tag_unclosed_before_parent",
+            {"tag": "span", "parent": "p"},
+        ),
+    ]
+
+
 def test_lint_reports_known_fragile_typos() -> None:
     messages = lint_html_typos('<p style="margin:2en 0 1.5em;">本文<\\p>')
 

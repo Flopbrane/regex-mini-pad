@@ -87,6 +87,7 @@
   "grammar_check.more_issues": "ほかに{count}件あります。",
   "grammar_check.save_warning.title": "保存前の文法チェック",
   "grammar_check.save_warning.message": "保存前チェックで確認候補が見つかりました。このまま保存しますか？",
+  "grammar_check.copy_results": "一覧をコピー",
   "status.encoding": "文字コード: {encoding}",
   "status.select_text": "変換する文字列を選択してください。",
   "rectangular.copy_no_selection": "矩形コピーする範囲を選択してください。",
@@ -511,8 +512,8 @@
   "html_typo_lint.invalid_p_closing_tag": "`<\\p>` のような誤った p 閉じタグがあります。`</p>` に修正してください。",
   "html_typo_lint.known_typo_margin_2en": "`margin:2en` のような既知の typo があります。`2em` に修正してください。",
   "html_typo_lint.escaped_code_close_fragment": "`/code&gt;` のような壊れた `</code>` 断片があります。`</code>` または不要な断片の削除を確認してください。",
-  "html_typo_lint.unexpected_wordpress_closing_block": "`<!-- /wp:{block} -->` が開始ブロックなしで出ています。",
-  "html_typo_lint.mismatched_wordpress_block": "`wp:{open_block}` を開いた後に `wp:{close_block}` で閉じています。",
-  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` に対応する終了ブロックが見つかりません。",
+  "html_typo_lint.unexpected_wordpress_closing_block": "`<!-- /wp:{block} -->` が開始ブロックなしで出ています。不要な終了コメントなら削除し、必要なブロックなら前に `<!-- wp:{block} -->` を追加してください。",
+  "html_typo_lint.mismatched_wordpress_block": "`wp:{open_block}` を開いた後に `wp:{close_block}` で閉じています。先に `<!-- /wp:{open_block} -->` を追加してから `<!-- /wp:{close_block} -->` を閉じるか、終了コメント名を確認してください。",
+  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` に対応する終了ブロックが見つかりません。対応する位置に `<!-- /wp:{block} -->` を追加してください。",
   "html_typo_lint.missing_wordpress_html_closing_block": "`<!-- wp:html -->` に対応する `<!-- /wp:html -->` が見つかりません。この後ろの本文がHTMLブロック扱いになる可能性があります。"
 }

@@ -87,6 +87,7 @@
   "grammar_check.more_issues": "{count} more item(s).",
   "grammar_check.save_warning.title": "Pre-save Grammar Check",
   "grammar_check.save_warning.message": "The pre-save check found item(s) to review. Save anyway?",
+  "grammar_check.copy_results": "Copy List",
   "status.encoding": "Encoding: {encoding}",
   "status.select_text": "Select text to transform.",
   "rectangular.copy_no_selection": "Select a range to copy as a rectangle.",
@@ -511,8 +512,8 @@
   "html_typo_lint.invalid_p_closing_tag": "Invalid p closing tag such as `<\\p>` found. Use `</p>`.",
   "html_typo_lint.known_typo_margin_2en": "Known typo such as `margin:2en` found. Use `2em`.",
   "html_typo_lint.escaped_code_close_fragment": "A broken `</code>` fragment such as `/code&gt;` was found. Check whether it should be `</code>` or removed.",
-  "html_typo_lint.unexpected_wordpress_closing_block": "`<!-- /wp:{block} -->` appears without a matching opening block.",
-  "html_typo_lint.mismatched_wordpress_block": "`wp:{open_block}` is opened but closed as `wp:{close_block}`.",
-  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` has no matching closing block.",
+  "html_typo_lint.unexpected_wordpress_closing_block": "`<!-- /wp:{block} -->` appears without a matching opening block. Remove the extra closing comment, or add `<!-- wp:{block} -->` before it if the block is intended.",
+  "html_typo_lint.mismatched_wordpress_block": "`wp:{open_block}` is opened but `wp:{close_block}` is being closed. Add `<!-- /wp:{open_block} -->` before `<!-- /wp:{close_block} -->`, or check the closing comment name.",
+  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` has no matching closing block. Add `<!-- /wp:{block} -->` at the matching position.",
   "html_typo_lint.missing_wordpress_html_closing_block": "`<!-- wp:html -->` has no matching `<!-- /wp:html -->`. The following text may be treated as part of the HTML block."
 }

@@ -301,6 +301,7 @@ def test_grammar_check_reports_html_and_wordpress_typos(
 
     assert window.grammar_check_dialog is not None
     assert window.grammar_check_dialog.isModal() is False
+    assert window.grammar_check_dialog.size().width() == 930
     assert window.grammar_check_dialog.windowTitle() == "文法チェック"
     assert "文法チェックで" in window.grammar_check_dialog.summary_label.text()
     result_text = "\n".join(
@@ -317,6 +318,9 @@ def test_grammar_check_reports_html_and_wordpress_typos(
     assert "paragraph" in result_text
     assert "Typoです" in result_text
     assert "wp:paragraph" in result_text
+    assert window.grammar_check_dialog.copy_button.isEnabled() is True
+    window.grammar_check_dialog.copy_results_to_clipboard()
+    assert QApplication.clipboard().text() == result_text
     assert "修正してください" in result_text
     assert window.editor.textCursor().blockNumber() == 1
     line_three_item = next(
@@ -421,6 +425,7 @@ def test_grammar_check_reports_no_issues(
         "簡易チェック完了：大きな構造エラーは見つかりませんでした。"
     )
     assert window.grammar_check_dialog.message_list.count() == 0
+    assert window.grammar_check_dialog.copy_button.isEnabled() is False
 
 
 def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -> None:
