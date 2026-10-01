@@ -165,7 +165,91 @@ INLINE_PARENT_BOUNDARY_TAGS = {
     "th",
 }
 ESCAPED_FRAGMENT_IGNORED_WORDPRESS_BLOCKS = {"code", "html"}
-STRUCTURAL_HTML_TAGS = {"code", "p", "pre"}
+NON_NESTABLE_WORDPRESS_BLOCKS = {
+    "code",
+    "heading",
+    "html",
+    "list-item",
+    "paragraph",
+    "separator",
+    "spacer",
+}
+STRUCTURAL_HTML_TAGS = {
+    "blockquote",
+    "article",
+    "aside",
+    "code",
+    "div",
+    "footer",
+    "figcaption",
+    "figure",
+    "header",
+    "li",
+    "main",
+    "nav",
+    "ol",
+    "p",
+    "pre",
+    "section",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+}
+COMMON_WORDPRESS_BLOCK_ATTRIBUTES = {
+    "align",
+    "anchor",
+    "backgroundColor",
+    "className",
+    "fontSize",
+    "gradient",
+    "lock",
+    "metadata",
+    "style",
+    "textColor",
+}
+WORDPRESS_BLOCK_ATTRIBUTE_ALLOWLISTS = {
+    "button": COMMON_WORDPRESS_BLOCK_ATTRIBUTES
+    | {
+        "linkTarget",
+        "placeholder",
+        "rel",
+        "tagName",
+        "text",
+        "textAlign",
+        "title",
+        "url",
+        "width",
+    },
+    "heading": COMMON_WORDPRESS_BLOCK_ATTRIBUTES | {"content", "level", "placeholder"},
+    "image": COMMON_WORDPRESS_BLOCK_ATTRIBUTES
+    | {
+        "alt",
+        "aspectRatio",
+        "caption",
+        "height",
+        "href",
+        "id",
+        "linkClass",
+        "linkDestination",
+        "linkTarget",
+        "rel",
+        "scale",
+        "sizeSlug",
+        "title",
+        "url",
+        "width",
+    },
+    "list": COMMON_WORDPRESS_BLOCK_ATTRIBUTES | {"ordered", "reversed", "start", "type"},
+    "paragraph": COMMON_WORDPRESS_BLOCK_ATTRIBUTES
+    | {"content", "direction", "dropCap", "placeholder"},
+    "separator": COMMON_WORDPRESS_BLOCK_ATTRIBUTES | {"opacity"},
+    "spacer": COMMON_WORDPRESS_BLOCK_ATTRIBUTES | {"height", "width"},
+}
 
 
 @dataclass(frozen=True)
@@ -255,7 +339,8 @@ def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage
         )
     )
     messages.extend(_lint_non_nestable_html_tag(html_tokens, "code"))
-    messages.extend(_lint_html_tag_structure(html_tokens, STRUCTURAL_HTML_TAGS))
+    if not wordpress_tokens:
+        messages.extend(_lint_html_tag_structure(html_tokens, STRUCTURAL_HTML_TAGS))
     messages.extend(_lint_orphan_html_lines_outside_wordpress_blocks(load_data))
     messages.extend(_lint_known_fragile_typos(load_data))
     return messages
@@ -552,8 +637,14 @@ def _wordpress_block_tokens(load_data: str) -> list[_LintToken]:
     return tokens
 
 
-def _html_tag_tokens(load_data: str) -> list[_LintToken]:
-    collector = _HtmlTagTokenCollector(_line_start_positions(load_data))
+def _html_tag_tokens(
+    load_data: str,
+    line_number_offset: int = 0,
+) -> list[_LintToken]:
+    collector = _HtmlTagTokenCollector(
+        _line_start_positions(load_data),
+        line_number_offset,
+    )
     collector.feed(load_data)
     collector.close()
     return collector.tokens
@@ -668,6 +759,20 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
         line_number = _line_number_at(block_match.start(), line_starts)
 
         if not is_closing:
+            if (
+                block_stack
+                and block_stack[-1][0] == block_name
+                and block_name in NON_NESTABLE_WORDPRESS_BLOCKS
+            ):
+                messages.append(
+                    HtmlTypoLintMessage(
+                        "warning",
+                        "html_typo_lint.missing_wordpress_closing_block",
+                        line_number,
+                        {"block": block_name},
+                    )
+                )
+                block_stack.pop()
             block_attributes = _parse_wordpress_block_attributes(block_match.group(3))
             if block_attributes is None:
                 messages.append(
@@ -679,6 +784,13 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     )
                 )
                 block_attributes = {}
+            messages.extend(
+                _lint_unknown_wordpress_block_attributes(
+                    block_name,
+                    block_attributes,
+                    line_number,
+                )
+            )
             if block_stack and block_stack[-1][0] == "html":
                 messages.append(
                     HtmlTypoLintMessage(
@@ -731,10 +843,13 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
 
         block_stack.pop()
         block_body = load_data[open_end : block_match.start()]
+        body_line_number = _line_number_at(open_end, line_starts)
         if block_name == "paragraph":
             messages.extend(
                 _lint_wordpress_paragraph_body(
                     block_body,
+                    open_end,
+                    line_starts,
                     open_line_number,
                 )
             )
@@ -756,7 +871,19 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             messages.extend(
                 _lint_wordpress_separator_body(
                     block_body,
+                    open_end,
+                    line_starts,
                     open_line_number,
+                )
+            )
+        if block_name != "separator":
+            messages.extend(
+                _lint_html_tag_structure(
+                    _html_tag_tokens(
+                        block_body,
+                        line_number_offset=body_line_number - 1,
+                    ),
+                    STRUCTURAL_HTML_TAGS,
                 )
             )
         messages.extend(
@@ -808,6 +935,30 @@ def _parse_wordpress_block_attributes(attributes_text: str | None) -> dict[str, 
     if not isinstance(block_attributes, dict):
         return None
     return block_attributes
+
+
+def _lint_unknown_wordpress_block_attributes(
+    block_name: str,
+    block_attributes: dict[str, Any],
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    allowed_attributes = WORDPRESS_BLOCK_ATTRIBUTE_ALLOWLISTS.get(block_name)
+    if allowed_attributes is None:
+        return []
+
+    messages: list[HtmlTypoLintMessage] = []
+    for attribute in block_attributes:
+        if attribute in allowed_attributes:
+            continue
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.unknown_wordpress_block_attribute",
+                line_number,
+                {"block": block_name, "attribute": attribute},
+            )
+        )
+    return messages
 
 
 def _lint_wordpress_block_attribute_html_consistency(
@@ -949,31 +1100,51 @@ def _normalize_css_value(value: str) -> str:
 
 def _lint_wordpress_paragraph_body(
     block_body: str,
+    body_start_position: int,
+    line_starts: list[int],
     line_number: int,
 ) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
-    if not re.search(r"<p(?:\s|>)", block_body, re.IGNORECASE):
+    p_open_match = re.search(r"<p(?:\s|>)", block_body, re.IGNORECASE)
+    p_close_match = re.search(r"</p\s*>", block_body, re.IGNORECASE)
+    div_match = re.search(r"<div(?:\s|>)", block_body, re.IGNORECASE)
+    if p_open_match is None:
         messages.append(
             HtmlTypoLintMessage(
                 "warning",
                 "html_typo_lint.wordpress_paragraph_missing_p_open",
-                line_number,
+                _first_body_content_line_number(
+                    block_body,
+                    body_start_position,
+                    line_starts,
+                    line_number,
+                ),
             )
         )
-    if not re.search(r"</p\s*>", block_body, re.IGNORECASE):
+    if p_close_match is None:
         messages.append(
             HtmlTypoLintMessage(
                 "warning",
                 "html_typo_lint.wordpress_paragraph_missing_p_close",
-                line_number,
+                _match_line_number(
+                    p_open_match,
+                    body_start_position,
+                    line_starts,
+                    line_number,
+                ),
             )
         )
-    if re.search(r"<div(?:\s|>)", block_body, re.IGNORECASE):
+    if div_match is not None:
         messages.append(
             HtmlTypoLintMessage(
                 "warning",
                 "html_typo_lint.wordpress_paragraph_contains_div",
-                line_number,
+                _match_line_number(
+                    div_match,
+                    body_start_position,
+                    line_starts,
+                    line_number,
+                ),
             )
         )
     return messages
@@ -981,17 +1152,46 @@ def _lint_wordpress_paragraph_body(
 
 def _lint_wordpress_separator_body(
     block_body: str,
+    body_start_position: int,
+    line_starts: list[int],
     line_number: int,
 ) -> list[HtmlTypoLintMessage]:
-    if not re.search(r"</?code(?:\s|>)", block_body, re.IGNORECASE):
+    code_match = re.search(r"</?code(?:\s|>)", block_body, re.IGNORECASE)
+    if code_match is None:
         return []
     return [
         HtmlTypoLintMessage(
             "warning",
             "html_typo_lint.wordpress_separator_contains_code",
-            line_number,
+            _match_line_number(code_match, body_start_position, line_starts, line_number),
         )
     ]
+
+
+def _first_body_content_line_number(
+    block_body: str,
+    body_start_position: int,
+    line_starts: list[int],
+    fallback_line_number: int,
+) -> int:
+    content_match = re.search(r"\S", block_body)
+    return _match_line_number(
+        content_match,
+        body_start_position,
+        line_starts,
+        fallback_line_number,
+    )
+
+
+def _match_line_number(
+    match: re.Match[str] | None,
+    body_start_position: int,
+    line_starts: list[int],
+    fallback_line_number: int,
+) -> int:
+    if match is None:
+        return fallback_line_number
+    return _line_number_at(body_start_position + match.start(), line_starts)
 
 
 def _paragraph_duplicate_key(block_body: str) -> str:
@@ -1215,9 +1415,10 @@ class HtmlTypoLintParser(HTMLParser):
 
 
 class _HtmlTagTokenCollector(HTMLParser):
-    def __init__(self, line_starts: list[int]) -> None:
+    def __init__(self, line_starts: list[int], line_number_offset: int = 0) -> None:
         super().__init__(convert_charrefs=False)
         self.line_starts = line_starts
+        self.line_number_offset = line_number_offset
         self.tokens: list[_LintToken] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -1238,7 +1439,7 @@ class _HtmlTagTokenCollector(HTMLParser):
                     line_number,
                     column_number,
                 ),
-                line_number=line_number,
+                line_number=line_number + self.line_number_offset,
                 name=tag.lower(),
                 token_type=token_type,
             )

@@ -44,7 +44,7 @@ def test_lint_reports_wordpress_paragraph_missing_p_open() -> None:
 
     assert any(
         message.message_key == "html_typo_lint.wordpress_paragraph_missing_p_open"
-        and message.line_number == 1
+        and message.line_number == 2
         for message in messages
     )
 
@@ -58,7 +58,7 @@ def test_lint_reports_wordpress_paragraph_missing_p_close() -> None:
 
     assert any(
         message.message_key == "html_typo_lint.wordpress_paragraph_missing_p_close"
-        and message.line_number == 1
+        and message.line_number == 2
         for message in messages
     )
 
@@ -126,7 +126,7 @@ def test_lint_reports_div_inside_wordpress_paragraph_block() -> None:
     assert any(
         message.message_key
         == "html_typo_lint.wordpress_paragraph_contains_div"
-        and message.line_number == 1
+        and message.line_number == 2
         for message in messages
     )
 
@@ -415,17 +415,13 @@ def test_lint_reports_test_sample_without_separator_cascade() -> None:
             {"tag": "a", "parent": "p"},
         ),
         (
-            78,
+            81,
             "html_typo_lint.missing_wordpress_closing_block",
             {"block": "list-item"},
         ),
-        (
-            85,
-            "html_typo_lint.mismatched_wordpress_block",
-            {"open_block": "list-item", "close_block": "list"},
-        ),
         (98, "html_typo_lint.escaped_code_close_fragment", None),
-        (130, "html_typo_lint.wordpress_separator_contains_code", None),
+        (120, "html_typo_lint.missing_html_closing_tag", {"tag": "div"}),
+        (131, "html_typo_lint.wordpress_separator_contains_code", None),
         (
             148,
             "html_typo_lint.inline_tag_unclosed_before_parent",
@@ -470,6 +466,65 @@ def test_lint_reports_invalid_wordpress_block_attributes() -> None:
 
     assert any(
         message.message_key == "html_typo_lint.invalid_wordpress_block_attributes"
+        for message in messages
+    )
+
+
+def test_lint_reports_unknown_wordpress_block_attribute() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"level":3,"badParam":true} -->\n'
+        '<h3 class="wp-block-heading">見出し</h3>\n'
+        "<!-- /wp:heading -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.unknown_wordpress_block_attribute"
+        and message.line_number == 1
+        and message.values == {"block": "heading", "attribute": "badParam"}
+        for message in messages
+    )
+
+
+def test_lint_accepts_known_wordpress_block_attributes() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:spacer {"height":"32px","className":"wide"} -->\n'
+        '<div style="height:32px" aria-hidden="true" class="wp-block-spacer wide"></div>\n'
+        "<!-- /wp:spacer -->"
+    )
+
+    assert not any(
+        message.message_key == "html_typo_lint.unknown_wordpress_block_attribute"
+        for message in messages
+    )
+
+
+def test_lint_reports_unclosed_div_inside_wordpress_html_block() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:html -->\n"
+        '<div class="notice">\n'
+        "本文<br>\n"
+        "<!-- /wp:html -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.missing_html_closing_tag"
+        and message.line_number == 2
+        and message.values == {"tag": "div"}
+        for message in messages
+    )
+
+
+def test_lint_checks_entire_plain_html_file_structure() -> None:
+    messages = lint_html_typos(
+        '<main><div class="notice">\n'
+        "<p>本文</p>\n"
+        "</main>"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.mismatched_html_tag"
+        and message.line_number == 3
+        and message.values == {"open_tag": "div", "close_tag": "main"}
         for message in messages
     )
 

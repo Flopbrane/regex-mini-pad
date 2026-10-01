@@ -31,16 +31,50 @@ The project focuses on practical regular expression search and replacement witho
 - Regex insertion popup.
 - Regex lint warnings.
 - Regex help with examples and replacement recipes.
-
-## Planned Direction
-
 - Tag insertion assistance for HTML, Markdown, and WordPress HTML.
-- Manage candidates separately in `dictionaries/html_dict.json`,
+- WordPress-oriented paragraph splitting and snippet insertion helpers.
+- Grammar Check for lightweight HTML and WordPress block safety checks.
+- Grammar Check result list copy button.
+- Optional pre-save HTML / WordPress typo check.
+
+## HTML / WordPress Grammar Check
+
+Grammar Check is a lightweight paste-safety linter. It is not a full browser or
+WordPress parser, but it is designed to catch common document-breaking mistakes
+before pasting or saving article HTML.
+
+- Detects unknown HTML tags and suspicious HTML attribute typos.
+- Detects unknown WordPress core block names.
+- Detects invalid JSON inside WordPress block comment `{}` parameters.
+- Warns about unsupported or unexpected `{}` parameters for representative
+  WordPress core blocks.
+- Checks WordPress block start / end mismatches, missing closing comments, and
+  repeated non-nestable blocks such as `wp:list-item`.
+- Checks whether HTML tags are complete inside each WordPress block.
+- Checks pure HTML files as a whole when no WordPress block comments are used.
+- Detects common structural problems such as missing `</div>`, reversed closing
+  order, and unclosed inline tags before `</p>`.
+- Suppresses likely cascade noise after known representative errors such as
+  separator blocks contaminated with stray `<code>` tags.
+- Keeps escaped code examples inside `<code>...</code>` acceptable when they are
+  display text rather than executable HTML.
+
+## Tag Snippets
+
+- Tag candidates are managed separately in `dictionaries/html_dict.json`,
   `dictionaries/markdown_dict.json`, and
   `dictionaries/wordpress_html_dict.json`.
 - Insert tags or snippets at the current cursor position from the editor context menu.
-- Consider both mouse selection and keyboard selection with arrow keys plus Enter.
-- Consider automatic snippet switching by extension, such as `.html`, `.md`, and `.wp.html`.
+- Snippet insertion supports HTML, Markdown, and WordPress HTML article helpers.
+- WordPress helpers are intentionally conservative and preserve article block
+  boundaries.
+
+## Planned Direction
+
+- Add an optional Japanese typo / style-variation check after a dictionary and
+  settings switch are prepared.
+- Continue expanding conservative WordPress block attribute allow-lists as
+  real examples are collected.
 
 ## Supported Encodings
 

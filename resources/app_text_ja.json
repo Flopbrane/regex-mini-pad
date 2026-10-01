@@ -489,6 +489,7 @@
   "html_typo_lint.wordpress_paragraph_contains_div": "`wp:paragraph` ブロック内に `<div>` タグがあります。div を使う場合は wp:html ブロックに分けてください。",
   "html_typo_lint.wordpress_paragraph_contains_html_block": "paragraph ブロック内に wp:html ブロックが入っています。段落を分割してください。",
   "html_typo_lint.invalid_wordpress_block_attributes": "`wp:{block}` の `{}` パラメータがJSONとして読めません。ダブルクォートやカンマを確認してください。",
+  "html_typo_lint.unknown_wordpress_block_attribute": "`wp:{block}` の `{attribute}` パラメータは、このチェックで確認しているコアブロック属性には含まれていません。不要なパラメータ、またはブロック種類の取り違えがないか確認してください。",
   "html_typo_lint.wordpress_block_attribute_html_mismatch": "`wp:{block}` の `{attribute}` は `{attribute_value}` ですが、HTML側は `{html_value}` です。ブロックコメント側とHTML側を一致させてください。",
   "html_typo_lint.restricted_html_tag": "`<{tag}>` は WordPress の厳しめモードやサイト設定で削除・制限される可能性があります。理由: {reason}",
   "html_typo_lint.restricted_html_attribute": "`<{tag}>` の `{attribute}` は JavaScript実行や外部制御に関係し、削除・制限される可能性があります。理由: {reason}",

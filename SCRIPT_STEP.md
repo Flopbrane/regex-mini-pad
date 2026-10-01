@@ -2171,6 +2171,62 @@ Validation result:
 - Pyright: 0 errors, 0 warnings, 0 informations.
 - Full pytest: 256 passed.
 
+## Step13-section18 Linter Target Lines And Block Scope Hardening
+
+Purpose:
+
+- Point Grammar Check findings at the line that should be edited, not only the opening WordPress block comment.
+- Catch HTML tag structure problems inside each WordPress core block.
+- Keep escaped code examples inside `<code>...</code>` acceptable.
+- Support whole-file HTML structure checks when the document has no WordPress block comments.
+- Add conservative WordPress core block attribute checks for representative blocks.
+
+Changes:
+
+- Updated `search/html_typo_lint.py`:
+  - WordPress paragraph checks now report the first body line, `<p>` line, or `<div>` line when available.
+  - Separator `<code>` contamination now reports the line containing the stray `<code>`.
+  - Repeated non-nestable WordPress blocks such as `wp:list-item` now report the next opening block line as the practical repair point.
+  - HTML structure checks now run per WordPress block, while pure HTML files use a whole-file structure check.
+  - Block-level HTML tags such as `div`, `main`, `section`, `ul`, `li`, and table tags are now included in structure checks.
+  - Added conservative allow-list checks for common WordPress block comment attributes.
+
+- Updated `resources/app_text_ja.json` and `resources/app_text_en.json`:
+  - Added `unknown_wordpress_block_attribute` user-facing messages.
+
+- Updated `tests/test_html_typo_lint.py`:
+  - Updated expected line numbers from opening block lines to practical repair lines.
+  - Added coverage for unknown WordPress block attributes.
+  - Added coverage for accepted known block attributes.
+  - Added coverage for an unclosed `<div>` inside a `wp:html` block.
+  - Added coverage for whole-file pure HTML structure checks.
+
+Notes:
+
+- Japanese typo/style checks are intentionally left as future work because they need a separate Japanese dictionary and settings switch.
+- The attribute check is intentionally conservative: blocks without an allow-list are skipped to avoid noisy false positives.
+
+Validation:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest tests\test_html_typo_lint.py tests\test_app_translation.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_ja.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m json.tool resources\app_text_en.json
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check search\html_typo_lint.py tests\test_html_typo_lint.py
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+```
+
+Validation result:
+
+- HTML typo linter and app translation tests: 45 passed.
+- JSON syntax checks: passed.
+- Targeted Ruff: All checks passed.
+- Full Ruff: All checks passed.
+- Pyright: 0 errors, 0 warnings, 0 informations.
+- Full pytest: 260 passed.
+
 ## Validation Commands
 
 Use the project virtual environment:
