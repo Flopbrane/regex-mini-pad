@@ -32,6 +32,7 @@
 - 正規表現の警告表示。
 - 実例と置換例つきの正規表現ヘルプ。
 - HTML、Markdown、WordPress HTML向けのタグ挿入補助。
+- `<strong>`、`<u>`、赤文字 `<span>` など、よく使うインラインHTMLをショートカットで選択範囲に適用。
 - WordPress向けの段落分割とスニペット挿入補助。
 - HTML / WordPressブロック向けの文法チェック。
 - 文法チェック結果一覧のコピー。
@@ -48,6 +49,7 @@
 - 未登録のWordPressコアブロック名を検出します。
 - WordPressブロックコメント内の `{}` パラメータがJSONとして読めない場合に警告します。
 - 同梱のWordPressコアブロック属性辞書を使って、想定外の `{}` パラメータを警告します。
+- 一部のWordPressブロック属性について、`level` の文字列指定、booleanの文字列指定、paragraphのalign値typoなど、型・値の不自然さを警告します。
 - WordPressブロックの開始・終了の不一致、終了コメント抜け、`wp:list-item` などの閉じ忘れを検出します。
 - WordPressブロック内でHTMLタグが完結しているかを確認します。
 - WordPressブロックコメントを使っていない純粋なHTMLファイルでは、ファイル全体をHTML構造として確認します。
@@ -62,6 +64,7 @@
 - タグ候補は `dictionaries/html_dict.json`、`dictionaries/markdown_dict.json`、
   `dictionaries/wordpress_html_dict.json` に候補を分けて管理。
 - 右クリックメニューからタグやスニペットを選び、カーソル位置へ挿入。
+- よく使うインラインHTMLは、`Ctrl+B` で `<strong>`、`Ctrl+U` で `<u>`、`Ctrl+Alt+R` で赤文字 `<span>` として選択範囲を囲めます。
 - HTML、Markdown、WordPress HTMLの記事作成向けスニペットを挿入できます。
 - WordPress向けスニペットは、記事ブロックの境界を壊さないよう保守的に扱います。
 

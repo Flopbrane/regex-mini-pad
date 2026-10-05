@@ -2339,6 +2339,46 @@ Notes:
 - The result is reused only when the stored source hash still matches the current tab text.
 - Moving a tab to a new window recreates the tab in the destination window and does not preserve the old temporary result file.
 
+## Step13-section25 WordPress Attribute Semantic Lint
+
+Date: 2026-10-05
+
+Changes:
+
+- Added targeted WordPress block attribute semantic checks for JSON that is syntactically valid and uses known attribute names but has suspicious values.
+- Warned when `wp:heading` `level` is a string instead of an integer.
+- Warned when `wp:paragraph` `dropCap` is a string instead of a boolean.
+- Warned when `wp:paragraph` `align` is outside the accepted `left`, `center`, and `right` values, including a `centre` -> `center` suggestion.
+- Broadened WordPress block-comment recovery so malformed attribute text, such as `{"level":3}XYZ`, still participates in block start/end structure checks while reporting the JSON error.
+- Added JA/EN messages for attribute type and value warnings.
+- Updated README.md and README_jp.md with the attribute type/value lint behavior.
+- Added regressions for type mismatches, invalid align values, and block-structure recovery after malformed attribute text.
+
+Notes:
+
+- This is intentionally narrow and dictionary-like: it covers the high-value cases from `sample/wp_linter_error_test_v2.wp_html` without attempting full WordPress schema validation.
+- Real Gutenberg paste/save acceptance was not performed in this step.
+
+## Step13-section26 Inline HTML Wrap Shortcuts
+
+Date: 2026-10-05
+
+Changes:
+
+- Added editor actions for wrapping the current selection with common inline HTML.
+- Added `Ctrl+B` for `<strong>...</strong>`.
+- Added `Ctrl+U` for `<u>...</u>`.
+- Added `Ctrl+Alt+R` for `<span style="color: red">...</span>`.
+- Supported the no-selection case by inserting the tag pair and placing the cursor between the opening and closing tags.
+- Added JA/EN action labels and exposed the actions in the Edit menu.
+- Updated README.md and README_jp.md with the inline HTML shortcut behavior.
+- Added regressions for shortcut assignment, selected-text wrapping, no-selection insertion, cursor placement, and undo.
+
+Notes:
+
+- These shortcuts are intentionally limited to common inline editing helpers and do not replace the existing tag insertion menu.
+- Qt offscreen tests covered the action behavior; manual GUI keypress acceptance was not performed.
+
 ## Validation Commands
 
 Use the project virtual environment:

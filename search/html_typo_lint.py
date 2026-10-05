@@ -11,7 +11,7 @@ from typing import Any
 
 LINT_REFERENCE_PATH = Path(__file__).resolve().parent.parent / "dictionaries" / "lint_reference.json"
 BLOCK_COMMENT_PATTERN = re.compile(
-    r"<!--\s*(/)?\s*wp:([a-zA-Z0-9_/-]+)(?:\s+(\{.*?\}))?\s*-->",
+    r"<!--\s*(/)?\s*wp:([a-zA-Z0-9_/-]+)(?:\s+([^\r\n]*?))?\s*-->",
 )
 HTML_TAG_TOKEN_PATTERN = re.compile(
     r"<\s*(/)?\s*([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*)?(/)?\s*>",
@@ -356,6 +356,13 @@ WORDPRESS_BLOCK_ATTRIBUTE_ALLOWLISTS = {
     | {"content", "direction", "dropCap", "placeholder"},
     "separator": COMMON_WORDPRESS_BLOCK_ATTRIBUTES | {"opacity"},
     "spacer": COMMON_WORDPRESS_BLOCK_ATTRIBUTES | {"height", "width"},
+}
+WORDPRESS_BLOCK_ATTRIBUTE_TYPE_RULES = {
+    ("heading", "level"): "integer",
+    ("paragraph", "dropCap"): "boolean",
+}
+WORDPRESS_BLOCK_ATTRIBUTE_VALUE_RULES = {
+    ("paragraph", "align"): {"left", "center", "right"},
 }
 
 
@@ -973,6 +980,13 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     line_number,
                 )
             )
+            messages.extend(
+                _lint_wordpress_block_attribute_semantics(
+                    block_name,
+                    block_attributes,
+                    line_number,
+                )
+            )
             if block_stack and block_stack[-1][0] == "html":
                 messages.append(
                     HtmlTypoLintMessage(
@@ -1123,6 +1137,9 @@ def _missing_wordpress_block_message(
 def _parse_wordpress_block_attributes(attributes_text: str | None) -> dict[str, Any] | None:
     if attributes_text is None:
         return {}
+    attributes_text = attributes_text.strip()
+    if not attributes_text:
+        return {}
     try:
         block_attributes = json.loads(attributes_text)
     except json.JSONDecodeError:
@@ -1158,6 +1175,97 @@ def _lint_unknown_wordpress_block_attributes(
             )
         )
     return messages
+
+
+def _lint_wordpress_block_attribute_semantics(
+    block_name: str,
+    block_attributes: dict[str, Any],
+    line_number: int,
+) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    allowed_attributes = KNOWN_WORDPRESS_BLOCK_ATTRIBUTES.get(block_name)
+    for attribute, value in block_attributes.items():
+        if allowed_attributes is not None and attribute not in allowed_attributes:
+            continue
+
+        expected_type = WORDPRESS_BLOCK_ATTRIBUTE_TYPE_RULES.get(
+            (block_name, attribute)
+        )
+        if expected_type and not _wordpress_attribute_value_has_type(
+            value,
+            expected_type,
+        ):
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.invalid_wordpress_block_attribute_type",
+                    line_number,
+                    {
+                        "block": block_name,
+                        "attribute": attribute,
+                        "expected_type": expected_type,
+                        "actual_value": _wordpress_attribute_value_text(value),
+                    },
+                )
+            )
+
+        allowed_values = WORDPRESS_BLOCK_ATTRIBUTE_VALUE_RULES.get(
+            (block_name, attribute)
+        )
+        if allowed_values is None:
+            continue
+        if not isinstance(value, str):
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.invalid_wordpress_block_attribute_type",
+                    line_number,
+                    {
+                        "block": block_name,
+                        "attribute": attribute,
+                        "expected_type": "string",
+                        "actual_value": _wordpress_attribute_value_text(value),
+                    },
+                )
+            )
+            continue
+        if value in allowed_values:
+            continue
+        values = {
+            "block": block_name,
+            "attribute": attribute,
+            "allowed_values": ", ".join(sorted(allowed_values)),
+            "actual_value": _wordpress_attribute_value_text(value),
+        }
+        suggestion = _find_closest_word(value, allowed_values)
+        if suggestion:
+            values["suggestion"] = suggestion
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.invalid_wordpress_block_attribute_value",
+                line_number,
+                values,
+            )
+        )
+    return messages
+
+
+def _wordpress_attribute_value_has_type(value: Any, expected_type: str) -> bool:
+    if expected_type == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if expected_type == "boolean":
+        return isinstance(value, bool)
+    if expected_type == "string":
+        return isinstance(value, str)
+    return True
+
+
+def _wordpress_attribute_value_text(value: Any) -> str:
+    try:
+        return json.dumps(value, ensure_ascii=False)
+    except (TypeError, ValueError):
+        return str(value)
 
 
 def _lint_wordpress_block_attribute_html_consistency(

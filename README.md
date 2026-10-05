@@ -32,6 +32,8 @@ The project focuses on practical regular expression search and replacement witho
 - Regex lint warnings.
 - Regex help with examples and replacement recipes.
 - Tag insertion assistance for HTML, Markdown, and WordPress HTML.
+- Inline HTML wrap shortcuts for selected text, including `<strong>`, `<u>`,
+  and red `<span>` text.
 - WordPress-oriented paragraph splitting and snippet insertion helpers.
 - Grammar Check for lightweight HTML and WordPress block safety checks.
 - Grammar Check result list copy button.
@@ -51,6 +53,8 @@ before pasting or saving article HTML.
 - Detects invalid JSON inside WordPress block comment `{}` parameters.
 - Warns about unsupported or unexpected `{}` parameters using the bundled
   WordPress core block attribute dictionary.
+- Warns about selected WordPress block attribute type / value mistakes, such as
+  string `level` values, string booleans, and misspelled paragraph alignment.
 - Checks WordPress block start / end mismatches, missing closing comments, and
   repeated non-nestable blocks such as `wp:list-item`.
 - Checks whether HTML tags are complete inside each WordPress block.
@@ -74,6 +78,8 @@ before pasting or saving article HTML.
   `dictionaries/wordpress_html_dict.json`.
 - Insert tags or snippets at the current cursor position from the editor context menu.
 - Snippet insertion supports HTML, Markdown, and WordPress HTML article helpers.
+- Common inline HTML wrappers are also available from shortcuts: `Ctrl+B` for
+  `<strong>`, `Ctrl+U` for `<u>`, and `Ctrl+Alt+R` for red `<span>` text.
 - WordPress helpers are intentionally conservative and preserve article block
   boundaries.
 

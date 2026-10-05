@@ -350,6 +350,27 @@ class MainWindow(QMainWindow):
             lambda: self.insert_text_at_cursor("<br><br>")
         )
 
+        self.inline_strong_action = QAction(self)
+        self.inline_strong_action.setShortcut("Ctrl+B")
+        self.inline_strong_action.triggered.connect(
+            lambda: self.wrap_selection_with_inline_html("<strong>", "</strong>")
+        )
+
+        self.inline_underline_action = QAction(self)
+        self.inline_underline_action.setShortcut("Ctrl+U")
+        self.inline_underline_action.triggered.connect(
+            lambda: self.wrap_selection_with_inline_html("<u>", "</u>")
+        )
+
+        self.inline_red_span_action = QAction(self)
+        self.inline_red_span_action.setShortcut("Ctrl+Alt+R")
+        self.inline_red_span_action.triggered.connect(
+            lambda: self.wrap_selection_with_inline_html(
+                '<span style="color: red">',
+                "</span>",
+            )
+        )
+
         self.html_escape_action = QAction(self)
         self.html_escape_action.triggered.connect(self.escape_selected_html)
 
@@ -449,6 +470,10 @@ class MainWindow(QMainWindow):
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.insert_br_action)
         self.edit_menu.addAction(self.insert_br_br_action)
+        self.edit_menu.addSeparator()
+        self.edit_menu.addAction(self.inline_strong_action)
+        self.edit_menu.addAction(self.inline_underline_action)
+        self.edit_menu.addAction(self.inline_red_span_action)
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.insert_tag_picker_action)
         self.edit_menu.addMenu(self.insert_tag_menu)
@@ -946,6 +971,15 @@ class MainWindow(QMainWindow):
         )
         self.insert_br_action.setText(self.translator.text("action.insert_br"))
         self.insert_br_br_action.setText(self.translator.text("action.insert_br_br"))
+        self.inline_strong_action.setText(
+            self.translator.text("action.inline_strong")
+        )
+        self.inline_underline_action.setText(
+            self.translator.text("action.inline_underline")
+        )
+        self.inline_red_span_action.setText(
+            self.translator.text("action.inline_red_span")
+        )
         self.html_escape_action.setText(self.translator.text("action.html_escape"))
         self.html_unescape_action.setText(self.translator.text("action.html_unescape"))
         self.wordpress_code_block_action.setText(
@@ -1669,6 +1703,20 @@ class MainWindow(QMainWindow):
                 block=values.get("block", ""),
                 attribute=values.get("attribute", ""),
             )
+        if (
+            message.message_key
+            == "html_typo_lint.invalid_wordpress_block_attribute_value"
+        ):
+            suggestion = values.get("suggestion")
+            if suggestion:
+                return self.translator.text(
+                    "html_typo_lint.invalid_wordpress_block_attribute_value_with_suggestion",
+                    block=values.get("block", ""),
+                    attribute=values.get("attribute", ""),
+                    allowed_values=values.get("allowed_values", ""),
+                    actual_value=values.get("actual_value", ""),
+                    suggestion=suggestion,
+                )
         return self.translator.text(message.message_key, **values)
 
     def _set_cursor_to_line(self, line_number: int) -> None:
@@ -1692,6 +1740,19 @@ class MainWindow(QMainWindow):
         cursor.insertText(insert_text)
         cursor.endEditBlock()
         cursor.setPosition(insert_start + cursor_offset)
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def wrap_selection_with_inline_html(self, opening_tag: str, closing_tag: str) -> None:
+        cursor = self.editor.textCursor()
+        insert_start = cursor.selectionStart()
+        selected_text = cursor.selectedText().replace("\u2029", "\n")
+        insert_text = f"{opening_tag}{selected_text}{closing_tag}"
+
+        cursor.beginEditBlock()
+        cursor.insertText(insert_text)
+        cursor.endEditBlock()
+        cursor.setPosition(insert_start + len(opening_tag) + len(selected_text))
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
 

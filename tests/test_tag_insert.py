@@ -179,6 +179,55 @@ def test_line_break_insert_shortcuts_are_available(app: QApplication) -> None:
     ]
 
 
+def test_inline_html_wrap_shortcuts_are_available(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+
+    assert window.inline_strong_action.shortcut().toString() == "Ctrl+B"
+    assert window.inline_underline_action.shortcut().toString() == "Ctrl+U"
+    assert window.inline_red_span_action.shortcut().toString() == "Ctrl+Alt+R"
+    assert window.inline_strong_action.text() == "選択範囲を <strong> で囲む"
+    assert window.inline_underline_action.text() == "選択範囲を <u> で囲む"
+    assert window.inline_red_span_action.text() == "選択範囲を赤文字 <span> で囲む"
+
+
+def test_inline_html_wrap_actions_wrap_selected_text(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("before target after")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("before "))
+    cursor.setPosition(len("before target"), QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+
+    window.inline_strong_action.trigger()
+
+    assert window.editor.toPlainText() == "before <strong>target</strong> after"
+    assert window.editor.textCursor().position() == len("before <strong>target")
+
+    window.undo_action.trigger()
+    assert window.editor.toPlainText() == "before target after"
+
+
+def test_inline_html_wrap_actions_insert_pair_without_selection(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("before after")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("before "))
+    window.editor.setTextCursor(cursor)
+
+    window.inline_red_span_action.trigger()
+
+    expected_text = 'before <span style="color: red"></span>after'
+    assert window.editor.toPlainText() == expected_text
+    assert window.editor.textCursor().position() == len(
+        'before <span style="color: red">'
+    )
+
+
 def child_menus(menu: QMenu) -> list[QMenu]:
     menus: list[QMenu] = []
     for action in menu.actions():

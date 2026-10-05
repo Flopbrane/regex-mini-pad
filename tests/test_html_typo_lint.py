@@ -649,6 +649,68 @@ def test_lint_reports_unknown_reference_wordpress_block_attribute() -> None:
     )
 
 
+def test_lint_reports_wordpress_block_attribute_type_mismatch() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"level":"3"} -->\n'
+        '<h3 class="wp-block-heading">Heading</h3>\n'
+        "<!-- /wp:heading -->\n"
+        '<!-- wp:paragraph {"dropCap":"true"} -->\n'
+        "<p>Drop cap text.</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    type_messages = [
+        message
+        for message in messages
+        if message.message_key
+        == "html_typo_lint.invalid_wordpress_block_attribute_type"
+    ]
+    assert {
+        (
+            message.values.get("block") if message.values else "",
+            message.values.get("attribute") if message.values else "",
+            message.values.get("expected_type") if message.values else "",
+            message.values.get("actual_value") if message.values else "",
+        )
+        for message in type_messages
+    } == {
+        ("heading", "level", "integer", '"3"'),
+        ("paragraph", "dropCap", "boolean", '"true"'),
+    }
+
+
+def test_lint_reports_wordpress_block_attribute_invalid_value() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:paragraph {"align":"centre"} -->\n'
+        "<p>Aligned text.</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key
+        == "html_typo_lint.invalid_wordpress_block_attribute_value"
+        and message.values
+        and message.values.get("block") == "paragraph"
+        and message.values.get("attribute") == "align"
+        and message.values.get("actual_value") == '"centre"'
+        and message.values.get("suggestion") == "center"
+        for message in messages
+    )
+
+
+def test_lint_recovers_wordpress_block_structure_after_invalid_json() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"level":3}XYZ -->\n'
+        '<h3 class="wp-block-heading">Heading</h3>\n'
+        "<!-- /wp:heading -->"
+    )
+    message_keys = [message.message_key for message in messages]
+
+    assert "html_typo_lint.invalid_wordpress_block_attributes" in message_keys
+    assert "html_typo_lint.unexpected_wordpress_closing_block" not in message_keys
+    assert "html_typo_lint.missing_wordpress_closing_block" not in message_keys
+
+
 def test_lint_reports_unclosed_div_inside_wordpress_html_block() -> None:
     messages = lint_html_typos(
         "<!-- wp:html -->\n"
