@@ -1,0 +1,69 @@
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtWidgets import QApplication
+
+from dialogs.regex_input_edit import REGEX_TOKEN_COLOR
+from main import MainWindow
+
+
+def _highlighted_fragments(edit) -> list[str]:
+    edit.highlighter.rehighlight()
+    QApplication.processEvents()
+    block = edit.document().firstBlock()
+    text = block.text()
+    return [
+        text[format_range.start : format_range.start + format_range.length]
+        for format_range in block.layout().formats()
+        if format_range.format.foreground().color() == REGEX_TOKEN_COLOR
+    ]
+
+
+def test_replace_all_then_second_regex_input_keeps_display_and_regex_colors(
+    tmp_path: Path,
+) -> None:
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication(sys.argv)
+    assert isinstance(app, QApplication)
+
+    load_file_path = tmp_path / "replace_flow_sample.txt"
+    load_file_path.write_text("line-001\nline-002\n", encoding="utf-8")
+
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText(load_file_path.read_text(encoding="utf-8"))
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+
+    dialog = window.find_replace_dialog
+    dialog.regular_expression_check_box.setChecked(True)
+    dialog.find_text_edit.setText(r"line-(\d+)")
+    dialog.replace_text_edit.setText(r"item-\1")
+
+    assert dialog.find_text_edit.text() == r"line-(\d+)"
+    assert dialog.replace_text_edit.text() == r"item-\1"
+    assert r"(\d+)" in _highlighted_fragments(dialog.find_text_edit)
+    assert r"\1" in _highlighted_fragments(dialog.replace_text_edit)
+
+    dialog.replace_all_button.click()
+    QApplication.processEvents()
+
+    assert window.editor.toPlainText() == "item-001\nitem-002\n"
+    assert dialog.preview_table.rowCount() == 2
+    assert dialog.find_text_edit.hasFocus()
+    assert dialog.find_text_edit.text() == r"line-(\d+)"
+
+    dialog.find_text_edit.setText(r"\nitem-\d+")
+    QApplication.processEvents()
+
+    assert dialog.find_text_edit.text() == r"\nitem-\d+"
+    assert dialog.find_text_edit.toPlainText() == r"\nitem-\d+"
+    assert dialog.find_text_edit.highlighter.enabled is True
+    highlighted = _highlighted_fragments(dialog.find_text_edit)
+    assert r"\n" in highlighted
+    assert r"\d+" in highlighted

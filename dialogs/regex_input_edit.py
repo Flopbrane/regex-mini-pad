@@ -1,25 +1,19 @@
+"""Regex input widget with lightweight regex highlighting."""
+
 from __future__ import annotations
 
 import re
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import (
-    QColor,
-    QKeyEvent,
-    QSyntaxHighlighter,
-    QTextCharFormat,
-    QTextDocument,
-)
-from PySide6.QtWidgets import QPlainTextEdit, QWidget
+from PySide6 import QtCore, QtGui, QtWidgets
 
-REGEX_TOKEN_COLOR = QColor("#7a4a12")
+REGEX_TOKEN_COLOR = QtGui.QColor("#7a4a12")
 
 
-class RegexInputHighlighter(QSyntaxHighlighter):
-    def __init__(self, document: QTextDocument) -> None:
+class RegexInputHighlighter(QtGui.QSyntaxHighlighter):
+    def __init__(self, document: QtGui.QTextDocument) -> None:
         super().__init__(document)
         self.enabled = False
-        self.regex_format = QTextCharFormat()
+        self.regex_format = QtGui.QTextCharFormat()
         self.regex_format.setForeground(REGEX_TOKEN_COLOR)
 
     def set_enabled(self, enabled: bool) -> None:
@@ -35,7 +29,7 @@ class RegexInputHighlighter(QSyntaxHighlighter):
 
     def _regex_token_ranges(self, text: str) -> list[tuple[int, int]]:
         ranges: list[tuple[int, int]] = []
-        ranges.extend(self._match_ranges(r"\\[AbBdDsSwWZzG](?:[*+?]|\{\d+(?:,\d*)?\})?\??", text))
+        ranges.extend(self._match_ranges(r"\\[AbBdDsSwWZzGnrtfv](?:[*+?]|\{\d+(?:,\d*)?\})?\??", text))
         ranges.extend(self._group_ranges(text))
         ranges.extend(self._match_ranges(r"(?<!\\)\.(?:[*+?]|\{\d+(?:,\d*)?\})?\??", text))
         ranges.extend(self._match_ranges(r"(?<!\\)(?:\^|\$|\|)", text))
@@ -76,7 +70,7 @@ class RegexInputHighlighter(QSyntaxHighlighter):
     def _merge_ranges(self, ranges: list[tuple[int, int]]) -> list[tuple[int, int]]:
         if not ranges:
             return []
-        sorted_ranges = sorted((start, start + length) for start, length in ranges)
+        sorted_ranges: list[tuple[int, int]] = sorted((start, start + length) for start, length in ranges)
         merged: list[tuple[int, int]] = []
         current_start, current_end = sorted_ranges[0]
         for start, end in sorted_ranges[1:]:
@@ -89,14 +83,14 @@ class RegexInputHighlighter(QSyntaxHighlighter):
         return merged
 
 
-class RegexInputEdit(QPlainTextEdit):
-    returnPressed = Signal()
+class RegexInputEdit(QtWidgets.QPlainTextEdit):
+    returnPressed = QtCore.Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setTabChangesFocus(True)
         self.setFixedHeight(self.fontMetrics().height() + 12)
         self.highlighter = RegexInputHighlighter(self.document())
@@ -125,7 +119,7 @@ class RegexInputEdit(QPlainTextEdit):
         self.setTextCursor(cursor)
 
     def setSelection(self, start: int, length: int) -> None:
-        cursor = self.textCursor()
+        cursor: QtGui.QTextCursor = self.textCursor()
         cursor.setPosition(start)
         cursor.setPosition(start + length, cursor.MoveMode.KeepAnchor)
         self.setTextCursor(cursor)
@@ -133,11 +127,12 @@ class RegexInputEdit(QPlainTextEdit):
     def set_regex_highlighting_enabled(self, enabled: bool) -> None:
         self.highlighter.set_enabled(enabled)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        if event.key() in {Qt.Key.Key_Return, Qt.Key.Key_Enter} and not (
-            event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        if event.key() in {QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter} and not (
+            event.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier
         ):
             self.returnPressed.emit()
             event.accept()
             return
         super().keyPressEvent(event)
+        #self.viewport().update()

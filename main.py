@@ -2732,6 +2732,9 @@ class MainWindow(QMainWindow):
         self.update_search_highlights(search_text, options)
 
     def _focus_find_text_after_replace_all(self) -> None:
+        QTimer.singleShot(0, self._focus_find_text_after_replace_all_now)
+
+    def _focus_find_text_after_replace_all_now(self) -> None:
         if self.find_replace_dialog is None or not self.find_replace_dialog.isVisible():
             return
         self.find_replace_dialog.show()
