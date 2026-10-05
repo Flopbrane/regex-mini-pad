@@ -478,6 +478,7 @@
   "regex_lint.leading_dot_star": "A leading .* can make searches slower and less precise.",
   "regex_lint.unescaped_dot": "A dot matches any one character. Use \\. when you need a literal dot.",
   "regex_lint.backslash_n": "\\n means a line break in regex. Use it only when you want to match an actual newline.",
+  "regex_lint.yen_sign_escape": "¥ is not the regex escape character. Use a half-width backslash \\ when you want escapes such as line breaks.",
   "regex_lint.trailing_escape": "The pattern ends with a backslash. Escape the backslash as \\\\ if you need a literal backslash.",
   "regex_lint.invalid_replacement": "Invalid replacement text: {error}",
   "regex_lint.backref_without_group": "The replacement uses a group reference, but the pattern has no capture group.",

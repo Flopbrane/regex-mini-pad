@@ -2721,6 +2721,7 @@ class MainWindow(QMainWindow):
         options: SearchOptions,
     ) -> None:
         """Delay automatic search highlighting so typing does not rescan on every key."""
+        self.editor.clear_search_matches()
         self.pending_search_highlight = (search_text, options)
         self.search_highlight_timer.start()
 
@@ -2994,10 +2995,17 @@ class MainWindow(QMainWindow):
                 replace_text,
                 options,
             )
-            after_text = self._replacement_context(
+            replacement_context_text = self._line_replacement_context(
                 source_text,
                 match,
-                preview_result.text if preview_result.count else match.text,
+                search_text,
+                replace_text,
+                options,
+            )
+            after_text = (
+                self._visible_preview_text(replacement_context_text)
+                if preview_result.count
+                else self._replacement_context(source_text, match, match.text)
             )
             rows.append(
                 (
@@ -3007,6 +3015,27 @@ class MainWindow(QMainWindow):
                 )
             )
         return rows
+
+    def _line_replacement_context(
+        self,
+        source_text: str,
+        match: SearchMatch,
+        search_text: str,
+        replace_text: str,
+        options: SearchOptions,
+    ) -> str:
+        line_start = source_text.rfind("\n", 0, match.start) + 1
+        line_end = source_text.find("\n", match.end)
+        if line_end == -1:
+            line_end = len(source_text)
+        line_text = source_text[line_start:line_end]
+        result = self.search_engine.replace_all(
+            line_text,
+            search_text,
+            replace_text,
+            options,
+        )
+        return result.text if result.count else match.text
 
     def _line_context(self, source_text: str, match: SearchMatch) -> str:
         """Extract the context of the line containing the given match, highlighting the match itself."""

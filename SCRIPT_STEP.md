@@ -2393,6 +2393,10 @@ Changes in progress:
 - Cleared stale preview rows whenever the search text, replacement text, or search options change.
 - Made the Find/Replace search and replacement boxes vertically expandable so multi-line patterns can be inspected by resizing the dialog.
 - Added regression coverage for second-pass regex input, visible search text after focus movement, second Replace All success, stale preview clearing, and expandable multi-line input boxes.
+- 2026-10-06 follow-up: cleared existing editor search markers immediately when a new delayed search-highlight request is scheduled, preventing old markers from appearing to belong to the current search text.
+- 2026-10-06 follow-up: added a regex lint warning for an actual `¥` character used where a regex escape backslash was likely intended. This only warns; it does not rewrite the user's pattern.
+- 2026-10-06 follow-up: confirmed by command-line GUI simulation that `<!-- /wp:paragraph -->\n<!-- wp:paragraph -->\n` with real half-width backslashes (`U+005C`) matches and the Find button selects a match.
+- 2026-10-06 follow-up: changed preview "after replacement" context so repeated matches on the same line show the line after all replacements in that line, avoiding misleading partial previews such as `<h3 ...></h2>`.
 
 Manual verification checklist for the next session:
 
@@ -2402,10 +2406,13 @@ Manual verification checklist for the next session:
 - After Replace All, confirm the search box text remains visible when moving focus to the replacement box.
 - Type a second pattern, for example `</p>\n<p>`, and confirm it replaces the previous search text rather than being inserted in front of leftover text.
 - Confirm matching markers appear for the second pattern before replacement.
+- Confirm changing the search text clears old markers immediately; stale markers should not remain while the 250 ms delayed highlight is pending.
 - Run Replace All for the second pattern and confirm it no longer reports "no replacements" when matching text exists.
 - Confirm the preview table clears when the search text, replacement text, or regex/search options are changed.
+- Confirm a simple same-line replacement such as `2` -> `3` on `<h2 class="wp-block-heading"></h2>` previews as `<h3 class="wp-block-heading"></h3>`.
 - Resize the Find/Replace dialog vertically and confirm the search and replacement boxes expand enough to inspect multi-line patterns.
 - Confirm `\n`, `\t`, and `\d+` are highlighted in the regex input while regex mode is enabled.
+- If a pattern visibly uses `¥n`, confirm whether the character is a displayed backslash (`U+005C`) or an actual yen sign (`U+00A5`). Actual `¥` should show a regex-check warning and should not be treated as an escape.
 - If manual GUI behavior differs from tests, capture the exact search text with `find_text_edit.text()` before changing code again.
 
 Validation already run:
@@ -2418,7 +2425,7 @@ Validation already run:
 
 Result:
 
-- `pytest`: 291 passed
+- `pytest`: 294 passed
 - `ruff check .`: All checks passed
 - `pyright`: 0 errors, 0 warnings, 0 informations
 

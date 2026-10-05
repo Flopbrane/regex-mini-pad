@@ -47,3 +47,12 @@ def test_lint_warns_about_backslash_n() -> None:
     messages = RegexLint().lint(r"\n{3,}")
 
     assert any(message.message_key == "regex_lint.backslash_n" for message in messages)
+
+
+def test_lint_warns_about_yen_sign_used_as_escape() -> None:
+    messages = RegexLint().lint("first¥nsecond")
+
+    assert any(
+        message.message_key == "regex_lint.yen_sign_escape"
+        for message in messages
+    )

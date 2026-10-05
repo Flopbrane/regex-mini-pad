@@ -478,6 +478,7 @@
   "regex_lint.leading_dot_star": "先頭の .* は検索が遅くなったり、意図より広く一致したりすることがあります。",
   "regex_lint.unescaped_dot": ". は任意の1文字に一致します。普通のドットを探す場合は \\. と書きます。",
   "regex_lint.backslash_n": "\\n は改行に一致します。実際の改行を探したい場合だけ使ってください。",
+  "regex_lint.yen_sign_escape": "¥ は正規表現のエスケープ記号ではありません。改行などを探す場合は半角バックスラッシュ \\ を使ってください。",
   "regex_lint.trailing_escape": "パターンの末尾が \\ です。普通のバックスラッシュを探す場合は \\\\ と書きます。",
   "regex_lint.invalid_replacement": "置換後の文字列が正しくありません: {error}",
   "regex_lint.backref_without_group": "置換後の文字列にグループ参照がありますが、検索パターン側に取り出す括弧がありません。",

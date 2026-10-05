@@ -115,6 +115,13 @@ class RegexLint:
                     "regex_lint.backslash_n",
                 )
             )
+        if "¥" in pattern_text:
+            messages.append(
+                RegexLintMessage(
+                    "warning",
+                    "regex_lint.yen_sign_escape",
+                )
+            )
         if pattern_text.endswith("\\"):
             messages.append(
                 RegexLintMessage(

@@ -609,6 +609,30 @@ def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -
     assert after_item.text() == "second"
 
 
+def test_preview_matches_shows_line_after_all_same_line_replacements(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText('<h2 class="wp-block-heading"></h2>')
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+
+    window.preview_matches(
+        "2",
+        "3",
+        SearchOptions(regular_expression=True),
+    )
+
+    assert window.find_replace_dialog.preview_table.rowCount() == 2
+    first_after_item = window.find_replace_dialog.preview_table.item(0, 2)
+    second_after_item = window.find_replace_dialog.preview_table.item(1, 2)
+    assert first_after_item is not None
+    assert second_after_item is not None
+    assert first_after_item.text() == '<h3 class="wp-block-heading"></h3>'
+    assert second_after_item.text() == '<h3 class="wp-block-heading"></h3>'
+
+
 def test_preview_matches_uses_selected_text_only(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -782,6 +806,18 @@ def test_invalid_regex_clears_search_highlights(app: QApplication) -> None:
     window.update_search_highlights("alpha", SearchOptions())
 
     window.update_search_highlights("[", SearchOptions(regular_expression=True))
+
+    assert window.editor.search_matches == []
+    assert window.editor.extraSelections() == []
+
+
+def test_scheduled_search_clears_stale_highlights_immediately(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("alpha beta")
+    window.update_search_highlights("alpha", SearchOptions())
+
+    window.schedule_search_highlights("nomatch", SearchOptions())
 
     assert window.editor.search_matches == []
     assert window.editor.extraSelections() == []
