@@ -78,9 +78,8 @@ def test_replace_all_returns_focus_to_find_text(
     )
 
 
-def test_replace_all_button_previews_and_confirms_before_replacing(
+def test_replace_current_returns_focus_to_find_text(
     app: QApplication,
-    monkeypatch: pytest.MonkeyPatch,
     tmp_path,
 ) -> None:
     _ = app
@@ -90,28 +89,88 @@ def test_replace_all_button_previews_and_confirms_before_replacing(
     assert window.find_replace_dialog is not None
     window.find_replace_dialog.find_text_edit.setText("target")
     window.find_replace_dialog.replace_text_edit.setText("done")
-    captured: dict[str, str] = {}
 
-    def capture_question(
-        _parent: object,
-        title: str,
-        text: str,
-        *_args: object,
-        **_kwargs: object,
-    ) -> QMessageBox.StandardButton:
-        captured["title"] = title
-        captured["text"] = text
-        return QMessageBox.StandardButton.No
+    window.find_replace_dialog.find_next_button.click()
+    window.find_replace_dialog.replace_button.click()
+    QApplication.processEvents()
 
-    monkeypatch.setattr(QMessageBox, "question", capture_question)
+    assert window.editor.toPlainText() == "done target"
+    assert window.find_replace_dialog.find_text_edit.hasFocus()
+    assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
+        "target"
+    )
+
+
+def test_replace_marked_returns_focus_to_find_text(
+    app: QApplication,
+    tmp_path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("target keep target")
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+    window.find_replace_dialog.find_text_edit.setText("target")
+    window.find_replace_dialog.replace_text_edit.setText("done")
+    window.update_search_highlights("target", SearchOptions())
+
+    window.find_replace_dialog.replace_marked_button.click()
+    QApplication.processEvents()
+
+    assert window.editor.toPlainText() == "done keep done"
+    assert window.find_replace_dialog.find_text_edit.hasFocus()
+    assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
+        "target"
+    )
+
+
+def test_replace_all_button_previews_and_replaces(
+    app: QApplication,
+    tmp_path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("target target")
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+    window.find_replace_dialog.find_text_edit.setText("target")
+    window.find_replace_dialog.replace_text_edit.setText("done")
 
     window.find_replace_dialog.replace_all_button.click()
     QApplication.processEvents()
 
-    assert window.editor.toPlainText() == "target target"
+    assert window.editor.toPlainText() == "done done"
     assert window.find_replace_dialog.preview_table.rowCount() == 2
-    assert captured["title"] == "すべて置換の確認"
-    assert "2件を置換します" in captured["text"]
+
+
+def test_replace_all_button_replaces_wordpress_paragraph_gap_regex(
+    app: QApplication,
+    tmp_path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText(
+        "first"
+        "\n<!-- /wp:paragraph ->"
+        "\n\n<!-- wp:paragraph -->"
+        "second"
+        "\n<!-- /wp:paragraph ->"
+        "\n\n<!-- wp:paragraph -->"
+        "third"
+    )
+    window.show_find_replace_dialog()
+    assert window.find_replace_dialog is not None
+    window.find_replace_dialog.regular_expression_check_box.setChecked(True)
+    window.find_replace_dialog.find_text_edit.setText(
+        r"\n<!-- /wp:paragraph ->\n\n<!-- wp:paragraph -->"
+    )
+    window.find_replace_dialog.replace_text_edit.setText(r"\n")
+
+    window.find_replace_dialog.replace_all_button.click()
+    QApplication.processEvents()
+
+    assert window.editor.toPlainText() == "first\nsecond\nthird"
+    assert window.find_replace_dialog.preview_table.rowCount() == 2
 
 
 def test_low_load_mode_skips_auto_search_highlights(

@@ -44,10 +44,12 @@ WordPress parser, but it is designed to catch common document-breaking mistakes
 before pasting or saving article HTML.
 
 - Detects unknown HTML tags and suspicious HTML attribute typos.
+- Warns when a known HTML attribute appears on an unusual tag, such as
+  `href` on `<p>` or `src` on `<a>`.
 - Detects unknown WordPress core block names.
 - Detects invalid JSON inside WordPress block comment `{}` parameters.
-- Warns about unsupported or unexpected `{}` parameters for representative
-  WordPress core blocks.
+- Warns about unsupported or unexpected `{}` parameters using the bundled
+  WordPress core block attribute dictionary.
 - Checks WordPress block start / end mismatches, missing closing comments, and
   repeated non-nestable blocks such as `wp:list-item`.
 - Checks whether HTML tags are complete inside each WordPress block.
@@ -73,8 +75,8 @@ before pasting or saving article HTML.
 
 - Add an optional Japanese typo / style-variation check after a dictionary and
   settings switch are prepared.
-- Continue expanding conservative WordPress block attribute allow-lists as
-  real examples are collected.
+- Keep the bundled WordPress core block / attribute dictionary aligned with
+  official references and real examples.
 
 ## Supported Encodings
 

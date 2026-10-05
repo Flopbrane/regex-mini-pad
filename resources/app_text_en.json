@@ -483,6 +483,7 @@
   "html_typo_lint.unknown_html_tag_with_suggestion": "HTML tag `<{tag}>` is not registered. Suggestion: `<{suggestion}>`",
   "html_typo_lint.unknown_html_attribute": "Attribute `{attribute}` on `<{tag}>` is not registered.",
   "html_typo_lint.unknown_html_attribute_with_suggestion": "Attribute `{attribute}` on `<{tag}>` is not registered. Suggestion: `{suggestion}`",
+  "html_typo_lint.unexpected_html_attribute_for_tag": "Attribute `{attribute}` is unusual on `<{tag}>`. Check whether the attribute belongs on a different tag.",
   "html_typo_lint.wordpress_paragraph_missing_p_open": "The paragraph block has no `<p>` opening tag.",
   "html_typo_lint.wordpress_paragraph_missing_p_close": "The paragraph block has no `</p>` closing tag.",
   "html_typo_lint.wordpress_html_contains_block_comment": "The `wp:html` block contains a WordPress block comment. Use only ordinary HTML inside Custom HTML.",
@@ -515,6 +516,6 @@
   "html_typo_lint.escaped_code_close_fragment": "A broken `</code>` fragment such as `/code&gt;` was found. Check whether it should be `</code>` or removed.",
   "html_typo_lint.unexpected_wordpress_closing_block": "`<!-- /wp:{block} -->` appears without a matching opening block. Remove the extra closing comment, or add `<!-- wp:{block} -->` before it if the block is intended.",
   "html_typo_lint.mismatched_wordpress_block": "`wp:{open_block}` is opened but `wp:{close_block}` is being closed. Add `<!-- /wp:{open_block} -->` before `<!-- /wp:{close_block} -->`, or check the closing comment name.",
-  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` has no matching closing block. Add `<!-- /wp:{block} -->` at the matching position.",
+  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` has no matching closing block. Add `<!-- /wp:{block} -->` at the end of its content, before the next block of the same type or the parent block's closing markup.",
   "html_typo_lint.missing_wordpress_html_closing_block": "`<!-- wp:html -->` has no matching `<!-- /wp:html -->`. The following text may be treated as part of the HTML block."
 }

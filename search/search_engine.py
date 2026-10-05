@@ -33,16 +33,21 @@ class SearchEngine:
         source_text: str,
         search_text: str,
         options: SearchOptions | None = None,
+        *,
+        max_matches: int | None = None,
     ) -> list[SearchMatch]:
         if not search_text:
             return []
 
         pattern = self._compile_pattern(search_text, options or SearchOptions())
-        return [
-            SearchMatch(match.start(), match.end(), match.group(0))
-            for match in pattern.finditer(source_text)
-            if match.start() != match.end()
-        ]
+        matches: list[SearchMatch] = []
+        for match in pattern.finditer(source_text):
+            if match.start() == match.end():
+                continue
+            matches.append(SearchMatch(match.start(), match.end(), match.group(0)))
+            if max_matches is not None and len(matches) >= max_matches:
+                break
+        return matches
 
     def find_next(
         self,

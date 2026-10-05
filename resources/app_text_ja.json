@@ -483,6 +483,7 @@
   "html_typo_lint.unknown_html_tag_with_suggestion": "HTMLタグ `<{tag}>` は未登録です。候補: `<{suggestion}>`",
   "html_typo_lint.unknown_html_attribute": "`<{tag}>` の属性 `{attribute}` は未登録です。",
   "html_typo_lint.unknown_html_attribute_with_suggestion": "`<{tag}>` の属性 `{attribute}` は未登録です。候補: `{suggestion}`",
+  "html_typo_lint.unexpected_html_attribute_for_tag": "`<{tag}>` に `{attribute}` 属性があります。この属性を別のタグに付ける必要がないか確認してください。",
   "html_typo_lint.wordpress_paragraph_missing_p_open": "段落ブロック内に `<p>` 開始タグが見つかりません。",
   "html_typo_lint.wordpress_paragraph_missing_p_close": "段落ブロック内に `</p>` 終了タグが見つかりません。",
   "html_typo_lint.wordpress_html_contains_block_comment": "`wp:html` ブロック内に WordPress ブロックコメントがあります。カスタムHTML内では通常のHTMLだけにしてください。",
@@ -515,6 +516,6 @@
   "html_typo_lint.escaped_code_close_fragment": "`/code&gt;` のような壊れた `</code>` 断片があります。`</code>` または不要な断片の削除を確認してください。",
   "html_typo_lint.unexpected_wordpress_closing_block": "`<!-- /wp:{block} -->` が開始ブロックなしで出ています。不要な終了コメントなら削除し、必要なブロックなら前に `<!-- wp:{block} -->` を追加してください。",
   "html_typo_lint.mismatched_wordpress_block": "`wp:{open_block}` を開いた後に `wp:{close_block}` で閉じています。先に `<!-- /wp:{open_block} -->` を追加してから `<!-- /wp:{close_block} -->` を閉じるか、終了コメント名を確認してください。",
-  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` に対応する終了ブロックが見つかりません。対応する位置に `<!-- /wp:{block} -->` を追加してください。",
+  "html_typo_lint.missing_wordpress_closing_block": "`<!-- wp:{block} -->` に対応する終了ブロックが見つかりません。本文の末尾（次の同種ブロックの開始、または親ブロックの終了より前）に `<!-- /wp:{block} -->` を追加してください。",
   "html_typo_lint.missing_wordpress_html_closing_block": "`<!-- wp:html -->` に対応する `<!-- /wp:html -->` が見つかりません。この後ろの本文がHTMLブロック扱いになる可能性があります。"
 }

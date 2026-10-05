@@ -300,6 +300,72 @@ def test_lint_suppresses_separator_code_cascade_errors() -> None:
     assert message_keys == ["html_typo_lint.wordpress_separator_contains_code"]
 
 
+def test_separator_cascade_keeps_independent_errors_on_same_line() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:separator -->\n"
+        '<hr clas="separator"><code badattr="x"><code>\n'
+        "<!-- /wp:separator -->\n"
+        "<!-- wp:paragraph -->\n"
+        "<p><strong>Later error</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert [(message.line_number, message.message_key) for message in messages] == [
+        (2, "html_typo_lint.wordpress_separator_contains_code"),
+        (2, "html_typo_lint.unknown_html_attribute"),
+        (2, "html_typo_lint.unknown_html_attribute"),
+        (5, "html_typo_lint.inline_tag_unclosed_before_parent"),
+    ]
+    for message, attribute in zip(messages[1:3], ["clas", "badattr"], strict=True):
+        assert message.values is not None
+        assert message.values["attribute"] == attribute
+
+
+def test_separator_cascade_keeps_independent_fragile_typo() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:separator -->\n"
+        '<hr style="margin:2en"><code><code>\n'
+        "<!-- /wp:separator -->"
+    )
+
+    assert {message.message_key for message in messages} == {
+        "html_typo_lint.wordpress_separator_contains_code",
+        "html_typo_lint.known_typo_margin_2en",
+    }
+    assert all(message.line_number == 2 for message in messages)
+
+
+def test_list_item_missing_close_points_to_next_item() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:list -->\n<ul>\n"
+        "<!-- wp:list-item --><li>First</li>\n"
+        "<!-- wp:list-item --><li>Second</li><!-- /wp:list-item -->\n"
+        "</ul><!-- /wp:list -->"
+    )
+
+    assert [
+        (message.line_number, message.message_key, message.values)
+        for message in messages
+    ] == [
+        (4, "html_typo_lint.missing_wordpress_closing_block", {"block": "list-item"}),
+    ]
+
+
+def test_list_mismatched_close_identifies_repair_comments() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:list -->\n<ul>\n"
+        "<!-- wp:list-item --><li>First</li>\n"
+        "</ul><!-- /wp:list -->"
+    )
+
+    mismatch = next(
+        message for message in messages
+        if message.message_key == "html_typo_lint.mismatched_wordpress_block"
+    )
+    assert mismatch.line_number == 4
+    assert mismatch.values == {"open_block": "list-item", "close_block": "list"}
+
+
 def test_lint_reports_duplicate_wordpress_paragraph_opening() -> None:
     messages = lint_html_typos(
         "<!-- wp:paragraph -->\n"
@@ -498,6 +564,50 @@ def test_lint_accepts_known_wordpress_block_attributes() -> None:
     )
 
 
+def test_lint_accepts_reference_wordpress_block_attributes() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:post-title {"level":3,"isLink":true,"linkTarget":"_blank"} -->\n'
+        '<h3 class="wp-block-post-title"><a href="/sample" target="_blank">Title</a></h3>\n'
+        "<!-- /wp:post-title -->"
+    )
+
+    rejected_keys = {
+        "html_typo_lint.unknown_wordpress_block",
+        "html_typo_lint.unknown_wordpress_block_attribute",
+    }
+    assert not any(message.message_key in rejected_keys for message in messages)
+
+
+def test_lint_accepts_wordpress_image_generated_html_attributes() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:image {"sizeSlug":"large","linkDestination":"none"} -->\n'
+        '<figure class="wp-block-image size-large">'
+        '<img src="sample.jpg" alt="Sample" decoding="async" fetchpriority="high" '
+        'srcset="sample.jpg 800w" sizes="(max-width: 800px) 100vw, 800px"/>'
+        "</figure>\n"
+        "<!-- /wp:image -->"
+    )
+
+    assert not any(
+        message.message_key == "html_typo_lint.unknown_html_attribute"
+        for message in messages
+    )
+
+
+def test_lint_reports_unknown_reference_wordpress_block_attribute() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:post-title {"level":3,"badParam":true} -->\n'
+        '<h3 class="wp-block-post-title">Title</h3>\n'
+        "<!-- /wp:post-title -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.unknown_wordpress_block_attribute"
+        and message.values == {"block": "post-title", "attribute": "badParam"}
+        for message in messages
+    )
+
+
 def test_lint_reports_unclosed_div_inside_wordpress_html_block() -> None:
     messages = lint_html_typos(
         "<!-- wp:html -->\n"
@@ -602,6 +712,39 @@ def test_lint_accepts_matching_wordpress_comment_attributes_and_html() -> None:
     )
 
 
+def test_lint_accepts_wordpress_accordion_blocks() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:accordion -->\n"
+        '<div role="group" class="wp-block-accordion"><!-- wp:accordion-item -->\n'
+        '<div class="wp-block-accordion-item"><!-- wp:accordion-heading -->\n'
+        '<h3 class="wp-block-accordion-heading has-icon has-icon-right">'
+        '<button type="button" class="wp-block-accordion-heading__toggle">'
+        '<span class="wp-block-accordion-heading__toggle-title">'
+        "Google検索の便利な使い方"
+        "</span>"
+        '<span class="wp-block-accordion-heading__toggle-icon" aria-hidden="true">'
+        "+"
+        "</span>"
+        "</button></h3>\n"
+        "<!-- /wp:accordion-heading -->\n"
+        "\n"
+        "<!-- wp:accordion-panel -->\n"
+        '<div role="region" class="wp-block-accordion-panel"><!-- wp:paragraph -->\n'
+        "<p></p>\n"
+        "<!-- /wp:paragraph --></div>\n"
+        "<!-- /wp:accordion-panel --></div>\n"
+        "<!-- /wp:accordion-item --></div>\n"
+        "<!-- /wp:accordion -->"
+    )
+
+    rejected_keys = {
+        "html_typo_lint.unknown_wordpress_block",
+        "html_typo_lint.unknown_html_attribute",
+        "html_typo_lint.restricted_html_tag",
+    }
+    assert not any(message.message_key in rejected_keys for message in messages)
+
+
 def test_lint_accepts_valid_wordpress_paragraph_blocks() -> None:
     messages = lint_html_typos(
         "<!-- wp:paragraph -->\n"
@@ -629,6 +772,39 @@ def test_lint_accepts_reference_json_attribute_prefixes() -> None:
     messages = lint_html_typos('<p data-note-id="1" aria-label="説明">本文</p>')
 
     assert not any(message.message_key == "html_typo_lint.unknown_html_attribute" for message in messages)
+
+
+def test_lint_reports_unexpected_html_attribute_for_tag() -> None:
+    messages = lint_html_typos('<p href="https://example.com">Body</p>')
+
+    assert any(
+        message.message_key == "html_typo_lint.unexpected_html_attribute_for_tag"
+        and message.values == {"tag": "p", "attribute": "href"}
+        for message in messages
+    )
+
+
+def test_lint_accepts_global_and_prefixed_attributes_on_tag_specific_checks() -> None:
+    messages = lint_html_typos(
+        '<p id="intro" class="lead" data-note-id="1" aria-label="Intro">Body</p>'
+    )
+
+    assert not any(
+        message.message_key == "html_typo_lint.unexpected_html_attribute_for_tag"
+        for message in messages
+    )
+
+
+def test_lint_reports_tag_specific_html_attribute_typo_suggestion() -> None:
+    messages = lint_html_typos('<img scrset="sample.jpg 800w" alt="Sample">')
+
+    assert any(
+        message.message_key == "html_typo_lint.unknown_html_attribute"
+        and message.values
+        and message.values.get("attribute") == "scrset"
+        and message.values.get("suggestion") == "srcset"
+        for message in messages
+    )
 
 
 def test_lint_uses_startup_reference_cache_without_rereading_json() -> None:

@@ -23,7 +23,7 @@ from portable_runtime import configure_portable_runtime
 configure_portable_runtime()
 
 # PySide6 exposes Qt modules dynamically; Pylint may report false no-name-in-module.
-from PySide6.QtCore import QPoint, Qt  # pylint: disable=no-name-in-module
+from PySide6.QtCore import QPoint, Qt, QTimer  # pylint: disable=no-name-in-module
 from PySide6.QtGui import (  # pylint: disable=no-name-in-module
     QAction,
     QActionGroup,
@@ -96,6 +96,8 @@ ENCODING_OPTIONS: dict[str, str] = {
     "UTF-16 LE": "utf-16-le",
     "UTF-16 BE": "utf-16-be",
 }
+SEARCH_HIGHLIGHT_DELAY_MS = 250
+MAX_AUTO_SEARCH_HIGHLIGHTS = 2000
 FRAME_BLOCK_LABEL_KEYS = {
     "tag.wordpress.custom_frame_block",
     "tag.wordpress.notice_frame_block",
@@ -156,6 +158,11 @@ class MainWindow(QMainWindow):
             self._file_backup_folder_for_folder(settings.backup_folder)
         )
         self.search_engine = SearchEngine()
+        self.search_highlight_timer = QTimer(self)
+        self.search_highlight_timer.setSingleShot(True)
+        self.search_highlight_timer.setInterval(SEARCH_HIGHLIGHT_DELAY_MS)
+        self.search_highlight_timer.timeout.connect(self._run_pending_search_highlight)
+        self.pending_search_highlight: tuple[str, SearchOptions] | None = None
         self.current_save_file_path: Path | None = None
         self.default_encoding = settings.default_encoding
         self.current_encoding = settings.default_encoding
@@ -2058,7 +2065,7 @@ class MainWindow(QMainWindow):
             )
             self.find_replace_dialog.preview_requested.connect(self.preview_matches)
             self.find_replace_dialog.search_parameters_changed.connect(
-                self.update_search_highlights
+                self.schedule_search_highlights
             )
             self.find_replace_dialog.regex_help_requested.connect(self.show_regex_help_dialog)
             self.find_replace_dialog.normalise_requested.connect(
@@ -2236,6 +2243,7 @@ class MainWindow(QMainWindow):
         replaced_end = len(result.text) - (len(source_text) - selected_match.end)
         self._set_cursor_position(replaced_end)
         self._set_search_status(self.translator.text("search.replaced_one"))
+        self._focus_find_text_after_replace_all()
 
     def replace_all(
         self,
@@ -2263,6 +2271,18 @@ class MainWindow(QMainWindow):
             if not matches:
                 self._set_search_error(self.translator.text("search.no_replacements"))
                 return
+            if not confirm and self.find_replace_dialog is not None:
+                rows = self._preview_rows(
+                    target_text,
+                    matches,
+                    search_text,
+                    replace_text,
+                    options,
+                    scope_offset,
+                )
+                summary = self._replacement_preview_summary(len(matches), len(rows))
+                self.find_replace_dialog.set_preview_rows(rows, summary)
+                self._set_search_status(summary)
             if confirm and not self._confirm_replace_all(
                 target_text,
                 matches,
@@ -2308,7 +2328,7 @@ class MainWindow(QMainWindow):
         replace_text: str,
         options: SearchOptions,
     ) -> None:
-        self.replace_all(search_text, replace_text, options, confirm=True)
+        self.replace_all(search_text, replace_text, options, confirm=False)
 
     def _confirm_replace_all(
         self,
@@ -2408,6 +2428,7 @@ class MainWindow(QMainWindow):
         self._set_search_status(
             self.translator.text("search.replaced_many", count=replacement_count)
         )
+        self._focus_find_text_after_replace_all()
 
     def apply_regex_normalise_operation(self, operation_id: str) -> None:
         if self.find_replace_dialog is None:
@@ -2450,6 +2471,22 @@ class MainWindow(QMainWindow):
         if self.reduced_error_check_enabled:
             self.editor.clear_search_matches()
             return
+        self.schedule_search_highlights(search_text, options)
+
+    def schedule_search_highlights(
+        self,
+        search_text: str,
+        options: SearchOptions,
+    ) -> None:
+        """Delay automatic search highlighting so typing does not rescan on every key."""
+        self.pending_search_highlight = (search_text, options)
+        self.search_highlight_timer.start()
+
+    def _run_pending_search_highlight(self) -> None:
+        if self.pending_search_highlight is None:
+            return
+        search_text, options = self.pending_search_highlight
+        self.pending_search_highlight = None
         self.update_search_highlights(search_text, options)
 
     def _focus_find_text_after_replace_all(self) -> None:
@@ -2478,7 +2515,12 @@ class MainWindow(QMainWindow):
 
         source_text = scope_text if scope_text is not None else self.editor.toPlainText()
         try:
-            matches = self.search_engine.find_all(source_text, search_text, options)
+            matches = self.search_engine.find_all(
+                source_text,
+                search_text,
+                options,
+                max_matches=MAX_AUTO_SEARCH_HIGHLIGHTS,
+            )
         except RegexError:
             self.editor.clear_search_matches()
             return

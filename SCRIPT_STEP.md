@@ -2227,6 +2227,79 @@ Validation result:
 - Pyright: 0 errors, 0 warnings, 0 informations.
 - Full pytest: 260 passed.
 
+## Step13-section19 Scheduled Linter Cascade Review
+
+Date: 2026-10-02
+
+Changes:
+
+- Kept separator structural cascade suppression, but checked original markup for independent unknown tags, attributes, restricted markup, and fragile typos.
+- Preserved multiple independent findings on the same line and stable ascending line-number ordering.
+- Clarified JA/EN missing WordPress closing-block messages with insertion guidance before the next same-type block or the parent closing markup.
+- Added regressions for two independent attributes on a contaminated separator line, a separate CSS typo, a later paragraph error, repeated list-item openings, and a list/list-item closing mismatch.
+- Reviewed localized sample/test_sample.wp_html results: 8 findings at lines 31, 35, 49, 81, 98, 120, 131, and 148; no separator code cascade.
+
+Validation:
+
+- Focused linter and translation tests: 49 passed.
+- JA/EN translation JSON parsing: passed.
+- Full Ruff: passed.
+- Pyright: 0 errors, 0 warnings, 0 informations.
+- Full pytest: 264 passed.
+- Manual GUI and real Gutenberg acceptance were not performed in this scheduled run.
+
+## Step13-section20 WordPress Core Block Reference Dictionary Expansion
+
+Date: 2026-10-03
+
+Changes:
+
+- Expanded `dictionaries/lint_reference.json` with the current official WordPress Core Blocks Reference block names.
+- Added `wordpress_block_attributes` to `lint_reference.json` so `{}` parameter checks can be maintained from dictionary data instead of only hard-coded Python allow-lists.
+- Kept common WordPress support attributes such as `className`, `style`, `metadata`, `lock`, and common color/font keys accepted conservatively across blocks.
+- Added common WordPress-generated HTML attributes such as `srcset`, `sizes`, `decoding`, `fetchpriority`, `datetime`, `poster`, and media boolean attributes.
+- Updated `search/html_typo_lint.py` to load block-attribute allow-lists from the startup lint reference cache.
+- Updated README files and dictionary format notes for the expanded lint reference.
+- Added regressions for official reference block attributes, unknown reference attributes, and WordPress image generated HTML attributes.
+
+Notes:
+
+- The reference is a bundled offline snapshot; RegexPad still does not fetch WordPress documentation at runtime.
+- Deprecated / unsupported official core entries are accepted by the linter to avoid false unknown-block warnings, but this does not mean they should be promoted as snippet insertion candidates.
+- Real Gutenberg paste/save acceptance was not performed in this step.
+
+## Step13-section21 HTML Attribute Reference and Tag-Specific Lint
+
+Date: 2026-10-05
+
+Changes:
+
+- Added `global_html_attributes` and `html_attributes_by_tag` to `dictionaries/lint_reference.json`.
+- Added conservative tag-specific HTML attribute checks so known attributes on unusual tags, such as `href` on `<p>`, can be reported separately from unknown attributes.
+- Preserved `aria-*`, `data-*`, and common global attributes as accepted on tag-specific checks.
+- Expanded common HTML attribute typo suggestions for WordPress-generated media attributes such as `srcset`, `sizes`, `decoding`, and `fetchpriority`.
+- Updated README files and dictionary format notes for the tag-specific HTML attribute dictionary.
+- Added regressions for unexpected tag/attribute combinations, global/prefixed attributes, and `scrset` -> `srcset` suggestions.
+
+Notes:
+
+- The tag-specific attribute map is intentionally conservative and article-focused to avoid broad false positives.
+- Real Gutenberg paste/save acceptance was not performed in this step.
+
+## Step13-section22 Search Replace Focus Verification
+
+Date: 2026-10-05
+
+Changes:
+
+- Confirmed the SearchEngine replacement path still covers literal replacement, regex groups, `$1` / `${name}` compatibility, preview, selected-only, and visible-only flows through existing tests.
+- Restored the find-text focus after single Replace and Replace Marked operations, matching the existing Replace All behavior.
+- Added GUI-level regressions for Replace, Replace All, and Replace Marked button flows returning focus to the find text box and selecting the current search text.
+
+Notes:
+
+- The checks were performed with Qt offscreen tests, not manual GUI interaction.
+
 ## Validation Commands
 
 Use the project virtual environment:

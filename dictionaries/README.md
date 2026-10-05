@@ -63,8 +63,11 @@ Current policy for user dictionaries:
 It contains:
 
 - `wordpress_core_blocks`: valid WordPress core block names such as `paragraph`, `group`, and `list-item`.
+- `wordpress_block_attributes`: valid `{}` JSON parameter names for each WordPress core block.
 - `html_tags`: valid HTML tag names.
 - `html_attributes`: valid HTML attribute names.
+- `global_html_attributes`: valid attributes that can appear on ordinary HTML tags.
+- `html_attributes_by_tag`: valid tag-specific HTML attributes such as `href` for `a` and `src` for `img`.
 - `allowed_attribute_prefixes`: prefixes such as `aria-` and `data-`.
 
 Add entries here when RegexPad should treat a tag, block, or attribute spelling as valid.

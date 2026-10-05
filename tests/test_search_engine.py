@@ -30,6 +30,14 @@ def test_find_all_supports_regular_expressions() -> None:
     assert [match.text for match in matches] == ["item-01", "item-20"]
 
 
+def test_find_all_can_limit_match_count() -> None:
+    engine = SearchEngine()
+
+    matches = engine.find_all("one one one", "one", max_matches=2)
+
+    assert [(match.start, match.end) for match in matches] == [(0, 3), (4, 7)]
+
+
 def test_find_all_can_be_case_sensitive() -> None:
     engine = SearchEngine()
 

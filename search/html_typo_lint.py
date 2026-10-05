@@ -19,6 +19,10 @@ HTML_TAG_TOKEN_PATTERN = re.compile(
 )
 
 DEFAULT_WORDPRESS_CORE_BLOCKS = {
+    "accordion",
+    "accordion-heading",
+    "accordion-item",
+    "accordion-panel",
     "audio",
     "button",
     "buttons",
@@ -80,11 +84,24 @@ DEFAULT_HTML_ATTRIBUTES = {
     "aria-label",
     "class",
     "controls",
+    "datetime",
+    "decoding",
+    "fetchpriority",
     "height",
     "href",
     "id",
+    "loop",
+    "muted",
+    "open",
+    "placeholder",
+    "playsinline",
+    "poster",
+    "preload",
     "rel",
+    "role",
+    "sizes",
     "src",
+    "srcset",
     "style",
     "target",
     "title",
@@ -92,12 +109,102 @@ DEFAULT_HTML_ATTRIBUTES = {
     "width",
 }
 DEFAULT_ALLOWED_ATTRIBUTE_PREFIXES = ("aria-", "data-")
+DEFAULT_GLOBAL_HTML_ATTRIBUTES = {
+    "aria-hidden",
+    "aria-label",
+    "class",
+    "data",
+    "id",
+    "lang",
+    "role",
+    "style",
+    "tabindex",
+    "title",
+}
+DEFAULT_HTML_ATTRIBUTES_BY_TAG = {
+    "a": {"download", "href", "hreflang", "referrerpolicy", "rel", "target", "type"},
+    "audio": {
+        "autoplay",
+        "controls",
+        "loop",
+        "muted",
+        "preload",
+        "src",
+    },
+    "blockquote": {"cite"},
+    "button": {"disabled", "name", "type", "value"},
+    "col": {"span"},
+    "colgroup": {"span"},
+    "code": set(),
+    "div": set(),
+    "em": set(),
+    "figcaption": set(),
+    "figure": set(),
+    "h1": set(),
+    "h2": set(),
+    "h3": set(),
+    "h4": set(),
+    "h5": set(),
+    "h6": set(),
+    "iframe": {
+        "allow",
+        "allowfullscreen",
+        "height",
+        "loading",
+        "name",
+        "referrerpolicy",
+        "src",
+        "srcdoc",
+        "width",
+    },
+    "img": {
+        "alt",
+        "crossorigin",
+        "decoding",
+        "fetchpriority",
+        "height",
+        "loading",
+        "referrerpolicy",
+        "sizes",
+        "src",
+        "srcset",
+        "usemap",
+        "width",
+    },
+    "li": {"value"},
+    "ol": {"reversed", "start", "type"},
+    "p": set(),
+    "q": {"cite"},
+    "span": set(),
+    "source": {"height", "media", "sizes", "src", "srcset", "type", "width"},
+    "strong": set(),
+    "td": {"colspan", "headers", "rowspan"},
+    "th": {"abbr", "colspan", "headers", "rowspan", "scope"},
+    "time": {"datetime"},
+    "track": {"default", "kind", "label", "src", "srclang"},
+    "video": {
+        "autoplay",
+        "controls",
+        "height",
+        "loop",
+        "muted",
+        "playsinline",
+        "poster",
+        "preload",
+        "src",
+        "width",
+    },
+}
 COMMON_HTML_ATTRIBUTE_TYPOS = {
     "calss": "class",
     "clas": "class",
+    "decodng": "decoding",
+    "fetchprority": "fetchpriority",
     "herf": "href",
     "hrfe": "href",
     "scr": "src",
+    "scrset": "srcset",
+    "sies": "sizes",
     "sryle": "style",
     "stlye": "style",
     "styel": "style",
@@ -270,8 +377,11 @@ class HtmlTypoLintMessage:
 @dataclass(frozen=True)
 class LintReferenceCache:
     wordpress_core_blocks: set[str]
+    wordpress_block_attributes: dict[str, set[str]]
     html_tags: set[str]
     html_attributes: set[str]
+    html_attributes_by_tag: dict[str, set[str]]
+    global_html_attributes: set[str]
     allowed_attribute_prefixes: tuple[str, ...]
 
 
@@ -284,16 +394,18 @@ class _LintToken:
 
 
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
+    suppressed_ranges = _contaminated_wordpress_separator_body_ranges(load_data)
     html_lint_data = _mask_ranges(
         load_data,
-        _contaminated_wordpress_separator_body_ranges(load_data),
+        suppressed_ranges,
     )
     messages: list[HtmlTypoLintMessage] = []
     messages.extend(_lint_wordpress_simple_structure(html_lint_data))
     messages.extend(_lint_wordpress_block_typos(load_data))
     messages.extend(_lint_wordpress_block_structure(load_data))
-    parser = HtmlTypoLintParser()
-    parser.feed(html_lint_data)
+    messages.extend(_lint_known_fragile_typos(load_data))
+    parser = HtmlTypoLintParser(load_data, suppressed_ranges)
+    parser.feed(load_data)
     parser.close()
     messages.extend(parser.messages)
     return sorted(messages, key=lambda message: message.line_number)
@@ -342,7 +454,6 @@ def _lint_wordpress_simple_structure(load_data: str) -> list[HtmlTypoLintMessage
     if not wordpress_tokens:
         messages.extend(_lint_html_tag_structure(html_tokens, STRUCTURAL_HTML_TAGS))
     messages.extend(_lint_orphan_html_lines_outside_wordpress_blocks(load_data))
-    messages.extend(_lint_known_fragile_typos(load_data))
     return messages
 
 
@@ -693,6 +804,54 @@ def _reference_set(
     return set(_reference_list(reference_data, key, sorted(fallback)))
 
 
+def _reference_attribute_map(
+    reference_data: dict[str, Any],
+    key: str,
+    fallback: dict[str, set[str]],
+) -> dict[str, set[str]]:
+    values = reference_data.get(key)
+    if not isinstance(values, dict):
+        return fallback
+
+    result: dict[str, set[str]] = {}
+    for block_name, attributes in values.items():
+        if not isinstance(block_name, str) or not isinstance(attributes, list):
+            continue
+        clean_block_name = block_name.strip().lower()
+        clean_attributes = {
+            attribute.strip()
+            for attribute in attributes
+            if isinstance(attribute, str) and attribute.strip()
+        }
+        if clean_block_name and clean_attributes:
+            result[clean_block_name] = clean_attributes
+    return result or fallback
+
+
+def _reference_string_map(
+    reference_data: dict[str, Any],
+    key: str,
+    fallback: dict[str, set[str]],
+) -> dict[str, set[str]]:
+    values = reference_data.get(key)
+    if not isinstance(values, dict):
+        return fallback
+
+    result: dict[str, set[str]] = {}
+    for item_name, item_values in values.items():
+        if not isinstance(item_name, str) or not isinstance(item_values, list):
+            continue
+        clean_name = item_name.strip().lower()
+        clean_values = {
+            value.strip().lower()
+            for value in item_values
+            if isinstance(value, str) and value.strip()
+        }
+        if clean_name:
+            result[clean_name] = clean_values
+    return result or fallback
+
+
 def _build_lint_reference_cache() -> LintReferenceCache:
     reference_data = _load_lint_reference()
     return LintReferenceCache(
@@ -701,11 +860,26 @@ def _build_lint_reference_cache() -> LintReferenceCache:
             "wordpress_core_blocks",
             DEFAULT_WORDPRESS_CORE_BLOCKS,
         ),
+        wordpress_block_attributes=_reference_attribute_map(
+            reference_data,
+            "wordpress_block_attributes",
+            WORDPRESS_BLOCK_ATTRIBUTE_ALLOWLISTS,
+        ),
         html_tags=_reference_set(reference_data, "html_tags", DEFAULT_HTML_TAGS),
         html_attributes=_reference_set(
             reference_data,
             "html_attributes",
             DEFAULT_HTML_ATTRIBUTES,
+        ),
+        html_attributes_by_tag=_reference_string_map(
+            reference_data,
+            "html_attributes_by_tag",
+            DEFAULT_HTML_ATTRIBUTES_BY_TAG,
+        ),
+        global_html_attributes=_reference_set(
+            reference_data,
+            "global_html_attributes",
+            DEFAULT_GLOBAL_HTML_ATTRIBUTES,
         ),
         allowed_attribute_prefixes=tuple(
             _reference_list(
@@ -719,8 +893,11 @@ def _build_lint_reference_cache() -> LintReferenceCache:
 
 LINT_REFERENCE_CACHE = _build_lint_reference_cache()
 KNOWN_WORDPRESS_CORE_BLOCKS = LINT_REFERENCE_CACHE.wordpress_core_blocks
+KNOWN_WORDPRESS_BLOCK_ATTRIBUTES = LINT_REFERENCE_CACHE.wordpress_block_attributes
 KNOWN_HTML_TAGS = LINT_REFERENCE_CACHE.html_tags
 KNOWN_HTML_ATTRIBUTES = LINT_REFERENCE_CACHE.html_attributes
+KNOWN_HTML_ATTRIBUTES_BY_TAG = LINT_REFERENCE_CACHE.html_attributes_by_tag
+KNOWN_GLOBAL_HTML_ATTRIBUTES = LINT_REFERENCE_CACHE.global_html_attributes
 ALLOWED_HTML_ATTRIBUTE_PREFIXES = LINT_REFERENCE_CACHE.allowed_attribute_prefixes
 
 
@@ -942,7 +1119,7 @@ def _lint_unknown_wordpress_block_attributes(
     block_attributes: dict[str, Any],
     line_number: int,
 ) -> list[HtmlTypoLintMessage]:
-    allowed_attributes = WORDPRESS_BLOCK_ATTRIBUTE_ALLOWLISTS.get(block_name)
+    allowed_attributes = KNOWN_WORDPRESS_BLOCK_ATTRIBUTES.get(block_name)
     if allowed_attributes is None:
         return []
 
@@ -1240,14 +1417,42 @@ def _is_known_html_attribute(attr_name: str) -> bool:
     return any(attr_name.startswith(prefix) for prefix in ALLOWED_HTML_ATTRIBUTE_PREFIXES)
 
 
+def _is_global_html_attribute(attr_name: str) -> bool:
+    if attr_name in KNOWN_GLOBAL_HTML_ATTRIBUTES:
+        return True
+    return any(attr_name.startswith(prefix) for prefix in ALLOWED_HTML_ATTRIBUTE_PREFIXES)
+
+
+def _is_wordpress_accordion_toggle_button(tag: str, attrs: dict[str, str]) -> bool:
+    if tag != "button" or attrs.get("type", "").lower() != "button":
+        return False
+    class_names = set(attrs.get("class", "").split())
+    return "wp-block-accordion-heading__toggle" in class_names
+
+
 class HtmlTypoLintParser(HTMLParser):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        load_data: str = "",
+        suppressed_ranges: list[tuple[int, int]] | None = None,
+    ) -> None:
         super().__init__(convert_charrefs=False)
         self.messages: list[HtmlTypoLintMessage] = []
         self.inline_stack: list[tuple[str, int]] = []
+        self.line_starts = _line_start_positions(load_data)
+        self.suppressed_ranges = suppressed_ranges or []
+
+    def _is_suppressed_inline_position(self) -> bool:
+        line_number, column_number = self.getpos()
+        return bool(self.suppressed_ranges) and _position_in_ranges(
+            _position_from_parser_pos(self.line_starts, line_number, column_number),
+            self.suppressed_ranges,
+        )
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._lint_tag_and_attrs(tag, attrs)
+        if self._is_suppressed_inline_position():
+            return
         clean_tag = tag.lower()
         if clean_tag in VOID_TAGS:
             return
@@ -1261,7 +1466,8 @@ class HtmlTypoLintParser(HTMLParser):
         clean_tag = tag.lower()
         line_number = self.getpos()[0]
         self._lint_unknown_html_tag(clean_tag, line_number)
-        self._lint_inline_endtag(clean_tag, line_number)
+        if not self._is_suppressed_inline_position():
+            self._lint_inline_endtag(clean_tag, line_number)
 
     def close(self) -> None:
         super().close()
@@ -1271,9 +1477,10 @@ class HtmlTypoLintParser(HTMLParser):
         clean_tag = tag.lower()
         line_number = self.getpos()[0]
         self._lint_unknown_html_tag(clean_tag, line_number)
-        self._lint_restricted_html_tag(clean_tag, line_number)
         attrs_dict = {name.lower(): value or "" for name, value in attrs}
+        self._lint_restricted_html_tag(clean_tag, attrs_dict, line_number)
         self._lint_unknown_html_attrs(clean_tag, attrs_dict, line_number)
+        self._lint_unexpected_html_attrs_for_tag(clean_tag, attrs_dict, line_number)
         self._lint_restricted_html_attrs(clean_tag, attrs_dict, line_number)
 
     def _lint_inline_endtag(self, tag: str, line_number: int) -> None:
@@ -1353,9 +1560,16 @@ class HtmlTypoLintParser(HTMLParser):
             )
         )
 
-    def _lint_restricted_html_tag(self, tag: str, line_number: int) -> None:
+    def _lint_restricted_html_tag(
+        self,
+        tag: str,
+        attrs: dict[str, str],
+        line_number: int,
+    ) -> None:
         reason = RESTRICTED_HTML_TAG_REASONS.get(tag)
         if reason is None:
+            return
+        if _is_wordpress_accordion_toggle_button(tag, attrs):
             return
         self.messages.append(
             HtmlTypoLintMessage(
@@ -1388,6 +1602,32 @@ class HtmlTypoLintParser(HTMLParser):
                     "html_typo_lint.unknown_html_attribute",
                     line_number,
                     values,
+                )
+            )
+
+    def _lint_unexpected_html_attrs_for_tag(
+        self,
+        tag: str,
+        attrs: dict[str, str],
+        line_number: int,
+    ) -> None:
+        allowed_attributes = KNOWN_HTML_ATTRIBUTES_BY_TAG.get(tag)
+        if allowed_attributes is None:
+            return
+
+        for attr_name in attrs:
+            if not _is_known_html_attribute(attr_name):
+                continue
+            if _is_global_html_attribute(attr_name):
+                continue
+            if attr_name in allowed_attributes:
+                continue
+            self.messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.unexpected_html_attribute_for_tag",
+                    line_number,
+                    {"tag": tag, "attribute": attr_name},
                 )
             )
 
