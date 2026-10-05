@@ -144,6 +144,10 @@ class FindReplaceDialog(QDialog):
                 )
         self.preview_table.resizeColumnsToContents()
 
+    def clear_preview_rows(self) -> None:
+        self.preview_summary_label.clear()
+        self.preview_table.setRowCount(0)
+
     def apply_language(self) -> None:
         self.setWindowTitle(self.translator.text("find.title"))
         self.find_text_label.setText(self.translator.text("find.find_text"))
@@ -195,6 +199,8 @@ class FindReplaceDialog(QDialog):
         form_layout.addWidget(self.whole_word_check_box, 4, 1)
         form_layout.addWidget(self.selected_only_check_box, 5, 1)
         form_layout.addWidget(self.visible_only_check_box, 6, 1)
+        form_layout.setRowStretch(0, 1)
+        form_layout.setRowStretch(1, 1)
 
         button_layout = QGridLayout()
         button_layout.addWidget(self.find_button, 0, 0)
@@ -215,6 +221,8 @@ class FindReplaceDialog(QDialog):
         root_layout.addWidget(self.error_label)
         root_layout.addWidget(self.preview_summary_label)
         root_layout.addWidget(self.preview_table)
+        root_layout.setStretch(0, 1)
+        root_layout.setStretch(4, 2)
         self.setLayout(root_layout)
 
     def _create_regex_insert_menu(self) -> None:
@@ -441,6 +449,7 @@ class FindReplaceDialog(QDialog):
     def _emit_search_parameters_changed(self, *_args: object) -> None:
         if self.reduced_error_check_enabled:
             return
+        self.clear_preview_rows()
         self.search_parameters_changed.emit(
             self.find_text_edit.text(),
             self._search_options(),

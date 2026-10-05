@@ -2379,6 +2379,55 @@ Notes:
 - These shortcuts are intentionally limited to common inline editing helpers and do not replace the existing tag insertion menu.
 - Qt offscreen tests covered the action behavior; manual GUI keypress acceptance was not performed.
 
+## Step13-section27 Find/Replace Regex Input Follow-Up Checks
+
+Date: 2026-10-05
+
+Changes in progress:
+
+- Kept the Find/Replace inputs as `RegexInputEdit` (`QPlainTextEdit`) so regex syntax highlighting can continue to work.
+- Delayed Find/Replace focus restoration after Replace/Replace All with a 0 ms `QTimer` so Qt can finish the editor update first.
+- Restored full selection of the search text after replacement so the next typed search pattern replaces the previous pattern instead of being inserted before it.
+- Cleared a full-input selection when the regex input loses focus, keeping the text visible after moving to the replacement box or buttons.
+- Added highlighting support for common escaped regex tokens such as `\n` and `\t`.
+- Cleared stale preview rows whenever the search text, replacement text, or search options change.
+- Made the Find/Replace search and replacement boxes vertically expandable so multi-line patterns can be inspected by resizing the dialog.
+- Added regression coverage for second-pass regex input, visible search text after focus movement, second Replace All success, stale preview clearing, and expandable multi-line input boxes.
+
+Manual verification checklist for the next session:
+
+- Start the app with `D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe main.py`.
+- Open Find/Replace and enable regular expression search.
+- Test first replacement with a WordPress paragraph-boundary pattern such as `<!-- /wp:paragraph -->\n\n<!-- wp:paragraph -->` and a replacement such as `<br><br>\n`.
+- After Replace All, confirm the search box text remains visible when moving focus to the replacement box.
+- Type a second pattern, for example `</p>\n<p>`, and confirm it replaces the previous search text rather than being inserted in front of leftover text.
+- Confirm matching markers appear for the second pattern before replacement.
+- Run Replace All for the second pattern and confirm it no longer reports "no replacements" when matching text exists.
+- Confirm the preview table clears when the search text, replacement text, or regex/search options are changed.
+- Resize the Find/Replace dialog vertically and confirm the search and replacement boxes expand enough to inspect multi-line patterns.
+- Confirm `\n`, `\t`, and `\d+` are highlighted in the regex input while regex mode is enabled.
+- If manual GUI behavior differs from tests, capture the exact search text with `find_text_edit.text()` before changing code again.
+
+Validation already run:
+
+```powershell
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pytest
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m ruff check .
+"D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe" -m pyright
+```
+
+Result:
+
+- `pytest`: 291 passed
+- `ruff check .`: All checks passed
+- `pyright`: 0 errors, 0 warnings, 0 informations
+
+Notes:
+
+- The preview table does not write data back into the search or replacement inputs; it only displays rows and a summary.
+- The earlier "visible search text but no match" case was caused by leftover previous search text remaining inside the input after `selectAll()` was removed.
+- Real manual GUI acceptance on Windows was not completed after the final expandable-input change.
+
 ## Validation Commands
 
 Use the project virtual environment:

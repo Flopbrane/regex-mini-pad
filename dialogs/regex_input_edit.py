@@ -89,11 +89,26 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setTabChangesFocus(True)
-        self.setFixedHeight(self.fontMetrics().height() + 12)
+        self.setMinimumHeight(self._single_line_height())
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
+        )
         self.highlighter = RegexInputHighlighter(self.document())
+
+    def sizeHint(self) -> QtCore.QSize:
+        size = super().sizeHint()
+        return QtCore.QSize(size.width(), self._single_line_height())
+
+    def minimumSizeHint(self) -> QtCore.QSize:
+        size = super().minimumSizeHint()
+        return QtCore.QSize(size.width(), self._single_line_height())
+
+    def _single_line_height(self) -> int:
+        return self.fontMetrics().height() + 12
 
     def text(self) -> str:
         return self.toPlainText()
@@ -136,3 +151,14 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
             return
         super().keyPressEvent(event)
         #self.viewport().update()
+
+    def focusOutEvent(self, event: QtGui.QFocusEvent) -> None:
+        super().focusOutEvent(event)
+        cursor = self.textCursor()
+        if (
+            cursor.hasSelection()
+            and cursor.selectionStart() == 0
+            and cursor.selectionEnd() == len(self.toPlainText())
+        ):
+            cursor.setPosition(cursor.selectionEnd())
+            self.setTextCursor(cursor)

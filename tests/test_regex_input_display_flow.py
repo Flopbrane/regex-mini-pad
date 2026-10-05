@@ -57,8 +57,19 @@ def test_replace_all_then_second_regex_input_keeps_display_and_regex_colors(
     assert dialog.preview_table.rowCount() == 2
     assert dialog.find_text_edit.hasFocus()
     assert dialog.find_text_edit.text() == r"line-(\d+)"
+    assert dialog.find_text_edit.textCursor().selectedText() == r"line-(\d+)"
 
-    dialog.find_text_edit.setText(r"\nitem-\d+")
+    dialog.find_text_edit.insert(r"\nitem-\d+")
+
+    assert dialog.find_text_edit.text() == r"\nitem-\d+"
+
+    dialog.replace_text_edit.setFocus()
+    QApplication.processEvents()
+
+    assert dialog.find_text_edit.text() == r"\nitem-\d+"
+    assert not dialog.find_text_edit.hasSelectedText()
+
+    dialog.find_text_edit.setFocus()
     QApplication.processEvents()
 
     assert dialog.find_text_edit.text() == r"\nitem-\d+"
@@ -67,3 +78,9 @@ def test_replace_all_then_second_regex_input_keeps_display_and_regex_colors(
     highlighted = _highlighted_fragments(dialog.find_text_edit)
     assert r"\n" in highlighted
     assert r"\d+" in highlighted
+
+    dialog.replace_text_edit.setText(r"\nrow")
+    dialog.replace_all_button.click()
+    QApplication.processEvents()
+
+    assert window.editor.toPlainText() == "item-001\nrow\n"

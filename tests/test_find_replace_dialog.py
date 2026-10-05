@@ -7,7 +7,8 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication, QInputDialog, QMenu
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QSizePolicy
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.regex_input_edit import RegexInputHighlighter
@@ -58,6 +59,24 @@ def test_preview_table_displays_rows(app: QApplication) -> None:
     assert after_item.text() == "second"
 
 
+def test_preview_table_clears_when_search_parameters_change(
+    app: QApplication,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+
+    dialog.set_preview_rows(
+        [(2, "second  ", "second")],
+        "Previewing 1 match(es).",
+    )
+
+    dialog.find_text_edit.setText("changed")
+
+    assert dialog.preview_summary_label.text() == ""
+    assert dialog.preview_table.rowCount() == 0
+
+
 def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
     _ = app
     translator = Translator(Path("resources"), "en")
@@ -66,6 +85,26 @@ def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
     dialog.visible_only_check_box.setChecked(True)
 
     assert dialog.current_search_options().visible_only
+
+
+def test_regex_inputs_can_expand_for_multiline_patterns(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    multiline_pattern = "first line\nsecond line"
+
+    dialog.find_text_edit.setText(multiline_pattern)
+
+    assert dialog.find_text_edit.text() == multiline_pattern
+    assert dialog.find_text_edit.minimumHeight() < dialog.find_text_edit.maximumHeight()
+    assert (
+        dialog.find_text_edit.verticalScrollBarPolicy()
+        == Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    )
+    assert (
+        dialog.find_text_edit.sizePolicy().verticalPolicy()
+        == QSizePolicy.Policy.Expanding
+    )
 
 
 def test_dialog_has_explicit_previous_next_buttons(app: QApplication) -> None:
