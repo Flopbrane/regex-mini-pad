@@ -393,6 +393,9 @@ class _LintToken:
     token_type: str
 
 
+_WordPressBlockStackItem = tuple[str, int, int, dict[str, Any], bool]
+
+
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     suppressed_ranges = _contaminated_wordpress_separator_body_ranges(load_data)
     html_lint_data = _mask_ranges(
@@ -927,7 +930,7 @@ def _lint_wordpress_block_typos(load_data: str) -> list[HtmlTypoLintMessage]:
 def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     line_starts = _line_start_positions(load_data)
-    block_stack: list[tuple[str, int, int, dict[str, Any]]] = []
+    block_stack: list[_WordPressBlockStackItem] = []
     paragraph_prefix_lines: dict[str, int] = {}
 
     for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
@@ -950,6 +953,7 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     )
                 )
                 block_stack.pop()
+            block_attributes_valid = True
             block_attributes = _parse_wordpress_block_attributes(block_match.group(3))
             if block_attributes is None:
                 messages.append(
@@ -960,6 +964,7 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                         {"block": block_name},
                     )
                 )
+                block_attributes_valid = False
                 block_attributes = {}
             messages.extend(
                 _lint_unknown_wordpress_block_attributes(
@@ -985,7 +990,13 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     )
                 )
             block_stack.append(
-                (block_name, block_match.end(), line_number, block_attributes)
+                (
+                    block_name,
+                    block_match.end(),
+                    line_number,
+                    block_attributes,
+                    block_attributes_valid,
+                )
             )
             continue
 
@@ -1000,7 +1011,13 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
             )
             continue
 
-        open_block_name, open_end, open_line_number, block_attributes = block_stack[-1]
+        (
+            open_block_name,
+            open_end,
+            open_line_number,
+            block_attributes,
+            block_attributes_valid,
+        ) = block_stack[-1]
         if open_block_name != block_name:
             messages.append(
                 HtmlTypoLintMessage(
@@ -1063,14 +1080,15 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     STRUCTURAL_HTML_TAGS,
                 )
             )
-        messages.extend(
-            _lint_wordpress_block_attribute_html_consistency(
-                block_name,
-                block_attributes,
-                block_body,
-                open_line_number,
+        if block_attributes_valid:
+            messages.extend(
+                _lint_wordpress_block_attribute_html_consistency(
+                    block_name,
+                    block_attributes,
+                    block_body,
+                    open_line_number,
+                )
             )
-        )
 
     for block in block_stack:
         messages.append(_missing_wordpress_block_message(block))
@@ -1078,7 +1096,7 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
 
 
 def _last_open_wordpress_block_index(
-    block_stack: list[tuple[str, int, int, dict[str, Any]]],
+    block_stack: list[_WordPressBlockStackItem],
     block_name: str,
 ) -> int | None:
     for index in range(len(block_stack) - 1, -1, -1):
@@ -1088,9 +1106,9 @@ def _last_open_wordpress_block_index(
 
 
 def _missing_wordpress_block_message(
-    block: tuple[str, int, int, dict[str, Any]],
+    block: _WordPressBlockStackItem,
 ) -> HtmlTypoLintMessage:
-    block_name, _open_end, open_line_number, _block_attributes = block
+    block_name, _open_end, open_line_number, _block_attributes, _attributes_valid = block
     message_key = "html_typo_lint.missing_wordpress_closing_block"
     if block_name == "html":
         message_key = "html_typo_lint.missing_wordpress_html_closing_block"
@@ -1127,12 +1145,16 @@ def _lint_unknown_wordpress_block_attributes(
     for attribute in block_attributes:
         if attribute in allowed_attributes:
             continue
+        values = {"block": block_name, "attribute": attribute}
+        suggestion = _find_closest_word(attribute, allowed_attributes)
+        if suggestion:
+            values["suggestion"] = suggestion
         messages.append(
             HtmlTypoLintMessage(
                 "warning",
                 "html_typo_lint.unknown_wordpress_block_attribute",
                 line_number,
-                {"block": block_name, "attribute": attribute},
+                values,
             )
         )
     return messages
@@ -1441,6 +1463,7 @@ class HtmlTypoLintParser(HTMLParser):
         self.inline_stack: list[tuple[str, int]] = []
         self.line_starts = _line_start_positions(load_data)
         self.suppressed_ranges = suppressed_ranges or []
+        self.reported_unknown_html_tags: set[tuple[int, str]] = set()
 
     def _is_suppressed_inline_position(self) -> bool:
         line_number, column_number = self.getpos()
@@ -1546,6 +1569,10 @@ class HtmlTypoLintParser(HTMLParser):
     def _lint_unknown_html_tag(self, tag: str, line_number: int) -> None:
         if tag in KNOWN_HTML_TAGS or "-" in tag or ":" in tag:
             return
+        report_key = (line_number, tag)
+        if report_key in self.reported_unknown_html_tags:
+            return
+        self.reported_unknown_html_tags.add(report_key)
 
         suggestion = _find_closest_word(tag, KNOWN_HTML_TAGS)
         values = {"tag": tag}

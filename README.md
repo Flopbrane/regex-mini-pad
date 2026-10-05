@@ -35,6 +35,7 @@ The project focuses on practical regular expression search and replacement witho
 - WordPress-oriented paragraph splitting and snippet insertion helpers.
 - Grammar Check for lightweight HTML and WordPress block safety checks.
 - Grammar Check result list copy button.
+- Per-tab Grammar Check result display for multi-file editing.
 - Optional pre-save HTML / WordPress typo check.
 
 ## HTML / WordPress Grammar Check
@@ -60,6 +61,11 @@ before pasting or saving article HTML.
   separator blocks contaminated with stray `<code>` tags.
 - Keeps escaped code examples inside `<code>...</code>` acceptable when they are
   display text rather than executable HTML.
+- Keeps Grammar Check results associated with each editor tab. When switching
+  tabs, the result dialog shows the selected tab's latest valid result, and the
+  dialog title includes the target document name.
+- Removes the temporary Grammar Check result folder when the last RegexPad
+  window closes.
 
 ## Tag Snippets
 

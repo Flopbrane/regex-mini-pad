@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timezone
+from hashlib import sha256
 from html import escape, unescape
 from pathlib import Path
 from re import error as RegexError
@@ -79,6 +81,10 @@ from editor.tag_insert import (
 from editor.text_editor import TextEditor
 from fileio.file_backup_manager import FileBackupManager
 from fileio.file_manager import FileManager
+from fileio.grammar_lint_result_store import (
+    GrammarLintResult,
+    GrammarLintResultStore,
+)
 from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
 from localization.translator import Translator
 from normalise import apply_normalise_operation
@@ -151,6 +157,9 @@ class MainWindow(QMainWindow):
         self.unsaved_backup_manager = UnsavedBackupManager(
             unsaved_backup_path or self._unsaved_backup_path_for_folder("")
         )
+        self.grammar_lint_result_store = GrammarLintResultStore(
+            Path(tempfile.gettempdir()) / "regex_pad" / "lint_results"
+        )
         settings: EditorSettings = self.settings_manager.load()
         self.translator = Translator(self.resources_path, settings.language_code)
         self.file_manager = FileManager()
@@ -210,6 +219,7 @@ class MainWindow(QMainWindow):
         self.fixed_column_wrap_column = settings.fixed_column_wrap_column
         self.tab_file_paths: dict[TextEditor, Path | None] = {}
         self.tab_encodings: dict[TextEditor, str] = {}
+        self.tab_grammar_result_paths: dict[TextEditor, Path] = {}
         self.tab_windows: list[MainWindow] = []
         self.child_windows: dict[str, MainWindow] = {}
         self.editor: TextEditor
@@ -258,6 +268,7 @@ class MainWindow(QMainWindow):
                 return
         self._clear_unsaved_backup()
         self._save_settings()
+        self._clear_grammar_lint_results_on_window_close()
         event.accept()
 
     def _create_actions(self) -> None:
@@ -525,12 +536,21 @@ class MainWindow(QMainWindow):
         editor.textChanged.connect(self._save_unsaved_backup)
         editor.textChanged.connect(self._refresh_search_highlights_from_dialog)
         editor.textChanged.connect(editor.clear_grammar_issue_lines)
+        editor.textChanged.connect(
+            lambda editor=editor: self._invalidate_grammar_lint_result(editor)
+        )
         editor.cursorPositionChanged.connect(self._update_status_bar)
         editor.document().modificationChanged.connect(self._update_tab_titles)
         editor.document().modificationChanged.connect(self._update_window_title)
 
         self.tab_file_paths[editor] = save_file_path
         self.tab_encodings[editor] = encoding or self.default_encoding
+        self.tab_grammar_result_paths[editor] = (
+            self.grammar_lint_result_store.create_result_path(
+                self.window_id,
+                uuid.uuid4().hex,
+            )
+        )
         editor_tab = EditorTab(editor)
         editor_tab.set_ruler_visible(self.ruler_action.isChecked())
         editor_tab.ruler.column_clicked.connect(self._set_fixed_wrap_column_from_ruler)
@@ -565,6 +585,7 @@ class MainWindow(QMainWindow):
         self._update_status_bar()
         self._update_window_title()
         self._rebuild_insert_tag_menu()
+        self._refresh_grammar_dialog_for_current_tab()
 
     def _sync_current_tab_state(self) -> None:
         """Synchronize the state of the current tab with the main window."""
@@ -791,8 +812,10 @@ class MainWindow(QMainWindow):
         editor = self._editor_at(tab_index)
         self.tab_widget.removeTab(tab_index)
         if editor is not None:
+            self._delete_grammar_lint_result(editor)
             self.tab_file_paths.pop(editor, None)
             self.tab_encodings.pop(editor, None)
+            self.tab_grammar_result_paths.pop(editor, None)
         if widget is not None:
             widget.deleteLater()
 
@@ -1347,7 +1370,18 @@ class MainWindow(QMainWindow):
             self.editor.clear_grammar_issue_lines()
             status_message = self.translator.text("grammar_check.no_issues")
             self.statusBar().showMessage(status_message)
-            self._show_grammar_check_dialog(status_message, [])
+            self._save_grammar_lint_result(
+                self.editor,
+                source_text=source_text,
+                summary=status_message,
+                rows=[],
+                issue_lines=[],
+            )
+            self._show_grammar_check_dialog_for_editor(
+                self.editor,
+                status_message,
+                [],
+            )
             return
 
         self._set_grammar_issue_highlights(messages)
@@ -1361,7 +1395,140 @@ class MainWindow(QMainWindow):
             (message.line_number, self._html_typo_lint_message_text(message))
             for message in messages
         ]
-        self._show_grammar_check_dialog(status_message, rows)
+        self._save_grammar_lint_result(
+            self.editor,
+            source_text=source_text,
+            summary=status_message,
+            rows=rows,
+            issue_lines=[message.line_number for message in messages],
+        )
+        self._show_grammar_check_dialog_for_editor(
+            self.editor,
+            status_message,
+            rows,
+        )
+
+    def _source_hash(self, source_text: str) -> str:
+        return sha256(source_text.encode("utf-8")).hexdigest()
+
+    def _grammar_result_path_for_editor(self, editor: TextEditor) -> Path:
+        result_path = self.tab_grammar_result_paths.get(editor)
+        if result_path is None:
+            result_path = self.grammar_lint_result_store.create_result_path(
+                self.window_id,
+                uuid.uuid4().hex,
+            )
+            self.tab_grammar_result_paths[editor] = result_path
+        return result_path
+
+    def _save_grammar_lint_result(
+        self,
+        editor: TextEditor,
+        *,
+        source_text: str,
+        summary: str,
+        rows: list[tuple[int, str]],
+        issue_lines: list[int],
+    ) -> None:
+        result_path = self._grammar_result_path_for_editor(editor)
+        self.grammar_lint_result_store.save(
+            result_path,
+            GrammarLintResult(
+                summary=summary,
+                rows=rows,
+                issue_lines=issue_lines,
+                source_hash=self._source_hash(source_text),
+                document_label=self._grammar_document_label(editor),
+                save_file_path=self.tab_file_paths.get(editor),
+                checked_at=datetime.now(timezone.utc),
+            ),
+        )
+
+    def _load_current_grammar_lint_result(self) -> GrammarLintResult | None:
+        editor = self._current_editor()
+        if editor is None:
+            return None
+        result_path = self.tab_grammar_result_paths.get(editor)
+        if result_path is None:
+            return None
+        result = self.grammar_lint_result_store.load(result_path)
+        if result is None:
+            return None
+        if result.source_hash != self._source_hash(editor.toPlainText()):
+            return None
+        return result
+
+    def _invalidate_grammar_lint_result(self, editor: TextEditor) -> None:
+        self._delete_grammar_lint_result(editor)
+        if editor is self._current_editor() and self.grammar_check_dialog is not None:
+            self._set_grammar_check_dialog_document_label(editor)
+            self.grammar_check_dialog.set_result(
+                self.translator.text("grammar_check.not_checked"),
+                [],
+            )
+
+    def _delete_grammar_lint_result(self, editor: TextEditor) -> None:
+        result_path = self.tab_grammar_result_paths.get(editor)
+        if result_path is not None:
+            self.grammar_lint_result_store.delete(result_path)
+
+    def _clear_grammar_lint_results_on_window_close(self) -> None:
+        for result_path in list(self.tab_grammar_result_paths.values()):
+            self.grammar_lint_result_store.delete(result_path)
+        self.tab_grammar_result_paths.clear()
+
+        if not self._other_main_windows_are_open():
+            self.grammar_lint_result_store.clear_result_folder()
+
+    def _other_main_windows_are_open(self) -> bool:
+        application = QApplication.instance()
+        if not isinstance(application, QApplication):
+            return False
+        return any(
+            isinstance(widget, MainWindow) and widget is not self and widget.isVisible()
+            for widget in application.topLevelWidgets()
+        )
+
+    def _refresh_grammar_dialog_for_current_tab(self) -> None:
+        if self.grammar_check_dialog is None or not self.grammar_check_dialog.isVisible():
+            return
+
+        result = self._load_current_grammar_lint_result()
+        current_editor = self._current_editor()
+        if result is None or current_editor is None:
+            if current_editor is not None:
+                current_editor.clear_grammar_issue_lines()
+                self._set_grammar_check_dialog_document_label(current_editor)
+            self.grammar_check_dialog.set_result(
+                self.translator.text("grammar_check.not_checked"),
+                [],
+            )
+            return
+
+        current_editor.set_grammar_issue_lines(result.issue_lines)
+        self._set_grammar_check_dialog_document_label(current_editor)
+        self.grammar_check_dialog.set_result(result.summary, result.rows)
+
+    def _grammar_document_label(self, editor: TextEditor) -> str:
+        save_file_path = self.tab_file_paths.get(editor)
+        if save_file_path is not None:
+            return save_file_path.name
+        return self._draft_title(editor)
+
+    def _set_grammar_check_dialog_document_label(self, editor: TextEditor) -> None:
+        if self.grammar_check_dialog is not None:
+            self.grammar_check_dialog.set_document_label(
+                self._grammar_document_label(editor)
+            )
+
+    def _show_grammar_check_dialog_for_editor(
+        self,
+        editor: TextEditor,
+        summary: str,
+        rows: list[tuple[int, str]],
+    ) -> None:
+        self._show_grammar_check_dialog(summary, rows)
+        self._set_grammar_check_dialog_document_label(editor)
 
     def _show_grammar_check_dialog(
         self,
@@ -1486,6 +1653,20 @@ class MainWindow(QMainWindow):
             return self.translator.text(
                 "html_typo_lint.unknown_html_attribute",
                 tag=values.get("tag", ""),
+                attribute=values.get("attribute", ""),
+            )
+        if message.message_key == "html_typo_lint.unknown_wordpress_block_attribute":
+            suggestion = values.get("suggestion")
+            if suggestion:
+                return self.translator.text(
+                    "html_typo_lint.unknown_wordpress_block_attribute_with_suggestion",
+                    block=values.get("block", ""),
+                    attribute=values.get("attribute", ""),
+                    suggestion=suggestion,
+                )
+            return self.translator.text(
+                "html_typo_lint.unknown_wordpress_block_attribute",
+                block=values.get("block", ""),
                 attribute=values.get("attribute", ""),
             )
         return self.translator.text(message.message_key, **values)

@@ -361,7 +361,7 @@ def test_grammar_check_reports_html_and_wordpress_typos(
     assert window.grammar_check_dialog is not None
     assert window.grammar_check_dialog.isModal() is False
     assert window.grammar_check_dialog.size().width() == 930
-    assert window.grammar_check_dialog.windowTitle() == "文法チェック"
+    assert window.grammar_check_dialog.windowTitle().startswith("文法チェック - ")
     assert "文法チェックで" in window.grammar_check_dialog.summary_label.text()
     result_text = "\n".join(
         window.grammar_check_dialog.message_list.item(row).text()
@@ -485,6 +485,103 @@ def test_grammar_check_reports_no_issues(
     )
     assert window.grammar_check_dialog.message_list.count() == 0
     assert window.grammar_check_dialog.copy_button.isEnabled() is False
+
+
+def test_grammar_check_results_are_kept_per_tab(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    first_editor = window.editor
+    window.tab_file_paths[first_editor] = tmp_path / "first.wp_html"
+    first_editor.setPlainText('<p clas="lead">本文</p>')
+    first_editor.document().setModified(False)
+
+    window.run_grammar_check()
+
+    assert window.grammar_check_dialog is not None
+    first_result_path = window.tab_grammar_result_paths[first_editor]
+    assert first_result_path.exists()
+    assert "first.wp_html" in window.grammar_check_dialog.windowTitle()
+    assert window.grammar_check_dialog.message_list.count() == 1
+
+    second_editor = window.create_editor_tab(
+        text=(
+            "<!-- wp:paragraph -->\n"
+            '<p class="lead">本文</p>\n'
+            "<!-- /wp:paragraph -->\n"
+        ),
+        save_file_path=tmp_path / "second.wp_html",
+    )
+    second_editor.document().setModified(False)
+
+    window.run_grammar_check()
+
+    second_result_path = window.tab_grammar_result_paths[second_editor]
+    assert second_result_path.exists()
+    assert second_result_path != first_result_path
+    assert "second.wp_html" in window.grammar_check_dialog.windowTitle()
+    assert window.grammar_check_dialog.message_list.count() == 0
+
+    window.tab_widget.setCurrentIndex(0)
+    app.processEvents()
+
+    assert "first.wp_html" in window.grammar_check_dialog.windowTitle()
+    assert window.grammar_check_dialog.message_list.count() == 1
+    assert first_editor.grammar_issue_lines == [1]
+    assert second_editor.grammar_issue_lines == []
+
+    window.tab_widget.setCurrentIndex(1)
+    app.processEvents()
+
+    assert "second.wp_html" in window.grammar_check_dialog.windowTitle()
+    assert window.grammar_check_dialog.message_list.count() == 0
+
+    window.remove_tab(1)
+    window.remove_tab(0)
+    assert not first_result_path.exists()
+    assert not second_result_path.exists()
+
+
+def test_grammar_check_result_file_is_deleted_when_tab_closes(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText('<p clas="lead">本文</p>')
+    window.editor.document().setModified(False)
+    editor = window.editor
+
+    window.run_grammar_check()
+
+    result_path = window.tab_grammar_result_paths[editor]
+    assert result_path.exists()
+
+    assert window.close_tab(0)
+
+    assert not result_path.exists()
+
+
+def test_grammar_check_temp_folder_is_deleted_when_window_closes(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText('<p clas="lead">本文</p>')
+    window.editor.document().setModified(False)
+
+    window.run_grammar_check()
+
+    result_folder = window.grammar_lint_result_store.result_folder
+    assert result_folder.exists()
+
+    assert window.close()
+    app.processEvents()
+
+    assert not result_folder.exists()
 
 
 def test_preview_matches_shows_line_context_and_replacement(app: QApplication) -> None:

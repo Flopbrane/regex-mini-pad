@@ -24,6 +24,19 @@ def test_lint_reports_html_tag_and_attribute_typos() -> None:
     )
 
 
+def test_lint_reports_unknown_html_tag_once_per_line() -> None:
+    messages = lint_html_typos("<p><pr>Body</pr></p>")
+
+    unknown_messages = [
+        message
+        for message in messages
+        if message.message_key == "html_typo_lint.unknown_html_tag"
+        and message.values
+        and message.values.get("tag") == "pr"
+    ]
+    assert len(unknown_messages) == 1
+
+
 def test_lint_reports_wordpress_block_typo() -> None:
     messages = lint_html_typos("<!-- wp:paragaph -->\n<p>本文</p>\n<!-- /wp:paragaph -->")
 
@@ -536,6 +549,18 @@ def test_lint_reports_invalid_wordpress_block_attributes() -> None:
     )
 
 
+def test_lint_suppresses_attribute_html_mismatch_when_block_json_is_invalid() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:heading {level:3} -->\n"
+        '<h3 class="wp-block-heading">Heading</h3>\n'
+        "<!-- /wp:heading -->"
+    )
+    message_keys = [message.message_key for message in messages]
+
+    assert "html_typo_lint.invalid_wordpress_block_attributes" in message_keys
+    assert "html_typo_lint.wordpress_block_attribute_html_mismatch" not in message_keys
+
+
 def test_lint_reports_unknown_wordpress_block_attribute() -> None:
     messages = lint_html_typos(
         '<!-- wp:heading {"level":3,"badParam":true} -->\n'
@@ -547,6 +572,22 @@ def test_lint_reports_unknown_wordpress_block_attribute() -> None:
         message.message_key == "html_typo_lint.unknown_wordpress_block_attribute"
         and message.line_number == 1
         and message.values == {"block": "heading", "attribute": "badParam"}
+        for message in messages
+    )
+
+
+def test_lint_suggests_unknown_wordpress_block_attribute_typo() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"lebel":3} -->\n'
+        '<h3 class="wp-block-heading">Heading</h3>\n'
+        "<!-- /wp:heading -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.unknown_wordpress_block_attribute"
+        and message.values
+        and message.values.get("attribute") == "lebel"
+        and message.values.get("suggestion") == "level"
         for message in messages
     )
 

@@ -47,6 +47,7 @@ class GrammarCheckDialog(QDialog):
             QDialogButtonBox.ButtonRole.ActionRole,
         )
         self._copy_text = ""
+        self._document_label = ""
 
         layout = QVBoxLayout()
         layout.addWidget(self.summary_label)
@@ -63,9 +64,19 @@ class GrammarCheckDialog(QDialog):
         self.apply_language()
 
     def apply_language(self) -> None:
-        self.setWindowTitle(self.translator.text("grammar_check.title"))
+        self._update_window_title()
         self.copy_button.setText(self.translator.text("grammar_check.copy_results"))
         self.refresh_button.setText(self.translator.text("grammar_check.refresh"))
+
+    def set_document_label(self, document_label: str) -> None:
+        self._document_label = document_label
+        self._update_window_title()
+
+    def _update_window_title(self) -> None:
+        title = self.translator.text("grammar_check.title")
+        if self._document_label:
+            title = f"{title} - {self._document_label}"
+        self.setWindowTitle(title)
 
     def set_result(
         self,

@@ -28,6 +28,18 @@ def test_translator_formats_values() -> None:
     )
 
 
+def test_translator_keeps_literal_braces_in_lint_messages() -> None:
+    translator = Translator(Path("resources"), "en")
+
+    assert translator.text(
+        "html_typo_lint.invalid_wordpress_block_attributes",
+        block="paragraph",
+    ) == (
+        "`wp:paragraph` has `{}` parameters that are not valid JSON. "
+        "Check double quotes and commas."
+    )
+
+
 def test_japanese_translation_uses_readable_labels() -> None:
     translator = Translator(Path("resources"), "ja")
 

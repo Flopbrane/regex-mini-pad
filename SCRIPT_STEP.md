@@ -2300,6 +2300,45 @@ Notes:
 
 - The checks were performed with Qt offscreen tests, not manual GUI interaction.
 
+## Step13-section23 Linter Error Sample V2 Robustness
+
+Date: 2026-10-05
+
+Changes:
+
+- Fixed JA/EN `invalid_wordpress_block_attributes` translations by escaping the literal `{}` as `{{}}`, preventing Grammar Check dialog crashes during `.format()`.
+- Deduplicated unknown HTML tag warnings for the same tag on the same line, so `<pr>...</pr>` reports one `pr` typo instead of separate open/close messages.
+- Suppressed WordPress block attribute-vs-HTML consistency checks when the block comment JSON is invalid, avoiding cascade messages such as default heading `level=2` mismatches after malformed JSON.
+- Added typo suggestions for unknown WordPress block attributes such as `lebel` -> `level`.
+- Added regressions for literal brace formatting, same-line unknown tag deduplication, invalid block JSON cascade suppression, and block-attribute typo suggestions.
+- Checked `sample/wp_linter_error_test.wp_html` and `sample/wp_linter_error_test_v2.wp_html` through MainWindow message formatting with Qt offscreen.
+
+Notes:
+
+- `wp_linter_error_test_v2.wp_html` now formats without crashing and produced 63 findings after deduplication and invalid-JSON cascade suppression.
+- Manual GUI dialog display with two real tabs was not performed in this step.
+
+## Step13-section24 Per-Tab Grammar Check Result Files
+
+Date: 2026-10-05
+
+Changes:
+
+- Added a small grammar lint result store that writes the current Grammar Check summary, rows, issue lines, document label, and source hash to a per-tab temporary JSON file.
+- Associated each open editor tab with its own result file so multi-tab Grammar Check dialogs can switch to the selected tab's latest valid result.
+- Invalidated and deleted stale result files when a tab's text changes, preventing old results from being shown after edits.
+- Deleted the associated temporary result file when a tab is closed or removed.
+- Deleted the temporary Grammar Check result folder when the last RegexPad window closes, so Temp does not retain an empty application namespace.
+- Updated the Grammar Check dialog title to include the current document label, making the displayed result's owner visible.
+- Updated README.md and README_jp.md with the per-tab Grammar Check result behavior.
+- Added regressions for per-tab result separation, tab-switch dialog refresh, issue-line restoration, result-file deletion on tab close, and Temp folder deletion on window close.
+
+Notes:
+
+- Result files are stored under the OS temporary folder and are intended only for the current editing session; the result folder is removed when the final RegexPad window closes.
+- The result is reused only when the stored source hash still matches the current tab text.
+- Moving a tab to a new window recreates the tab in the destination window and does not preserve the old temporary result file.
+
 ## Validation Commands
 
 Use the project virtual environment:
