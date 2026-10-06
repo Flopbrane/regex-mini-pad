@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+import main as main_module
 from main import MainWindow
 from settings.settings_manager import SettingsManager
 
@@ -38,6 +39,61 @@ def test_new_file_adds_tab_without_clearing_current_text(
     assert first_editor is not None
     assert first_editor.toPlainText() == "first document"
     assert window.editor.toPlainText() == ""
+
+
+def test_main_window_uses_config_json_by_default(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    config_path = tmp_path / "config.json"
+    monkeypatch.setattr(main_module, "default_config_path", lambda: config_path)
+
+    window = MainWindow(restore_unsaved_backup=False)
+
+    assert window.settings_manager.settings_path == config_path
+
+
+def test_main_window_applies_config_colors_and_font_on_startup(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    settings_path = tmp_path / "config.json"
+    SettingsManager(settings_path).save(
+        word_wrap_enabled=False,
+        line_numbers_enabled=True,
+        ruler_enabled=False,
+        visible_spaces_enabled=False,
+        visible_tabs_enabled=False,
+        visible_newlines_enabled=False,
+        fixed_column_wrap_enabled=False,
+        fixed_column_wrap_column=80,
+        startup_restore_enabled=True,
+        language_code="ja",
+        default_encoding="utf-8",
+        newline_code="lf",
+        window_width=900,
+        window_height=650,
+        font_family="Meiryo",
+        font_size=14,
+        editor_background_color="#101820",
+        editor_text_color="#f5f7fa",
+        html_tag_color="#33ccff",
+        wordpress_core_block_color="#99aabb",
+    )
+
+    window = MainWindow(settings_path=settings_path, restore_unsaved_backup=False)
+
+    assert window.font_family == "Meiryo"
+    assert window.font_size == 14
+    assert window.editor.font().family() == "Meiryo"
+    assert window.editor.font().pointSize() == 14
+    assert window.editor.editor_background_color == "#101820"
+    assert window.editor.editor_text_color == "#f5f7fa"
+    assert window.editor.html_tag_color == "#33ccff"
+    assert window.editor.wordpress_core_block_color == "#99aabb"
 
 
 def test_unsaved_tab_title_uses_first_line(app: QApplication, tmp_path: Path) -> None:

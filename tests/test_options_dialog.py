@@ -7,7 +7,7 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QCheckBox
 
 from dialogs.options_dialog import OptionsDialog
 from localization.translator import Translator
@@ -33,6 +33,7 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
         "タグ挿入",
         "バックアップ",
         "フォント",
+        "配色",
         "検索",
     ]
     assert dialog.wordpress_mode_combo.count() == 3
@@ -81,6 +82,14 @@ def test_options_dialog_groups_items_by_tabs(app: QApplication) -> None:
     assert dialog.visible_newline_marker_color_combo.count() > 0
     assert dialog.search_marker_color_combo.itemIcon(0).isNull() is False
     assert dialog.search_marker_color_button.text() == "色選択..."
+    backup_tab = dialog.tabs.widget(3)
+    assert backup_tab is not None
+    backup_tab_text = " ".join(
+        child.text() for child in backup_tab.findChildren(QCheckBox)
+    )
+    assert "ローカル設定ファイル" not in backup_tab_text
+    assert "環境変数を変更しない" not in backup_tab_text
+    assert "復元方法" not in backup_tab_text
 
 
 def test_options_dialog_returns_editable_values(app: QApplication) -> None:
@@ -172,3 +181,12 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.frame_outer_spacing == "2em 0 3em 0"
     assert values.frame_background_color == "#f0f9ff"
     assert values.frame_text_color == "#14384f"
+
+
+def test_options_dialog_shows_default_backup_folder_hint(
+    app: QApplication,
+) -> None:
+    _ = app
+    dialog = OptionsDialog(Translator(Path("resources"), "en"), EditorSettings())
+
+    assert dialog.backup_folder_edit.placeholderText() == "Blank: _internal/backup"

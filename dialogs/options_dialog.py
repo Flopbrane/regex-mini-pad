@@ -227,6 +227,7 @@ class OptionsDialog(QDialog):
                 "options.tab.tag_insert",
                 "options.tab.backup",
                 "options.tab.font",
+                "options.tab.colors",
                 "options.tab.search",
             )
         ):
@@ -262,6 +263,9 @@ class OptionsDialog(QDialog):
             self.translator.text("options.item.dictionary_check")
         )
         self.backup_folder_button.setText(self.translator.text("options.browse"))
+        self.backup_folder_edit.setPlaceholderText(
+            self.translator.text("options.backup_folder_placeholder")
+        )
         self.regex_lint_checkbox.setText(
             self.translator.text("options.item.regex_lint")
         )
@@ -464,6 +468,7 @@ class OptionsDialog(QDialog):
         self.tabs.addTab(self._tag_insert_tab(), "")
         self.tabs.addTab(self._backup_tab(), "")
         self.tabs.addTab(self._font_tab(), "")
+        self.tabs.addTab(self._colors_tab(), "")
         self.tabs.addTab(self._search_tab(), "")
         self.resize(620, 420)
 
@@ -498,33 +503,8 @@ class OptionsDialog(QDialog):
         )
         layout.addRow(self.ruler_checkbox)
         layout.addRow(self.visible_spaces_checkbox)
-        self._populate_color_combo(self.visible_space_marker_color_combo)
-        layout.addRow(
-            self.translator.text("options.item.visible_space_marker_color"),
-            self._color_picker_row(
-                self.visible_space_marker_color_combo,
-                self.visible_space_marker_color_button,
-            ),
-        )
         layout.addRow(self.visible_tabs_checkbox)
-        self._populate_color_combo(self.visible_tab_marker_color_combo)
-        layout.addRow(
-            self.translator.text("options.item.visible_tab_marker_color"),
-            self._color_picker_row(
-                self.visible_tab_marker_color_combo,
-                self.visible_tab_marker_color_button,
-            ),
-        )
         layout.addRow(self.visible_newlines_checkbox)
-        self._populate_color_combo(self.visible_newline_marker_color_combo)
-        layout.addRow(
-            self.translator.text("options.item.visible_newline_marker_color"),
-            self._color_picker_row(
-                self.visible_newline_marker_color_combo,
-                self.visible_newline_marker_color_button,
-            ),
-        )
-        layout.addRow(self._disabled_checkbox("options.item.theme"))
         tab.setLayout(layout)
         return tab
 
@@ -582,8 +562,6 @@ class OptionsDialog(QDialog):
         folder_layout.addWidget(self.backup_folder_edit)
         folder_layout.addWidget(self.backup_folder_button)
         layout.addRow(self.translator.text("options.backup_folder"), folder_layout)
-        layout.addRow(self._disabled_checkbox("options.item.local_settings_file"))
-        layout.addRow(self._disabled_checkbox("options.item.no_environment_changes"))
         layout.addRow(
             self.translator.text("options.backup_retention_count"),
             self.backup_retention_count_spin,
@@ -592,7 +570,6 @@ class OptionsDialog(QDialog):
             self.translator.text("options.backup_retention_days"),
             self.backup_retention_days_spin,
         )
-        layout.addRow(self._disabled_checkbox("options.item.backup_restore_mode"))
         tab.setLayout(layout)
         return tab
 
@@ -602,10 +579,21 @@ class OptionsDialog(QDialog):
         layout.addRow(self.translator.text("options.font_family"), self.font_family_combo)
         layout.addRow(self.translator.text("options.font_size"), self.font_size_spin)
         layout.addRow(self.translator.text("options.item.tab_width"), self.tab_width_spin)
+        tab.setLayout(layout)
+        return tab
+
+    def _colors_tab(self) -> QWidget:
+        tab = QWidget(self)
+        layout = QFormLayout()
         self._populate_color_combo(self.editor_background_color_combo)
         self._populate_color_combo(self.editor_text_color_combo)
         self._populate_color_combo(self.html_tag_color_combo)
         self._populate_color_combo(self.wordpress_core_block_color_combo)
+        self._populate_color_combo(self.search_marker_color_combo)
+        self._populate_color_combo(self.current_match_marker_color_combo)
+        self._populate_color_combo(self.visible_space_marker_color_combo)
+        self._populate_color_combo(self.visible_tab_marker_color_combo)
+        self._populate_color_combo(self.visible_newline_marker_color_combo)
         layout.addRow(
             self.translator.text("options.editor_theme"),
             self.editor_theme_combo,
@@ -638,14 +626,6 @@ class OptionsDialog(QDialog):
                 self.wordpress_core_block_color_button,
             ),
         )
-        tab.setLayout(layout)
-        return tab
-
-    def _search_tab(self) -> QWidget:
-        tab = QWidget(self)
-        layout = QFormLayout()
-        self._populate_color_combo(self.search_marker_color_combo)
-        self._populate_color_combo(self.current_match_marker_color_combo)
         layout.addRow(
             self.translator.text("options.item.search_marker_color"),
             self._color_picker_row(
@@ -660,6 +640,33 @@ class OptionsDialog(QDialog):
                 self.current_match_marker_color_button,
             ),
         )
+        layout.addRow(
+            self.translator.text("options.item.visible_space_marker_color"),
+            self._color_picker_row(
+                self.visible_space_marker_color_combo,
+                self.visible_space_marker_color_button,
+            ),
+        )
+        layout.addRow(
+            self.translator.text("options.item.visible_tab_marker_color"),
+            self._color_picker_row(
+                self.visible_tab_marker_color_combo,
+                self.visible_tab_marker_color_button,
+            ),
+        )
+        layout.addRow(
+            self.translator.text("options.item.visible_newline_marker_color"),
+            self._color_picker_row(
+                self.visible_newline_marker_color_combo,
+                self.visible_newline_marker_color_button,
+            ),
+        )
+        tab.setLayout(layout)
+        return tab
+
+    def _search_tab(self) -> QWidget:
+        tab = QWidget(self)
+        layout = QFormLayout()
         layout.addRow(self.regex_lint_checkbox)
         layout.addRow(self.html_typo_lint_checkbox)
         layout.addRow(self.reduced_error_check_checkbox)

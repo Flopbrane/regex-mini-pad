@@ -20,7 +20,7 @@ from html import escape, unescape
 from pathlib import Path
 from re import error as RegexError
 
-from portable_runtime import configure_portable_runtime
+from portable_runtime import app_base_dir, configure_portable_runtime
 
 configure_portable_runtime()
 
@@ -50,6 +50,7 @@ from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QWidget,
 )
 
+from config import default_config_path, migrate_legacy_settings_if_needed
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.grammar_check_dialog import GrammarCheckDialog
 from dialogs.options_dialog import OptionsDialog
@@ -85,7 +86,11 @@ from fileio.grammar_lint_result_store import (
     GrammarLintResult,
     GrammarLintResultStore,
 )
-from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
+from fileio.unsaved_backup_manager import (
+    UnsavedBackup,
+    UnsavedBackupManager,
+    UnsavedBackupSession,
+)
 from localization.translator import Translator
 from normalise import apply_normalise_operation
 from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
@@ -147,15 +152,15 @@ class MainWindow(QMainWindow):
         self.window_id: str = window_id or str(uuid.uuid4())
         self.setObjectName(f"main-window-{self.window_id}")
         self.resources_path: Path = Path(__file__).parent / "resources"
-        self.settings_manager = SettingsManager(
-            settings_path or Path(__file__).with_name("settings.json")
-        )
+        config_path = settings_path or default_config_path()
+        migrate_legacy_settings_if_needed(config_path)
+        self.settings_manager = SettingsManager(config_path)
         self.unsaved_backup_enabled = (
             unsaved_backup_path is not None
             or os.environ.get("QT_QPA_PLATFORM") != "offscreen"
         )
         self.unsaved_backup_manager = UnsavedBackupManager(
-            unsaved_backup_path or self._unsaved_backup_path_for_folder("")
+            unsaved_backup_path or self._unsaved_backup_path()
         )
         self.grammar_lint_result_store = GrammarLintResultStore(
             Path(tempfile.gettempdir()) / "regex_pad" / "lint_results"
@@ -222,6 +227,7 @@ class MainWindow(QMainWindow):
         self.tab_grammar_result_paths: dict[TextEditor, Path] = {}
         self.tab_windows: list[MainWindow] = []
         self.child_windows: dict[str, MainWindow] = {}
+        self.restoring_unsaved_backup = True
         self.editor: TextEditor
 
         self.tab_widget = QTabWidget()
@@ -253,6 +259,7 @@ class MainWindow(QMainWindow):
 
         self._update_status_bar()
         self._update_window_title()
+        self.restoring_unsaved_backup = False
         if restore_unsaved_backup and self.startup_restore_enabled:
             self._restore_unsaved_backup_if_available()
 
@@ -717,6 +724,7 @@ class MainWindow(QMainWindow):
         self._sync_current_tab_state()
         self._update_status_bar()
         self._update_window_title()
+        self._save_unsaved_backup()
         return True
 
     def duplicate_tab(self, tab_index: int) -> TextEditor | None:
@@ -732,6 +740,7 @@ class MainWindow(QMainWindow):
             modified=True,
         )
         duplicate_editor.moveCursor(QTextCursor.MoveOperation.Start)
+        self._save_unsaved_backup()
         return duplicate_editor
 
     def move_tab_to_new_window(self, tab_index: int) -> MainWindow | None:
@@ -764,6 +773,7 @@ class MainWindow(QMainWindow):
             self._create_editor_tab()
         self._sync_current_tab_state()
         self._update_window_title()
+        self._save_unsaved_backup()
         return new_window
 
     def _editor_at(self, tab_index: int) -> TextEditor | None:
@@ -1260,7 +1270,7 @@ class MainWindow(QMainWindow):
         self.startup_restore_enabled = values.startup_restore_enabled
         self.tab_width = values.tab_width
         self.unsaved_backup_manager = UnsavedBackupManager(
-            self._unsaved_backup_path_for_folder(self.backup_folder)
+            self._unsaved_backup_path()
         )
         self.file_backup_manager = FileBackupManager(
             self._file_backup_folder_for_folder(self.backup_folder)
@@ -1298,17 +1308,19 @@ class MainWindow(QMainWindow):
             return None
         return Path(self.user_dictionary_folder)
 
-    def _unsaved_backup_path_for_folder(self, backup_folder: str) -> Path:
-        """Return the path to the unsaved backup file for the given backup folder."""
-        if backup_folder:
-            return Path(backup_folder) / "unsaved_backup.json"
-        return Path(__file__).with_name("autosave") / "unsaved_backup.json"
+    def _internal_data_folder(self) -> Path:
+        """Return the app-owned internal data folder for portable runtime files."""
+        return app_base_dir() / "_internal"
+
+    def _unsaved_backup_path(self) -> Path:
+        """Return the path to the unsaved session restore file."""
+        return self._internal_data_folder() / "autosave" / "unsaved_backup.json"
 
     def _file_backup_folder_for_folder(self, backup_folder: str) -> Path:
         """Return the folder for saved-file generation backups."""
         if backup_folder:
-            return Path(backup_folder) / "file_backups"
-        return Path(__file__).with_name("autosave") / "file_backups"
+            return Path(backup_folder)
+        return self._internal_data_folder() / "backup"
 
     def _apply_editor_font_to_all_tabs(self) -> None:
         """Apply the current editor font settings to all open tabs."""
@@ -2039,8 +2051,8 @@ class MainWindow(QMainWindow):
             modified=False,
         )
         editor.moveCursor(QTextCursor.MoveOperation.Start)
-        self._clear_unsaved_backup()
         self._set_current_file_state(load_file_path, selected_encoding)
+        self._save_unsaved_backup()
         self._update_window_title()
         self._set_encoding_status()
 
@@ -2074,8 +2086,8 @@ class MainWindow(QMainWindow):
         self.editor.setPlainText(load_data)
         self.editor.moveCursor(QTextCursor.MoveOperation.Start)
         self.editor.document().setModified(False)
-        self._clear_unsaved_backup()
         self._set_current_file_state(self.current_save_file_path, selected_encoding)
+        self._save_unsaved_backup()
         self._update_window_title()
         self._set_encoding_status()
 
@@ -2158,7 +2170,7 @@ class MainWindow(QMainWindow):
 
         self._set_current_file_state(save_file_path, self.current_encoding)
         self.editor.document().setModified(False)
-        self._clear_unsaved_backup()
+        self._save_unsaved_backup()
         self._update_window_title()
         return True
 
@@ -2218,6 +2230,7 @@ class MainWindow(QMainWindow):
         self.editor.moveCursor(QTextCursor.MoveOperation.Start)
         self.editor.document().setModified(True)
         self._set_current_file_state(self.current_save_file_path, self.current_encoding)
+        self._save_unsaved_backup()
         self._update_window_title()
         self._set_encoding_status()
         self.statusBar().showMessage(
@@ -2237,22 +2250,37 @@ class MainWindow(QMainWindow):
         )
 
     def _save_unsaved_backup(self) -> None:
-        """Save an unsaved backup of the current editor content if enabled and modified."""
-        if not self.unsaved_backup_enabled:
+        """Save a restorable session of all modified editor tabs."""
+        if not self.unsaved_backup_enabled or self.restoring_unsaved_backup:
             return
-        if not self.editor.document().isModified():
-            return
+        tabs: list[UnsavedBackup] = []
+        current_backup_index = 0
+        current_editor = self._current_editor()
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is None or not editor.document().isModified():
+                continue
+            save_data = editor.toPlainText()
+            if not save_data:
+                continue
+            if editor is current_editor:
+                current_backup_index = len(tabs)
+            tabs.append(
+                UnsavedBackup(
+                    text=save_data,
+                    encoding=self.tab_encodings.get(editor, self.default_encoding),
+                    save_file_path=self.tab_file_paths.get(editor),
+                )
+            )
 
-        save_data = self.editor.toPlainText()
-        if not save_data:
+        if not tabs:
             self._clear_unsaved_backup()
             return
 
-        self.unsaved_backup_manager.save(
-            UnsavedBackup(
-                text=save_data,
-                encoding=self.current_encoding,
-                save_file_path=self.current_save_file_path,
+        self.unsaved_backup_manager.save_session(
+            UnsavedBackupSession(
+                tabs=tabs,
+                current_index=current_backup_index,
             )
         )
 
@@ -2260,8 +2288,8 @@ class MainWindow(QMainWindow):
         """Restore an unsaved backup if available and prompt the user for confirmation."""
         if not self.unsaved_backup_enabled:
             return
-        backup = self.unsaved_backup_manager.load()
-        if backup is None or not backup.text:
+        session = self.unsaved_backup_manager.load_session()
+        if session is None or not session.tabs:
             return
 
         result = QMessageBox.question(
@@ -2275,13 +2303,26 @@ class MainWindow(QMainWindow):
             self._clear_unsaved_backup()
             return
 
-        self.current_encoding = backup.encoding
-        self.editor.setPlainText(backup.text)
-        self.editor.moveCursor(QTextCursor.MoveOperation.Start)
-        self.editor.document().setModified(True)
-        self._set_current_file_state(backup.save_file_path, backup.encoding)
-        self._update_window_title()
-        self._set_encoding_status()
+        self.restoring_unsaved_backup = True
+        try:
+            while self.tab_widget.count():
+                self.remove_tab(0)
+            for backup in session.tabs:
+                editor = self.create_editor_tab(
+                    text=backup.text,
+                    save_file_path=backup.save_file_path,
+                    encoding=backup.encoding,
+                    modified=True,
+                )
+                editor.moveCursor(QTextCursor.MoveOperation.Start)
+            self.tab_widget.setCurrentIndex(
+                min(max(session.current_index, 0), self.tab_widget.count() - 1)
+            )
+            self._sync_current_tab_state()
+            self._update_window_title()
+            self._set_encoding_status()
+        finally:
+            self.restoring_unsaved_backup = False
 
     def _clear_unsaved_backup(self) -> None:
         """Clear the unsaved backup if it exists and unsaved backups are enabled."""

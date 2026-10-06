@@ -19,6 +19,7 @@ htmlcov/
 pyrightconfig.json
 sample/
 autosave/
+_internal/
 # Build outputs
 build/
 dist/
@@ -36,6 +37,7 @@ CODEX_regex-pad_linter_HTMLタグ閉じ忘れ診断_改修指示書.md
 
 # Local settings
 settings.json
+config.json
 
 # Logs
 *.log

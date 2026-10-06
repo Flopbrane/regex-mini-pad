@@ -1260,9 +1260,9 @@ Changes:
     - Prunes backups by retention count and retention days.
   - `main.py`
     - Save / Save As now calls the file backup manager before writing the new file content.
-    - Default saved-file backup location is `autosave/file_backups`.
-    - If a backup folder is configured, saved-file backups go under `<backup_folder>/file_backups`.
-    - Changing the backup folder from Options refreshes both the temporary unsaved backup manager and the saved-file backup manager.
+    - Historical note: the original default saved-file backup location was `autosave/file_backups`.
+    - Current policy as of 2026-10-06: the default saved-file backup location is `_internal/backup`, and a configured backup folder is used directly.
+    - Changing the backup folder from Options refreshes the saved-file backup manager; unsaved session restore stays under `_internal/autosave`.
   - `tests/test_file_backup_manager.py`
     - Added coverage for backup creation, missing-file skip behavior, and 20-generation pruning.
   - `tests/test_main_window_backup.py`
@@ -1908,11 +1908,12 @@ Policy:
   - It is for tab/window crash recovery.
   - It is not long-term file history.
 - The default backup location should remain inside the RegexPad project folder:
-  - Unsaved temporary backup: `autosave/unsaved_backup.json`
-  - Saved-file recovery backups: `autosave/file_backups`
+  - Unsaved temporary backup: `_internal/autosave/unsaved_backup.json`
+  - Saved-file recovery backups: `_internal/backup`
 - The current Options-based backup folder override is sufficient:
   - Empty setting uses the RegexPad-local default.
-  - A configured folder stores the same backup data under that user-selected location.
+  - A configured folder stores saved-file recovery backups under that user-selected folder.
+  - Unsaved session restore is not moved by the backup folder setting.
 
 Implementation note:
 
@@ -2397,6 +2398,7 @@ Changes in progress:
 - 2026-10-06 follow-up: added a regex lint warning for an actual `¥` character used where a regex escape backslash was likely intended. This only warns; it does not rewrite the user's pattern.
 - 2026-10-06 follow-up: confirmed by command-line GUI simulation that `<!-- /wp:paragraph -->\n<!-- wp:paragraph -->\n` with real half-width backslashes (`U+005C`) matches and the Find button selects a match.
 - 2026-10-06 follow-up: changed preview "after replacement" context so repeated matches on the same line show the line after all replacements in that line, avoiding misleading partial previews such as `<h3 ...></h2>`.
+- 2026-10-06 follow-up: made unsaved-backup writes tolerate `PermissionError` / `OSError` during temporary-file replacement, cleaning up the temp file and avoiding traceback spam during editing.
 
 Manual verification checklist for the next session:
 
@@ -2413,6 +2415,7 @@ Manual verification checklist for the next session:
 - Resize the Find/Replace dialog vertically and confirm the search and replacement boxes expand enough to inspect multi-line patterns.
 - Confirm `\n`, `\t`, and `\d+` are highlighted in the regex input while regex mode is enabled.
 - If a pattern visibly uses `¥n`, confirm whether the character is a displayed backslash (`U+005C`) or an actual yen sign (`U+00A5`). Actual `¥` should show a regex-check warning and should not be treated as an escape.
+- If autosave reports access denied again, confirm whether another RegexPad instance, antivirus, sync tool, or read-only ACL is holding `autosave/unsaved_backup.json`; editing should continue without traceback after this change.
 - If manual GUI behavior differs from tests, capture the exact search text with `find_text_edit.text()` before changing code again.
 
 Validation already run:
@@ -2425,7 +2428,7 @@ Validation already run:
 
 Result:
 
-- `pytest`: 294 passed
+- `pytest`: 295 passed
 - `ruff check .`: All checks passed
 - `pyright`: 0 errors, 0 warnings, 0 informations
 
@@ -2434,6 +2437,45 @@ Notes:
 - The preview table does not write data back into the search or replacement inputs; it only displays rows and a summary.
 - The earlier "visible search text but no match" case was caused by leftover previous search text remaining inside the input after `selectAll()` was removed.
 - Real manual GUI acceptance on Windows was not completed after the final expandable-input change.
+
+## Step13-section28 Unsaved Session Restore
+
+Date: 2026-10-06
+
+Changes in progress:
+
+- Changed the unsaved-backup file from a current-editor-only backup into a restorable session format.
+- Added `UnsavedBackupSession` with `version: 2`, `current_index`, and a `tabs` list while keeping legacy single-backup loading compatible.
+- Saved all modified, non-empty tabs into `autosave/unsaved_backup.json`.
+- Restored all saved tabs on startup when the user accepts the restore prompt, including the active tab index, encoding, and original save path.
+- Stopped startup initialization from clearing a pending backup before the restore prompt is shown.
+- Saving one tab now refreshes the unsaved session instead of deleting other modified tabs from the restore file.
+- Opening or reloading a file now refreshes the unsaved session instead of clearing unrelated modified tabs.
+- Duplicating, moving, or closing a tab refreshes the unsaved session so stale tab entries are less likely to remain after later abnormal termination.
+- Continued to use a temporary file only as the write-in-progress target; the persistent restore data remains in `unsaved_backup.json`.
+
+Manual verification checklist:
+
+- Start the app, create two unsaved tabs, enter different text in both, then force-close from the terminal or Task Manager without using the app's normal close flow.
+- Restart the app and accept the restore prompt; confirm both tabs return and the previously active tab is selected.
+- Save only one restored tab, then force-close again; restart and confirm the saved tab is no longer restored but the other modified tab is.
+- Open or reload a separate file while another tab is modified; confirm the modified tab remains restorable after a forced restart.
+- Close the app normally after choosing save/discard for modified tabs; confirm the restore prompt does not reappear on the next normal launch.
+- Confirm the restore file is created under `_internal/autosave/unsaved_backup.json`.
+- Confirm saved-file backups are created under `_internal/backup` when the Options backup folder is blank.
+- Set a custom backup folder in Options and confirm saved-file backups use that folder directly, while unsaved session restore still uses `_internal/autosave`.
+- If `PermissionError` appears again, check whether another process is locking `_internal/autosave/unsaved_backup.json`; editing should continue without traceback.
+
+Notes:
+
+- This is a local session-restore mechanism, closer to modern Notepad behavior than a saved-file backup.
+- It is still not a substitute for explicit file saving: normal Save writes the real document, while session restore protects unsaved editor state after abnormal termination.
+- Default paths now separate the two backup types: unsaved session restore uses `_internal/autosave`, and saved-file generation backups use `_internal/backup` unless the user sets a custom backup folder in Options.
+- 2026-10-06 follow-up: added an Options `配色` / `Colors` tab and moved editor color, tag color, search marker color, and whitespace marker color controls into it. The disabled color-theme checkbox is no longer shown in the View tab.
+- 2026-10-06 follow-up: added `config.py` and changed the default settings file from `settings.json` to `config.json`. Existing `settings.json` is copied to `config.json` on first launch when `config.json` does not exist.
+- 2026-10-06 follow-up: removed disabled placeholder checkboxes from the Backup Options tab: local settings file, no environment-variable changes, and restore mode.
+- Automated validation after this change: `pytest` 309 passed, `ruff check .` passed, and `pyright` reported 0 errors.
+- Manual forced-restart acceptance on Windows remains to be performed.
 
 ## Validation Commands
 

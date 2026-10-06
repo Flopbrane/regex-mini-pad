@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fileio.unsaved_backup_manager import UnsavedBackup, UnsavedBackupManager
+from fileio.unsaved_backup_manager import (
+    UnsavedBackup,
+    UnsavedBackupManager,
+    UnsavedBackupSession,
+)
 
 
 def test_unsaved_backup_manager_saves_and_loads_backup(tmp_path: Path) -> None:
@@ -33,6 +37,37 @@ def test_unsaved_backup_manager_returns_none_for_broken_json(tmp_path: Path) -> 
     assert backup is None
 
 
+def test_unsaved_backup_manager_saves_and_loads_session(tmp_path: Path) -> None:
+    manager = UnsavedBackupManager(tmp_path / "autosave" / "unsaved_backup.json")
+
+    saved = manager.save_session(
+        UnsavedBackupSession(
+            tabs=[
+                UnsavedBackup(
+                    text="first draft",
+                    encoding="utf-8",
+                    save_file_path=tmp_path / "first.txt",
+                ),
+                UnsavedBackup(
+                    text="second draft",
+                    encoding="cp932",
+                    save_file_path=None,
+                ),
+            ],
+            current_index=1,
+        )
+    )
+    session = manager.load_session()
+
+    assert saved
+    assert session is not None
+    assert session.current_index == 1
+    assert [tab.text for tab in session.tabs] == ["first draft", "second draft"]
+    assert [tab.encoding for tab in session.tabs] == ["utf-8", "cp932"]
+    assert session.tabs[0].save_file_path == tmp_path / "first.txt"
+    assert session.tabs[1].save_file_path is None
+
+
 def test_unsaved_backup_manager_clears_backup(tmp_path: Path) -> None:
     backup_path = tmp_path / "autosave" / "unsaved_backup.json"
     manager = UnsavedBackupManager(backup_path)
@@ -41,3 +76,23 @@ def test_unsaved_backup_manager_clears_backup(tmp_path: Path) -> None:
     manager.clear()
 
     assert not backup_path.exists()
+
+
+def test_unsaved_backup_manager_ignores_replace_permission_error(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    backup_path = tmp_path / "autosave" / "unsaved_backup.json"
+    manager = UnsavedBackupManager(backup_path)
+
+    def deny_replace(self: Path, target: Path) -> Path:
+        _ = self, target
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(Path, "replace", deny_replace)
+
+    saved = manager.save(UnsavedBackup(text="draft text", encoding="utf-8"))
+
+    assert saved is False
+    assert not backup_path.exists()
+    assert list(backup_path.parent.glob("tmp*")) == []
