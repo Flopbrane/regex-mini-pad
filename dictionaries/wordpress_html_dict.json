@@ -50,6 +50,33 @@
     "template": "<!-- wp:separator -->\n<hr class=\"wp-block-separator has-alpha-channel-opacity\"/>\n<!-- /wp:separator -->\n{cursor}"
   },
   {
+    "label_key": "tag.wordpress.decorative_separator_block",
+    "hint_key": "tag.hint.wordpress.decorative_separator_block",
+    "template": "<!-- wp:html -->\n<div\n  style=\"--separator-line-style: solid; --separator-thickness: 4px; --separator-color: #79b7d8; --separator-gradient: linear-gradient(90deg, #79b7d8 0%, #f0b84a 100%); margin: 2em 0; height: var(--separator-thickness); border: 0; border-radius: 999px; background: var(--separator-gradient);\"\n  aria-hidden=\"true\"\n></div>\n<!-- /wp:html -->\n{cursor}",
+    "parameters": [
+      {
+        "name": "line_style",
+        "kind": "text",
+        "description_key": "tag.parameter.decorative_separator.line_style"
+      },
+      {
+        "name": "thickness",
+        "kind": "css-size",
+        "description_key": "tag.parameter.decorative_separator.thickness"
+      },
+      {
+        "name": "color",
+        "kind": "color",
+        "description_key": "tag.parameter.decorative_separator.color"
+      },
+      {
+        "name": "gradient",
+        "kind": "css-background",
+        "description_key": "tag.parameter.decorative_separator.gradient"
+      }
+    ]
+  },
+  {
     "label_key": "tag.wordpress.spacer_block",
     "hint_key": "tag.hint.wordpress.spacer_block",
     "template": "<!-- wp:spacer {\"height\":\"32px\"} -->\n<div style=\"height:32px\" aria-hidden=\"true\" class=\"wp-block-spacer\"></div>\n<!-- /wp:spacer -->\n{cursor}"

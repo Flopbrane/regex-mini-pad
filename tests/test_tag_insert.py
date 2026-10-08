@@ -830,27 +830,30 @@ def test_wordpress_html_snippets_are_loaded_from_json() -> None:
     wordpress_group = tag_snippet_groups()[2]
 
     assert wordpress_group.label_key == "tag.group.wordpress_html"
-    assert len(wordpress_group.snippets) == 31
+    assert len(wordpress_group.snippets) == 32
     assert wordpress_group.snippets[0].label_key == "tag.wordpress.paragraph_block"
     assert wordpress_group.snippets[3].label_key == (
         "tag.wordpress.soft_subheading_paragraph"
     )
     assert wordpress_group.snippets[8].label_key == "tag.wordpress.html_code_box"
-    assert wordpress_group.snippets[12].label_key == "tag.wordpress.link_block"
-    assert wordpress_group.snippets[13].label_key == (
+    assert wordpress_group.snippets[10].label_key == (
+        "tag.wordpress.decorative_separator_block"
+    )
+    assert wordpress_group.snippets[13].label_key == "tag.wordpress.link_block"
+    assert wordpress_group.snippets[14].label_key == (
         "tag.wordpress.custom_frame_block"
     )
-    assert wordpress_group.snippets[16].label_key == (
+    assert wordpress_group.snippets[17].label_key == (
         "tag.wordpress.important_frame_block"
     )
-    assert wordpress_group.snippets[17].label_key == "tag.wordpress.table_block"
-    assert wordpress_group.snippets[18].label_key == (
+    assert wordpress_group.snippets[18].label_key == "tag.wordpress.table_block"
+    assert wordpress_group.snippets[19].label_key == (
         "tag.wordpress.details_html_block"
     )
-    assert wordpress_group.snippets[24].label_key == (
+    assert wordpress_group.snippets[25].label_key == (
         "tag.wordpress.columns_2_text_block"
     )
-    assert wordpress_group.snippets[25].label_key == (
+    assert wordpress_group.snippets[26].label_key == (
         "tag.wordpress.columns_3_text_block"
     )
     assert wordpress_group.snippets[-2].label_key == "tag.wordpress.video_block"
@@ -909,6 +912,7 @@ def test_wordpress_text_columns_and_article_parts_use_layout_category() -> None:
         for snippet in wordpress_group.snippets
         if snippet.label_key
         in {
+            "tag.wordpress.decorative_separator_block",
             "tag.wordpress.table_block",
             "tag.wordpress.details_html_block",
             "tag.wordpress.columns_2_text_block",
@@ -920,6 +924,7 @@ def test_wordpress_text_columns_and_article_parts_use_layout_category() -> None:
         tag_snippet_category_key(wordpress_group.label_key, snippet)
         for snippet in layout_snippets
     ] == [
+        "tag.category.layout",
         "tag.category.layout",
         "tag.category.layout",
         "tag.category.layout",
@@ -975,6 +980,13 @@ def test_wordpress_snippets_have_expected_mode_groups() -> None:
         "tag.wordpress_mode.high_security",
     )
     assert wordpress_mode_keys(snippets["tag.wordpress.custom_frame_block"]) == (
+        "tag.wordpress_mode.normal",
+        "tag.wordpress_mode.business",
+        "tag.wordpress_mode.high_security",
+    )
+    assert wordpress_mode_keys(
+        snippets["tag.wordpress.decorative_separator_block"]
+    ) == (
         "tag.wordpress_mode.normal",
         "tag.wordpress_mode.business",
         "tag.wordpress_mode.high_security",
@@ -1183,6 +1195,41 @@ def test_insert_wordpress_custom_frame_block_has_editable_style_parameters(
     assert "text-align: left;" in editor_text
     assert "\n重要なお知らせ\n</div>" in editor_text
     assert window.editor.textCursor().position() == editor_text.index("\n</div>")
+
+
+def test_insert_wordpress_decorative_separator_uses_html_block_parameters(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    separator_snippet = next(
+        snippet
+        for snippet in tag_snippet_groups()[2].snippets
+        if snippet.label_key == "tag.wordpress.decorative_separator_block"
+    )
+
+    window.insert_tag_snippet(separator_snippet)
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.count("<!-- wp:html -->") == 1
+    assert editor_text.count("<!-- /wp:html -->") == 1
+    assert "<!-- wp:separator -->" not in editor_text
+    assert "--separator-line-style: solid;" in editor_text
+    assert "--separator-thickness: 4px;" in editor_text
+    assert "--separator-color: #79b7d8;" in editor_text
+    assert (
+        "--separator-gradient: linear-gradient(90deg, #79b7d8 0%, #f0b84a 100%);"
+        in editor_text
+    )
+    assert "height: var(--separator-thickness);" in editor_text
+    assert "background: var(--separator-gradient);" in editor_text
+    assert 'aria-hidden="true"' in editor_text
+    assert [parameter.name for parameter in separator_snippet.parameters] == [
+        "line_style",
+        "thickness",
+        "color",
+        "gradient",
+    ]
 
 
 def test_insert_wordpress_frame_block_keeps_multiline_selection_in_single_html_block(

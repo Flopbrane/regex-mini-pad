@@ -35,6 +35,7 @@ WORDPRESS_HIGH_SECURITY_LABEL_KEYS = {
     "tag.wordpress.code_block",
     "tag.wordpress.preformatted_block",
     "tag.wordpress.separator_block",
+    "tag.wordpress.decorative_separator_block",
     "tag.wordpress.spacer_block",
     "tag.wordpress.link_block",
     "tag.wordpress.custom_frame_block",
@@ -303,6 +304,7 @@ def _wordpress_category_key(label_key: str) -> str:
         return "tag.category.code"
     if label_key in {
         "tag.wordpress.separator_block",
+        "tag.wordpress.decorative_separator_block",
         "tag.wordpress.spacer_block",
         "tag.wordpress.buttons_block",
         "tag.wordpress.custom_frame_block",
