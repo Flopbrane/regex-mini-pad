@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -8,7 +9,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QInputDialog, QMenu, QSizePolicy
+from PySide6.QtWidgets import (
+    QApplication,
+    QInputDialog,
+    QMenu,
+    QPlainTextEdit,
+    QSizePolicy,
+)
 
 from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.regex_input_edit import RegexInputHighlighter
@@ -34,6 +41,56 @@ def test_recipe_sets_find_replace_and_regex_mode(app: QApplication) -> None:
     assert dialog.find_text_edit.text() == r"[ \t]+$"
     assert dialog.replace_text_edit.text() == ""
     assert dialog.regular_expression_check_box.isChecked()
+
+
+def test_paragraph_boundary_recipe_matches_lf_and_crlf(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    menu = dialog.recipe_button.menu()
+    assert menu is not None
+    matching_actions = [
+        action
+        for action in menu.actions()
+        if action.text() == "Paragraph boundary to line breaks"
+    ]
+    assert len(matching_actions) == 1
+
+    matching_actions[0].trigger()
+
+    assert dialog.find_text_edit.text() == r"</p>\r?\n<p>"
+    assert dialog.replace_text_edit.text() == "<br><br>\n"
+    assert re.sub(
+        dialog.find_text_edit.text(),
+        dialog.replace_text_edit.text(),
+        "before</p>\r\n<p>after",
+    ) == "before<br><br>\nafter"
+
+
+def test_paragraph_boundary_recipe_can_allow_surrounding_spaces(
+    app: QApplication,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    menu = dialog.recipe_button.menu()
+    assert menu is not None
+    matching_actions = [
+        action
+        for action in menu.actions()
+        if action.text() == "Paragraph boundary with spaces to line breaks"
+    ]
+    assert len(matching_actions) == 1
+
+    matching_actions[0].trigger()
+
+    assert dialog.find_text_edit.text() == r"</p>[ \t]*\r?\n[ \t]*<p>"
+    assert dialog.replace_text_edit.text() == "<br><br>\n"
+    assert re.sub(
+        dialog.find_text_edit.text(),
+        dialog.replace_text_edit.text(),
+        "before</p>  \r\n  <p>after",
+    ) == "before<br><br>\nafter"
 
 
 def test_preview_table_displays_rows(app: QApplication) -> None:
@@ -105,6 +162,32 @@ def test_regex_inputs_can_expand_for_multiline_patterns(app: QApplication) -> No
         dialog.find_text_edit.sizePolicy().verticalPolicy()
         == QSizePolicy.Policy.Expanding
     )
+    assert (
+        dialog.find_text_edit.lineWrapMode()
+        == QPlainTextEdit.LineWrapMode.WidgetWidth
+    )
+    assert (
+        dialog.replace_text_edit.lineWrapMode()
+        == QPlainTextEdit.LineWrapMode.WidgetWidth
+    )
+
+
+def test_regex_inputs_refresh_visible_text_after_selection(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    long_pattern = r"</p>[ \t]*\r?\n[ \t]*<p>" * 4
+
+    dialog.find_text_edit.setText(long_pattern)
+    dialog.replace_text_edit.setText(long_pattern)
+    dialog.find_text_edit.setSelection(0, len(long_pattern))
+    dialog.replace_text_edit.setSelection(0, len(long_pattern))
+    QApplication.processEvents()
+
+    assert dialog.find_text_edit.text() == long_pattern
+    assert dialog.replace_text_edit.text() == long_pattern
+    assert dialog.find_text_edit.horizontalScrollBar().value() == 0
+    assert dialog.replace_text_edit.horizontalScrollBar().value() == 0
 
 
 def test_dialog_has_explicit_previous_next_buttons(app: QApplication) -> None:

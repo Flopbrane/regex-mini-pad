@@ -109,6 +109,7 @@ ENCODING_OPTIONS: dict[str, str] = {
 }
 SEARCH_HIGHLIGHT_DELAY_MS = 250
 MAX_AUTO_SEARCH_HIGHLIGHTS = 2000
+DEFAULT_AUTO_BACKUP_INTERVAL_MINUTES = 3
 FRAME_BLOCK_LABEL_KEYS = {
     "tag.wordpress.custom_frame_block",
     "tag.wordpress.notice_frame_block",
@@ -177,6 +178,8 @@ class MainWindow(QMainWindow):
         self.search_highlight_timer.setInterval(SEARCH_HIGHLIGHT_DELAY_MS)
         self.search_highlight_timer.timeout.connect(self._run_pending_search_highlight)
         self.pending_search_highlight: tuple[str, SearchOptions] | None = None
+        self.auto_save_timer = QTimer(self)
+        self.auto_save_timer.timeout.connect(self._save_unsaved_backup)
         self.current_save_file_path: Path | None = None
         self.default_encoding = settings.default_encoding
         self.current_encoding = settings.default_encoding
@@ -195,6 +198,8 @@ class MainWindow(QMainWindow):
         self.backup_folder = settings.backup_folder
         self.backup_retention_count = settings.backup_retention_count
         self.backup_retention_days = settings.backup_retention_days
+        self.auto_backup_interval_minutes = settings.auto_backup_interval_minutes
+        self._set_auto_save_timer_interval(self.auto_backup_interval_minutes)
         self.font_family = settings.font_family
         self.font_size = settings.font_size
         self.tab_width = settings.tab_width
@@ -262,6 +267,8 @@ class MainWindow(QMainWindow):
         self.restoring_unsaved_backup = False
         if restore_unsaved_backup and self.startup_restore_enabled:
             self._restore_unsaved_backup_if_available()
+        if self.unsaved_backup_enabled:
+            self.auto_save_timer.start()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name
         """Handle the close event for the main window."""
@@ -273,7 +280,6 @@ class MainWindow(QMainWindow):
             if not self._confirm_save_or_discard_editor(editor):
                 event.ignore()
                 return
-        self._clear_unsaved_backup()
         self._save_settings()
         self._clear_grammar_lint_results_on_window_close()
         event.accept()
@@ -748,6 +754,8 @@ class MainWindow(QMainWindow):
         editor = self._editor_at(tab_index)
         if editor is None:
             return None
+        if not self._autosave_before_risky_operation():
+            return None
 
         new_window = MainWindow(
             settings_path=self.settings_manager.settings_path,
@@ -868,6 +876,8 @@ class MainWindow(QMainWindow):
         self.fixed_column_wrap_column = settings.fixed_column_wrap_column
         self._apply_fixed_column_wrap_options_to_all_tabs()
         self.startup_restore_enabled = settings.startup_restore_enabled
+        self.auto_backup_interval_minutes = settings.auto_backup_interval_minutes
+        self._set_auto_save_timer_interval(self.auto_backup_interval_minutes)
         self.default_encoding = settings.default_encoding
         self.newline_code = settings.newline_code
         self.search_marker_color = settings.search_marker_color
@@ -917,6 +927,7 @@ class MainWindow(QMainWindow):
             backup_folder=self.backup_folder,
             backup_retention_count=self.backup_retention_count,
             backup_retention_days=self.backup_retention_days,
+            auto_backup_interval_minutes=self.auto_backup_interval_minutes,
             font_family=self.font_family,
             font_size=self.font_size,
             tab_width=self.tab_width,
@@ -1196,6 +1207,7 @@ class MainWindow(QMainWindow):
             backup_folder=self.backup_folder,
             backup_retention_count=self.backup_retention_count,
             backup_retention_days=self.backup_retention_days,
+            auto_backup_interval_minutes=self.auto_backup_interval_minutes,
             font_family=self.font_family,
             font_size=self.font_size,
             tab_width=self.tab_width,
@@ -1218,7 +1230,13 @@ class MainWindow(QMainWindow):
             frame_background_color=self.frame_background_color,
             frame_text_color=self.frame_text_color,
         )
-        dialog = OptionsDialog(self.translator, settings, self)
+        dialog = OptionsDialog(
+            self.translator,
+            settings,
+            self,
+            default_backup_folder_path=self._file_backup_folder_for_folder(""),
+            unsaved_backup_path=self._unsaved_backup_path(),
+        )
         self.options_dialog = dialog
         if dialog.exec() != OptionsDialog.DialogCode.Accepted:
             return
@@ -1242,6 +1260,8 @@ class MainWindow(QMainWindow):
         self.backup_folder = values.backup_folder
         self.backup_retention_count = values.backup_retention_count
         self.backup_retention_days = values.backup_retention_days
+        self.auto_backup_interval_minutes = values.auto_backup_interval_minutes
+        self._set_auto_save_timer_interval(self.auto_backup_interval_minutes)
         self.font_family = values.font_family
         self.font_size = values.font_size
         self.editor_theme = values.editor_theme
@@ -1321,6 +1341,12 @@ class MainWindow(QMainWindow):
         if backup_folder:
             return Path(backup_folder)
         return self._internal_data_folder() / "backup"
+
+    def _set_auto_save_timer_interval(self, interval_minutes: int) -> None:
+        """Set the automatic unsaved backup timer interval in minutes."""
+        self.auto_save_timer.setInterval(
+            max(1, interval_minutes) * 60 * 1000
+        )
 
     def _apply_editor_font_to_all_tabs(self) -> None:
         """Apply the current editor font settings to all open tabs."""
@@ -1979,44 +2005,20 @@ class MainWindow(QMainWindow):
         )
 
     def _confirm_discard_changes(self) -> bool:
-        """Prompt the user to confirm discarding unsaved changes in the current editor."""
+        """Autosave unsaved changes before continuing with a risky operation."""
         if not self.editor.document().isModified():
             return True
-
-        result = QMessageBox.question(
-            self,
-            self.translator.text("dialog.unsaved.title"),
-            self.translator.text("dialog.unsaved.message"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        return result == QMessageBox.StandardButton.Yes
+        return self._autosave_before_risky_operation()
 
     def _confirm_save_or_discard_editor(self, editor: TextEditor) -> bool:
-        """Prompt the user to save or discard changes for the given editor, returning True if it's safe to proceed."""
+        """Autosave tab changes before allowing the tab to be closed."""
         if not editor.document().isModified():
             return True
 
         tab_index = self.tab_widget.indexOf(editor)
         if tab_index >= 0:
             self.tab_widget.setCurrentIndex(tab_index)
-
-        result = QMessageBox.question(
-            self,
-            self.translator.text("dialog.unsaved.title"),
-            self.translator.text("dialog.unsaved_save.message"),
-            (
-                QMessageBox.StandardButton.Yes
-                | QMessageBox.StandardButton.No
-                | QMessageBox.StandardButton.Cancel
-            ),
-            QMessageBox.StandardButton.Cancel,
-        )
-        if result == QMessageBox.StandardButton.Cancel:
-            return False
-        if result == QMessageBox.StandardButton.No:
-            return True
-        return self.save_file()
+        return self._autosave_before_risky_operation()
 
     def new_file(self) -> None:
         """Create a new editor tab with an untitled document."""
@@ -2025,6 +2027,8 @@ class MainWindow(QMainWindow):
 
     def open_file(self, encoding: str | None = None) -> None:
         """Open a file dialog to select and load a text file into a new editor tab."""
+        if not self._autosave_before_risky_operation():
+            return
         selected_path, _ = QFileDialog.getOpenFileName(
             self,
             self.translator.text("dialog.open.title"),
@@ -2249,10 +2253,31 @@ class MainWindow(QMainWindow):
             name=backup_path.name,
         )
 
-    def _save_unsaved_backup(self) -> None:
+    def _autosave_before_risky_operation(self) -> bool:
+        """Autosave modified tabs before an operation that may discard editor state."""
+        if not self._has_modified_tabs():
+            return True
+        if self._save_unsaved_backup():
+            return True
+        QMessageBox.critical(
+            self,
+            self.translator.text("dialog.autosave_failed.title"),
+            self.translator.text("dialog.autosave_failed.message"),
+        )
+        return False
+
+    def _has_modified_tabs(self) -> bool:
+        """Return True if any editor tab has unsaved modifications."""
+        for tab_index in range(self.tab_widget.count()):
+            editor = self._editor_at(tab_index)
+            if editor is not None and editor.document().isModified():
+                return True
+        return False
+
+    def _save_unsaved_backup(self) -> bool:
         """Save a restorable session of all modified editor tabs."""
         if not self.unsaved_backup_enabled or self.restoring_unsaved_backup:
-            return
+            return True
         tabs: list[UnsavedBackup] = []
         current_backup_index = 0
         current_editor = self._current_editor()
@@ -2261,8 +2286,6 @@ class MainWindow(QMainWindow):
             if editor is None or not editor.document().isModified():
                 continue
             save_data = editor.toPlainText()
-            if not save_data:
-                continue
             if editor is current_editor:
                 current_backup_index = len(tabs)
             tabs.append(
@@ -2275,9 +2298,9 @@ class MainWindow(QMainWindow):
 
         if not tabs:
             self._clear_unsaved_backup()
-            return
+            return True
 
-        self.unsaved_backup_manager.save_session(
+        return self.unsaved_backup_manager.save_session(
             UnsavedBackupSession(
                 tabs=tabs,
                 current_index=current_backup_index,
@@ -2300,7 +2323,6 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Yes,
         )
         if result != QMessageBox.StandardButton.Yes:
-            self._clear_unsaved_backup()
             return
 
         self.restoring_unsaved_backup = True

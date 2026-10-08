@@ -116,6 +116,7 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
             backup_folder="D:/backup",
             backup_retention_count=12,
             backup_retention_days=45,
+            auto_backup_interval_minutes=7,
             font_family="Consolas",
             font_size=14,
             tab_width=8,
@@ -161,6 +162,7 @@ def test_options_dialog_returns_editable_values(app: QApplication) -> None:
     assert values.backup_folder == "D:/backup"
     assert values.backup_retention_count == 12
     assert values.backup_retention_days == 45
+    assert values.auto_backup_interval_minutes == 7
     assert values.font_size == 14
     assert values.tab_width == 8
     assert values.editor_theme == "dark"
@@ -189,4 +191,9 @@ def test_options_dialog_shows_default_backup_folder_hint(
     _ = app
     dialog = OptionsDialog(Translator(Path("resources"), "en"), EditorSettings())
 
-    assert dialog.backup_folder_edit.placeholderText() == "Blank: _internal/backup"
+    assert dialog.backup_folder_edit.placeholderText().startswith("Blank: ")
+    assert dialog.backup_folder_edit.placeholderText().endswith("_internal/backup")
+    assert dialog.default_backup_folder_edit.text().endswith("_internal/backup")
+    assert dialog.unsaved_backup_path_edit.text().endswith(
+        "_internal/autosave/unsaved_backup.json"
+    )

@@ -96,7 +96,7 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.NoWrap)
+        self.setLineWrapMode(QtWidgets.QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setTabChangesFocus(True)
@@ -128,10 +128,12 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
     def setText(self, text: str) -> None:
         """Set the text in the widget."""
         self.setPlainText(text)
+        self._queue_visible_text_refresh()
 
     def insert(self, text: str) -> None:
         """Insert text at the current cursor position."""
         self.textCursor().insertText(text)
+        self._queue_visible_text_refresh()
 
     def selectionStart(self) -> int:
         """Return the start position of the current selection."""
@@ -150,6 +152,7 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         cursor = self.textCursor()
         cursor.setPosition(position)
         self.setTextCursor(cursor)
+        self._queue_visible_text_refresh()
 
     def setSelection(self, start: int, length: int) -> None:
         """Set the selection range in the widget."""
@@ -157,10 +160,12 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         cursor.setPosition(start)
         cursor.setPosition(start + length, cursor.MoveMode.KeepAnchor)
         self.setTextCursor(cursor)
+        self._queue_visible_text_refresh()
 
     def set_regex_highlighting_enabled(self, enabled: bool) -> None:
         """Enable or disable regex highlighting."""
         self.highlighter.set_enabled(enabled)
+        self._queue_visible_text_refresh()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         """Handle key press events, emitting returnPressed signal on Enter key."""
@@ -171,7 +176,12 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
             event.accept()
             return
         super().keyPressEvent(event)
-        #self.viewport().update()
+        self._queue_visible_text_refresh()
+
+    def focusInEvent(self, event: QtGui.QFocusEvent) -> None:
+        """Refresh the visible text when the editor regains focus."""
+        super().focusInEvent(event)
+        self._queue_visible_text_refresh()
 
     def focusOutEvent(self, event: QtGui.QFocusEvent) -> None:
         """Handle focus out events, moving cursor to end if all text is selected."""
@@ -184,3 +194,18 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         ):
             cursor.setPosition(cursor.selectionEnd())
             self.setTextCursor(cursor)
+        self._queue_visible_text_refresh()
+
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
+        """Refresh after mouse selection, where hidden horizontal scrolling can linger."""
+        super().mouseReleaseEvent(event)
+        self._queue_visible_text_refresh()
+
+    def _queue_visible_text_refresh(self) -> None:
+        """Queue a viewport refresh after Qt finishes cursor, selection, and layout updates."""
+        QtCore.QTimer.singleShot(0, self._refresh_visible_text)
+
+    def _refresh_visible_text(self) -> None:
+        """Keep the input text visible after selection, focus, and highlighter updates."""
+        self.horizontalScrollBar().setValue(0)
+        self.viewport().update()

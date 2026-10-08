@@ -101,7 +101,7 @@ def test_main_window_restores_unsaved_backup_session_when_accepted(
     assert window.current_encoding == "cp932"
 
 
-def test_main_window_clears_unsaved_backup_when_declined(
+def test_main_window_keeps_unsaved_backup_when_restore_is_declined(
     app: QApplication,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -123,7 +123,7 @@ def test_main_window_clears_unsaved_backup_when_declined(
     )
 
     assert window.editor.toPlainText() == ""
-    assert not backup_path.exists()
+    assert backup_path.exists()
 
 
 def test_main_window_skips_unsaved_backup_restore_when_option_is_disabled(
@@ -222,6 +222,60 @@ def test_main_window_saves_session_for_all_modified_tabs(
     assert [tab.encoding for tab in session.tabs] == ["utf-8", "cp932"]
 
 
+def test_main_window_saves_empty_modified_tab_to_unsaved_session(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    backup_path = tmp_path / "autosave" / "unsaved_backup.json"
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=backup_path,
+    )
+    window.editor.setPlainText("draft")
+    window.editor.setPlainText("")
+    window.editor.document().setModified(True)
+
+    assert window._save_unsaved_backup()
+    session = UnsavedBackupManager(backup_path).load_session()
+
+    assert session is not None
+    assert [tab.text for tab in session.tabs] == [""]
+
+
+def test_main_window_cancels_close_tab_when_autosave_fails_before_confirmation(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
+    window.editor.setPlainText("must keep")
+    window.editor.document().setModified(True)
+    monkeypatch.setattr(
+        window.unsaved_backup_manager,
+        "save_session",
+        lambda session: False,
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "critical",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Ok,
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: pytest.fail("save confirmation should not open"),
+    )
+
+    assert not window.close_tab(0)
+    assert window.tab_widget.count() == 1
+    assert window.editor.toPlainText() == "must keep"
+
+
 def test_main_window_saving_one_tab_preserves_other_modified_tab_backup(
     app: QApplication,
     tmp_path: Path,
@@ -284,7 +338,7 @@ def test_main_window_closing_discarded_tab_updates_unsaved_session(
     monkeypatch.setattr(
         QMessageBox,
         "question",
-        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+        lambda *args, **kwargs: pytest.fail("unsaved prompt should not open"),
     )
 
     assert window.close_tab(0)
@@ -356,6 +410,40 @@ def test_main_window_custom_backup_folder_is_used_as_file_backup_root(
     )
 
 
+def test_main_window_uses_configured_auto_backup_interval(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    settings_path = tmp_path / "settings.json"
+    SettingsManager(settings_path).save(
+        word_wrap_enabled=False,
+        line_numbers_enabled=True,
+        ruler_enabled=False,
+        visible_spaces_enabled=False,
+        visible_tabs_enabled=False,
+        visible_newlines_enabled=False,
+        fixed_column_wrap_enabled=False,
+        fixed_column_wrap_column=80,
+        startup_restore_enabled=True,
+        language_code="ja",
+        default_encoding="utf-8",
+        newline_code="lf",
+        window_width=900,
+        window_height=650,
+        auto_backup_interval_minutes=5,
+    )
+
+    window = MainWindow(
+        settings_path=settings_path,
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+        restore_unsaved_backup=False,
+    )
+
+    assert window.auto_backup_interval_minutes == 5
+    assert window.auto_save_timer.interval() == 5 * 60 * 1000
+
+
 def test_main_window_restores_file_backup_into_editor(
     app: QApplication,
     tmp_path: Path,
@@ -393,7 +481,7 @@ def test_main_window_restores_file_backup_into_editor(
     assert save_file_path.read_text(encoding="utf-8") == "current disk text"
 
 
-def test_main_window_keeps_modified_text_when_file_backup_restore_is_declined(
+def test_main_window_autosaves_modified_text_before_file_backup_restore(
     app: QApplication,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -415,19 +503,32 @@ def test_main_window_keeps_modified_text_when_file_backup_restore_is_declined(
     window._set_current_file_state(save_file_path, "utf-8")
     window.editor.setPlainText("do not replace")
     window.editor.document().setModified(True)
+    saved_sessions: list[list[str]] = []
+    original_save_session = window.unsaved_backup_manager.save_session
+
+    def capture_save_session(session: UnsavedBackupSession) -> bool:
+        saved_sessions.append([tab.text for tab in session.tabs])
+        return original_save_session(session)
 
     def select_first_backup(*args, **kwargs) -> tuple[str, bool]:
         labels = args[3]
         return labels[0], True
 
+    monkeypatch.setattr(
+        window.unsaved_backup_manager,
+        "save_session",
+        capture_save_session,
+    )
     monkeypatch.setattr(QInputDialog, "getItem", select_first_backup)
     monkeypatch.setattr(
         QMessageBox,
         "question",
-        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+        lambda *args, **kwargs: pytest.fail("unsaved prompt should not open"),
     )
 
     window.restore_file_backup()
 
-    assert window.editor.toPlainText() == "do not replace"
+    assert saved_sessions[0] == ["do not replace"]
+    assert saved_sessions[-1] == ["backup text"]
+    assert window.editor.toPlainText() == "backup text"
     assert window.editor.document().isModified()

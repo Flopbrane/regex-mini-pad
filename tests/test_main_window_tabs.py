@@ -29,7 +29,10 @@ def test_new_file_adds_tab_without_clearing_current_text(
     tmp_path: Path,
 ) -> None:
     _ = app
-    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
     window.editor.setPlainText("first document")
 
     window.new_file()
@@ -98,7 +101,10 @@ def test_main_window_applies_config_colors_and_font_on_startup(
 
 def test_unsaved_tab_title_uses_first_line(app: QApplication, tmp_path: Path) -> None:
     _ = app
-    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
 
     window.editor.setPlainText("draft title\nbody")
     window.editor.document().setModified(True)
@@ -112,7 +118,10 @@ def test_duplicate_tab_copies_text_as_unsaved_tab(
     tmp_path: Path,
 ) -> None:
     _ = app
-    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
     window.editor.setPlainText("backup draft\nbody")
 
     duplicate_editor = window.duplicate_tab(0)
@@ -157,19 +166,22 @@ def test_tab_width_setting_is_applied_to_new_tabs(
     assert window.editor.tabStopDistance() == expected_width
 
 
-def test_close_tab_can_discard_unsaved_changes(
+def test_close_tab_autosaves_unsaved_changes_without_prompt(
     app: QApplication,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _ = app
-    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
     window.editor.setPlainText("discard me")
     window.editor.document().setModified(True)
     monkeypatch.setattr(
         QMessageBox,
         "question",
-        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+        lambda *args, **kwargs: pytest.fail("unsaved prompt should not open"),
     )
 
     closed = window.close_tab(0)
@@ -179,19 +191,32 @@ def test_close_tab_can_discard_unsaved_changes(
     assert window.editor.toPlainText() == ""
 
 
-def test_close_tab_can_be_cancelled(
+def test_close_tab_stops_when_autosave_fails(
     app: QApplication,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _ = app
-    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
     window.editor.setPlainText("keep me")
     window.editor.document().setModified(True)
     monkeypatch.setattr(
+        window.unsaved_backup_manager,
+        "save_session",
+        lambda session: False,
+    )
+    monkeypatch.setattr(
         QMessageBox,
         "question",
-        lambda *args, **kwargs: QMessageBox.StandardButton.Cancel,
+        lambda *args, **kwargs: pytest.fail("unsaved prompt should not open"),
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "critical",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Ok,
     )
 
     closed = window.close_tab(0)
@@ -215,6 +240,37 @@ def test_move_tab_to_new_window_moves_text_and_removes_source_tab(
     assert new_window.editor.toPlainText() == "compare this\nbody"
     assert window.editor.toPlainText() == ""
     assert len(window.tab_windows) == 1
+
+
+def test_move_tab_to_new_window_stops_when_autosave_fails(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
+    window.editor.setPlainText("keep in source")
+    window.editor.document().setModified(True)
+    monkeypatch.setattr(
+        window.unsaved_backup_manager,
+        "save_session",
+        lambda session: False,
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "critical",
+        lambda *args, **kwargs: QMessageBox.StandardButton.Ok,
+    )
+
+    new_window = window.move_tab_to_new_window(0)
+
+    assert new_window is None
+    assert window.tab_widget.count() == 1
+    assert window.editor.toPlainText() == "keep in source"
+    assert window.tab_windows == []
 
 
 def test_each_window_has_uuid_and_child_window_is_registered(

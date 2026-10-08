@@ -48,7 +48,7 @@ class UnsavedBackupManager:
                 for tab_data in tabs_data
                 if isinstance(tab_data, dict)
                 for backup in [self._backup_from_data(tab_data)]
-                if backup is not None and backup.text
+                if backup is not None
             ]
             if not tabs:
                 return None
@@ -82,7 +82,7 @@ class UnsavedBackupManager:
         return self.save_session(UnsavedBackupSession(tabs=[backup]))
 
     def save_session(self, session: UnsavedBackupSession) -> bool:
-        tabs = [tab for tab in session.tabs if tab.text]
+        tabs = session.tabs
         if not tabs:
             self.clear()
             return True

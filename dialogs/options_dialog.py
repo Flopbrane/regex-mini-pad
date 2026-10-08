@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from PySide6.QtGui import QColor, QFontDatabase, QIcon, QPixmap
 from PySide6.QtWidgets import (
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from editor.tag_insert import wordpress_mode_label_keys
 from localization.translator import Translator
+from portable_runtime import app_base_dir
 from settings.settings_manager import EditorSettings
 
 COLOR_PRESETS: tuple[tuple[str, str], ...] = (
@@ -118,6 +120,7 @@ class OptionsDialogValues:
     backup_folder: str
     backup_retention_count: int
     backup_retention_days: int
+    auto_backup_interval_minutes: int
     font_family: str
     font_size: int
     tab_width: int
@@ -147,10 +150,19 @@ class OptionsDialog(QDialog):
         translator: Translator,
         settings: EditorSettings,
         parent: QWidget | None = None,
+        default_backup_folder_path: Path | None = None,
+        unsaved_backup_path: Path | None = None,
     ) -> None:
         super().__init__(parent)
         self.translator = translator
         self.wordpress_mode_keys = wordpress_mode_label_keys()
+        self.default_backup_folder_path = (
+            default_backup_folder_path or app_base_dir() / "_internal" / "backup"
+        )
+        self.unsaved_backup_path = (
+            unsaved_backup_path
+            or app_base_dir() / "_internal" / "autosave" / "unsaved_backup.json"
+        )
 
         self.tabs = QTabWidget(self)
         self.line_numbers_checkbox = QCheckBox(self)
@@ -178,10 +190,13 @@ class OptionsDialog(QDialog):
         self.user_dictionary_folder_edit = QLineEdit(self)
         self.user_dictionary_folder_button = QPushButton(self)
         self.dictionary_check_checkbox = QCheckBox(self)
+        self.default_backup_folder_edit = QLineEdit(self)
         self.backup_folder_edit = QLineEdit(self)
         self.backup_folder_button = QPushButton(self)
+        self.unsaved_backup_path_edit = QLineEdit(self)
         self.backup_retention_count_spin = QSpinBox(self)
         self.backup_retention_days_spin = QSpinBox(self)
+        self.auto_backup_interval_minutes_spin = QSpinBox(self)
         self.font_family_combo = QComboBox(self)
         self.font_size_spin = QSpinBox(self)
         self.tab_width_spin = QSpinBox(self)
@@ -264,7 +279,10 @@ class OptionsDialog(QDialog):
         )
         self.backup_folder_button.setText(self.translator.text("options.browse"))
         self.backup_folder_edit.setPlaceholderText(
-            self.translator.text("options.backup_folder_placeholder")
+            self.translator.text(
+                "options.backup_folder_placeholder",
+                path=self.default_backup_folder_path.as_posix(),
+            )
         )
         self.regex_lint_checkbox.setText(
             self.translator.text("options.item.regex_lint")
@@ -340,11 +358,21 @@ class OptionsDialog(QDialog):
         self.hover_hints_checkbox.setChecked(settings.hover_hints_enabled)
         self.user_dictionary_folder_edit.setText(settings.user_dictionary_folder)
         self.dictionary_check_checkbox.setChecked(settings.dictionary_check_enabled)
+        self.default_backup_folder_edit.setText(
+            self.default_backup_folder_path.as_posix()
+        )
+        self.default_backup_folder_edit.setReadOnly(True)
         self.backup_folder_edit.setText(settings.backup_folder)
+        self.unsaved_backup_path_edit.setText(self.unsaved_backup_path.as_posix())
+        self.unsaved_backup_path_edit.setReadOnly(True)
         self.backup_retention_count_spin.setRange(1, 999)
         self.backup_retention_count_spin.setValue(settings.backup_retention_count)
         self.backup_retention_days_spin.setRange(1, 9999)
         self.backup_retention_days_spin.setValue(settings.backup_retention_days)
+        self.auto_backup_interval_minutes_spin.setRange(1, 999)
+        self.auto_backup_interval_minutes_spin.setValue(
+            settings.auto_backup_interval_minutes
+        )
         self._set_font_families(settings.font_family)
         self.font_size_spin.setRange(8, 48)
         self.font_size_spin.setValue(settings.font_size)
@@ -418,6 +446,9 @@ class OptionsDialog(QDialog):
             backup_folder=self.backup_folder_edit.text().strip(),
             backup_retention_count=self.backup_retention_count_spin.value(),
             backup_retention_days=self.backup_retention_days_spin.value(),
+            auto_backup_interval_minutes=(
+                self.auto_backup_interval_minutes_spin.value()
+            ),
             font_family=self.font_family_combo.currentText(),
             font_size=self.font_size_spin.value(),
             tab_width=self.tab_width_spin.value(),
@@ -558,10 +589,22 @@ class OptionsDialog(QDialog):
     def _backup_tab(self) -> QWidget:
         tab = QWidget(self)
         layout = QFormLayout()
+        layout.addRow(
+            self.translator.text("options.default_backup_folder"),
+            self.default_backup_folder_edit,
+        )
         folder_layout = QHBoxLayout()
         folder_layout.addWidget(self.backup_folder_edit)
         folder_layout.addWidget(self.backup_folder_button)
         layout.addRow(self.translator.text("options.backup_folder"), folder_layout)
+        layout.addRow(
+            self.translator.text("options.unsaved_backup_file"),
+            self.unsaved_backup_path_edit,
+        )
+        layout.addRow(
+            self.translator.text("options.auto_backup_interval_minutes"),
+            self.auto_backup_interval_minutes_spin,
+        )
         layout.addRow(
             self.translator.text("options.backup_retention_count"),
             self.backup_retention_count_spin,

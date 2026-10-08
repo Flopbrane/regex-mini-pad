@@ -31,6 +31,7 @@ def test_load_returns_defaults_when_settings_file_does_not_exist(tmp_path) -> No
     assert settings.backup_folder == ""
     assert settings.backup_retention_count == 20
     assert settings.backup_retention_days == 30
+    assert settings.auto_backup_interval_minutes == 3
     assert settings.font_family == "Consolas"
     assert settings.font_size == 11
     assert settings.tab_width == 4
@@ -79,6 +80,7 @@ def test_save_and_load_settings(tmp_path) -> None:
         backup_folder="D:/backup",
         backup_retention_count=12,
         backup_retention_days=45,
+        auto_backup_interval_minutes=7,
         font_family="Meiryo",
         font_size=14,
         tab_width=8,
@@ -124,6 +126,7 @@ def test_save_and_load_settings(tmp_path) -> None:
     assert settings.backup_folder == "D:/backup"
     assert settings.backup_retention_count == 12
     assert settings.backup_retention_days == 45
+    assert settings.auto_backup_interval_minutes == 7
     assert settings.font_family == "Meiryo"
     assert settings.font_size == 14
     assert settings.tab_width == 8

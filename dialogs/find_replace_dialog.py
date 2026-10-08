@@ -300,6 +300,12 @@ class FindReplaceDialog(QDialog):
             ("regex.recipe.collapse_blank_lines", r"\n{3,}", "\n\n"),
             ("regex.recipe.trim_trailing_space", r"[ \t]+$", ""),
             ("regex.recipe.remove_blank_lines", r"^[ \t]*\n", ""),
+            ("regex.recipe.paragraph_boundary_to_breaks", r"</p>\r?\n<p>", "<br><br>\n"),
+            (
+                "regex.recipe.paragraph_boundary_to_breaks_spaces",
+                r"</p>[ \t]*\r?\n[ \t]*<p>",
+                "<br><br>\n",
+            ),
             ("regex.recipe.tabs_to_spaces", r"\t", "    "),
             ("regex.recipe.date_yyyy_mm_dd_to_slash", r"(\d{4})-(\d{2})-(\d{2})", r"\1/\2/\3"),
             ("regex.recipe.numbered_to_bullets", r"^\d+\.\s+", "- "),

@@ -25,7 +25,7 @@ def test_file_backup_manager_skips_missing_file(tmp_path) -> None:
     assert manager.backups_for_file(load_file_path) == []
 
 
-def test_file_backup_manager_keeps_retention_count_per_file(tmp_path) -> None:
+def test_file_backup_manager_keeps_only_latest_backup_per_file(tmp_path) -> None:
     first_file_path = tmp_path / "first.txt"
     second_file_path = tmp_path / "second.txt"
     manager = FileBackupManager(tmp_path / "backups")
@@ -39,8 +39,9 @@ def test_file_backup_manager_keeps_retention_count_per_file(tmp_path) -> None:
     first_backups = manager.backups_for_file(first_file_path)
     second_backups = manager.backups_for_file(second_file_path)
 
-    assert len(first_backups) == 20
+    assert len(first_backups) == 1
     assert first_backups[0].read_text(encoding="utf-8") == "first 24"
-    assert first_backups[-1].read_text(encoding="utf-8") == "first 5"
+    assert first_backups[0].name == "first.txt.latest.bak"
     assert len(second_backups) == 1
     assert second_backups[0].read_text(encoding="utf-8") == "second"
+    assert second_backups[0].name == "second.txt.latest.bak"

@@ -30,6 +30,7 @@ class EditorSettings:
     backup_folder: str = ""
     backup_retention_count: int = 20
     backup_retention_days: int = 30
+    auto_backup_interval_minutes: int = 3
     font_family: str = "Consolas"
     font_size: int = 11
     tab_width: int = 4
@@ -116,6 +117,9 @@ class SettingsManager:
             backup_retention_days=_setting_int_min(
                 load_data, "backup_retention_days", 30, minimum=1
             ),
+            auto_backup_interval_minutes=_setting_int_min(
+                load_data, "auto_backup_interval_minutes", 3, minimum=1
+            ),
             font_family=_setting_str(load_data, "font_family", "Consolas"),
             font_size=_setting_int_min(load_data, "font_size", 11, minimum=1),
             tab_width=_setting_int_min(load_data, "tab_width", 4, minimum=1),
@@ -185,6 +189,7 @@ class SettingsManager:
         backup_folder: str = "",
         backup_retention_count: int = 20,
         backup_retention_days: int = 30,
+        auto_backup_interval_minutes: int = 3,
         font_family: str = "Consolas",
         font_size: int = 11,
         tab_width: int = 4,
@@ -229,6 +234,7 @@ class SettingsManager:
             "backup_folder": backup_folder,
             "backup_retention_count": max(1, backup_retention_count),
             "backup_retention_days": max(1, backup_retention_days),
+            "auto_backup_interval_minutes": max(1, auto_backup_interval_minutes),
             "font_family": font_family,
             "font_size": font_size,
             "tab_width": max(1, tab_width),

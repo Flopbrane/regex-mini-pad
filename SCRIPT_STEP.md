@@ -2477,6 +2477,36 @@ Notes:
 - Automated validation after this change: `pytest` 309 passed, `ruff check .` passed, and `pyright` reported 0 errors.
 - Manual forced-restart acceptance on Windows remains to be performed.
 
+## Step13-section29 Emergency AutoSave and Regex Input Stability
+
+Date: 2026-10-08
+
+Emergency changes:
+
+- Added a 3-minute unsaved-session autosave timer.
+- Before risky operations that may discard or move editor state, the app now attempts to autosave modified tabs first.
+- If that autosave fails, the risky operation is cancelled and a critical message is shown.
+- Startup restore decline no longer deletes the pending unsaved-session file.
+- Empty-but-modified tabs are now included in the unsaved-session JSON.
+- Saved-file backups are now latest-only per source file, using `*.latest.bak`.
+- Added paragraph-boundary regex recipes for both LF and CRLF:
+  - `</p>\r?\n<p>` -> `<br><br>\n`
+  - `</p>[ \t]*\r?\n[ \t]*<p>` -> `<br><br>\n`
+- Stabilized the shared search/replace regex input widget by wrapping long text to the widget width and refreshing the viewport after selection/focus changes.
+
+Notes:
+
+- AutoSave and saved-file Backup remain separate mechanisms.
+- AutoSave is for unsaved editor-state recovery and must not overwrite original files.
+- Backup is for saved-file protection and now keeps only the latest backup file.
+- The search and replace inputs still use `QPlainTextEdit` so multiline regex input and syntax highlighting remain available.
+
+Validation:
+
+- `pytest`: 315 passed
+- `ruff check .`: All checks passed
+- `pyright`: 0 errors, 0 warnings, 0 informations
+
 ## Validation Commands
 
 Use the project virtual environment:
