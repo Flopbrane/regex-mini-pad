@@ -167,6 +167,17 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         self.highlighter.set_enabled(enabled)
         self._queue_visible_text_refresh()
 
+    def stabilize_visible_text(self) -> None:
+        """Refresh layout and keep the current text visible."""
+        self._refresh_visible_text()
+        self._queue_visible_text_refresh()
+
+    def select_all_and_stabilize_visible_text(self) -> None:
+        """Select all text and refresh layout after Qt updates the selection."""
+        self.selectAll()
+        self._refresh_visible_text()
+        self._queue_visible_text_refresh()
+
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         """Handle key press events, emitting returnPressed signal on Enter key."""
         if event.key() in {QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter} and not (
@@ -207,5 +218,7 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
 
     def _refresh_visible_text(self) -> None:
         """Keep the input text visible after selection, focus, and highlighter updates."""
+        self.ensureCursorVisible()
         self.horizontalScrollBar().setValue(0)
         self.viewport().update()
+        self.updateGeometry()

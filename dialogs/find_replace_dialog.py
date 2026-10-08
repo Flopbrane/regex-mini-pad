@@ -83,6 +83,7 @@ class FindReplaceDialog(QDialog):
         self._create_layout()
         self._create_regex_insert_menu()
         self._create_recipe_menu()
+        self._create_shortcuts()
         self._connect_signals()
         self.apply_language()
         self._update_regex_input_colors()
@@ -323,6 +324,30 @@ class FindReplaceDialog(QDialog):
             )
             recipe_menu.addAction(action)
         self.recipe_button.setMenu(recipe_menu)
+
+    def _create_shortcuts(self) -> None:
+        self.insert_br_action = QAction(self)
+        self.insert_br_action.setShortcut("F8")
+        self.insert_br_action.triggered.connect(
+            lambda: self._insert_text_into_focused_input("<br>")
+        )
+        self.addAction(self.insert_br_action)
+
+        self.insert_br_br_action = QAction(self)
+        self.insert_br_br_action.setShortcut("F9")
+        self.insert_br_br_action.triggered.connect(
+            lambda: self._insert_text_into_focused_input("<br><br>")
+        )
+        self.addAction(self.insert_br_br_action)
+
+    def _insert_text_into_focused_input(self, text: str) -> None:
+        focused_widget = self.focusWidget()
+        if focused_widget is self.replace_text_edit:
+            self.replace_text_edit.insert(text)
+            self.replace_text_edit.setFocus()
+            return
+        self.find_text_edit.insert(text)
+        self.find_text_edit.setFocus()
 
     def _connect_signals(self) -> None:
         self.find_button.clicked.connect(self._emit_find_requested)

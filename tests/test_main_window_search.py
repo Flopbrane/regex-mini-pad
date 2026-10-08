@@ -7,11 +7,19 @@ from pathlib import Path
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from main import MainWindow
 from search.search_engine import SearchOptions
+
+
+def _process_delayed_ui_events(delay_ms: int = 75) -> None:
+    loop = QEventLoop()
+    QTimer.singleShot(delay_ms, loop.quit)
+    loop.exec()
+    QApplication.processEvents()
 
 
 @pytest.fixture(scope="session")
@@ -69,12 +77,16 @@ def test_replace_all_returns_focus_to_find_text(
     )
 
     window.find_replace_dialog.replace_all_button.click()
-    QApplication.processEvents()
+    _process_delayed_ui_events()
 
     assert window.editor.toPlainText() == "done done"
     assert window.find_replace_dialog.find_text_edit.hasFocus()
+    assert window.find_replace_dialog.find_text_edit.text() == "target"
     assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
         "target"
+    )
+    assert window.find_replace_dialog.replace_text_edit.textCursor().selectedText() == (
+        "done"
     )
 
 
@@ -92,12 +104,16 @@ def test_replace_current_returns_focus_to_find_text(
 
     window.find_replace_dialog.find_next_button.click()
     window.find_replace_dialog.replace_button.click()
-    QApplication.processEvents()
+    _process_delayed_ui_events()
 
     assert window.editor.toPlainText() == "done target"
     assert window.find_replace_dialog.find_text_edit.hasFocus()
+    assert window.find_replace_dialog.find_text_edit.text() == "target"
     assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
         "target"
+    )
+    assert window.find_replace_dialog.replace_text_edit.textCursor().selectedText() == (
+        "done"
     )
 
 
@@ -115,12 +131,16 @@ def test_replace_marked_returns_focus_to_find_text(
     window.update_search_highlights("target", SearchOptions())
 
     window.find_replace_dialog.replace_marked_button.click()
-    QApplication.processEvents()
+    _process_delayed_ui_events()
 
     assert window.editor.toPlainText() == "done keep done"
     assert window.find_replace_dialog.find_text_edit.hasFocus()
+    assert window.find_replace_dialog.find_text_edit.text() == "target"
     assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
         "target"
+    )
+    assert window.find_replace_dialog.replace_text_edit.textCursor().selectedText() == (
+        "done"
     )
 
 

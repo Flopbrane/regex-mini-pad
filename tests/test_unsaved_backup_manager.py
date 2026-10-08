@@ -68,6 +68,37 @@ def test_unsaved_backup_manager_saves_and_loads_session(tmp_path: Path) -> None:
     assert session.tabs[1].save_file_path is None
 
 
+def test_unsaved_backup_manager_saves_history_snapshot(tmp_path: Path) -> None:
+    manager = UnsavedBackupManager(tmp_path / "autosave" / "unsaved_backup.json")
+    session = UnsavedBackupSession(
+        tabs=[UnsavedBackup(text="history draft", encoding="utf-8")],
+    )
+
+    snapshot_path = manager.save_history_snapshot(session)
+    snapshots = manager.history_snapshots()
+
+    assert snapshot_path is not None
+    assert snapshot_path.exists()
+    assert snapshots == [snapshot_path]
+    load_data = snapshot_path.read_text(encoding="utf-8")
+    assert "history draft" in load_data
+
+
+def test_unsaved_backup_manager_loads_history_snapshot_session(tmp_path: Path) -> None:
+    manager = UnsavedBackupManager(tmp_path / "autosave" / "unsaved_backup.json")
+    snapshot_path = manager.save_history_snapshot(
+        UnsavedBackupSession(
+            tabs=[UnsavedBackup(text="restorable history", encoding="utf-8")],
+        )
+    )
+
+    assert snapshot_path is not None
+    session = manager.load_session_from_path(snapshot_path)
+
+    assert session is not None
+    assert [tab.text for tab in session.tabs] == ["restorable history"]
+
+
 def test_unsaved_backup_manager_clears_backup(tmp_path: Path) -> None:
     backup_path = tmp_path / "autosave" / "unsaved_backup.json"
     manager = UnsavedBackupManager(backup_path)

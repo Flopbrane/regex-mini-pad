@@ -179,7 +179,7 @@ class MainWindow(QMainWindow):
         self.search_highlight_timer.timeout.connect(self._run_pending_search_highlight)
         self.pending_search_highlight: tuple[str, SearchOptions] | None = None
         self.auto_save_timer = QTimer(self)
-        self.auto_save_timer.timeout.connect(self._save_unsaved_backup)
+        self.auto_save_timer.timeout.connect(self._save_unsaved_backup_snapshot)
         self.current_save_file_path: Path | None = None
         self.default_encoding = settings.default_encoding
         self.current_encoding = settings.default_encoding
@@ -2179,17 +2179,46 @@ class MainWindow(QMainWindow):
         return True
 
     def restore_file_backup(self) -> None:
-        """Load a saved-file backup into the current editor as an unsaved change."""
-        if self.current_save_file_path is None:
-            QMessageBox.information(
-                self,
-                self.translator.text("dialog.file_backup_restore.title"),
-                self.translator.text("dialog.file_backup_restore.no_file"),
-            )
-            return
+        """Restore a saved-file backup or unsaved auto-backup snapshot."""
+        restore_choices: list[tuple[str, Path, str]] = []
+        if self.current_save_file_path is not None:
+            for backup_path in self.file_backup_manager.backups_for_file(
+                self.current_save_file_path
+            ):
+                restore_choices.append(
+                    (
+                        "file",
+                        backup_path,
+                        self._file_backup_label(backup_path),
+                    )
+                )
 
-        backups = self.file_backup_manager.backups_for_file(self.current_save_file_path)
-        if not backups:
+        if self.unsaved_backup_enabled:
+            if self.unsaved_backup_manager.load_session() is not None:
+                restore_choices.append(
+                    (
+                        "unsaved",
+                        self.unsaved_backup_manager.backup_path,
+                        self._unsaved_backup_label(
+                            self.unsaved_backup_manager.backup_path,
+                            "dialog.file_backup_restore.unsaved_latest_item",
+                        ),
+                    )
+                )
+            for snapshot_path in self.unsaved_backup_manager.history_snapshots():
+                if self.unsaved_backup_manager.load_session_from_path(snapshot_path):
+                    restore_choices.append(
+                        (
+                            "unsaved",
+                            snapshot_path,
+                            self._unsaved_backup_label(
+                                snapshot_path,
+                                "dialog.file_backup_restore.unsaved_history_item",
+                            ),
+                        )
+                    )
+
+        if not restore_choices:
             QMessageBox.information(
                 self,
                 self.translator.text("dialog.file_backup_restore.title"),
@@ -2197,7 +2226,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        backup_labels = [self._file_backup_label(backup_path) for backup_path in backups]
+        backup_labels = [label for _kind, _path, label in restore_choices]
         selected_label, accepted = QInputDialog.getItem(
             self,
             self.translator.text("dialog.file_backup_restore.title"),
@@ -2209,11 +2238,31 @@ class MainWindow(QMainWindow):
         if not accepted:
             return
         try:
-            backup_path = backups[backup_labels.index(selected_label)]
+            backup_kind, backup_path, _label = restore_choices[
+                backup_labels.index(selected_label)
+            ]
         except ValueError:
             return
 
         if not self._confirm_discard_changes():
+            return
+
+        if backup_kind == "unsaved":
+            session = self.unsaved_backup_manager.load_session_from_path(backup_path)
+            if session is None:
+                QMessageBox.critical(
+                    self,
+                    self.translator.text("dialog.file_backup_restore.failed_title"),
+                    self.translator.text(
+                        "dialog.file_backup_restore.unsaved_failed"
+                    ),
+                )
+                return
+            self._restore_unsaved_backup_session(session)
+            self._save_unsaved_backup_snapshot()
+            self.statusBar().showMessage(
+                self.translator.text("dialog.file_backup_restore.restored_unsaved")
+            )
             return
 
         try:
@@ -2253,11 +2302,23 @@ class MainWindow(QMainWindow):
             name=backup_path.name,
         )
 
+    def _unsaved_backup_label(self, backup_path: Path, label_key: str) -> str:
+        """Return a user-facing label for an unsaved auto-backup snapshot."""
+        modified_at = datetime.fromtimestamp(
+            backup_path.stat().st_mtime,
+            timezone.utc,
+        ).astimezone()
+        return self.translator.text(
+            label_key,
+            timestamp=modified_at.strftime("%Y-%m-%d %H:%M:%S"),
+            name=backup_path.name,
+        )
+
     def _autosave_before_risky_operation(self) -> bool:
         """Autosave modified tabs before an operation that may discard editor state."""
         if not self._has_modified_tabs():
             return True
-        if self._save_unsaved_backup():
+        if self._save_unsaved_backup_snapshot():
             return True
         QMessageBox.critical(
             self,
@@ -2278,6 +2339,26 @@ class MainWindow(QMainWindow):
         """Save a restorable session of all modified editor tabs."""
         if not self.unsaved_backup_enabled or self.restoring_unsaved_backup:
             return True
+        session = self._build_unsaved_backup_session()
+        if session is None:
+            self._clear_unsaved_backup()
+            return True
+        return self.unsaved_backup_manager.save_session(session)
+
+    def _save_unsaved_backup_snapshot(self) -> bool:
+        """Save the latest unsaved backup and an additional history snapshot."""
+        if not self.unsaved_backup_enabled or self.restoring_unsaved_backup:
+            return True
+        session = self._build_unsaved_backup_session()
+        if session is None:
+            self._clear_unsaved_backup()
+            return True
+        if not self.unsaved_backup_manager.save_session(session):
+            return False
+        return self.unsaved_backup_manager.save_history_snapshot(session) is not None
+
+    def _build_unsaved_backup_session(self) -> UnsavedBackupSession | None:
+        """Build a restorable session for all modified editor tabs."""
         tabs: list[UnsavedBackup] = []
         current_backup_index = 0
         current_editor = self._current_editor()
@@ -2297,14 +2378,11 @@ class MainWindow(QMainWindow):
             )
 
         if not tabs:
-            self._clear_unsaved_backup()
-            return True
+            return None
 
-        return self.unsaved_backup_manager.save_session(
-            UnsavedBackupSession(
-                tabs=tabs,
-                current_index=current_backup_index,
-            )
+        return UnsavedBackupSession(
+            tabs=tabs,
+            current_index=current_backup_index,
         )
 
     def _restore_unsaved_backup_if_available(self) -> None:
@@ -2325,6 +2403,10 @@ class MainWindow(QMainWindow):
         if result != QMessageBox.StandardButton.Yes:
             return
 
+        self._restore_unsaved_backup_session(session)
+
+    def _restore_unsaved_backup_session(self, session: UnsavedBackupSession) -> None:
+        """Restore an unsaved backup session into editor tabs."""
         self.restoring_unsaved_backup = True
         try:
             while self.tab_widget.count():
@@ -2797,6 +2879,7 @@ class MainWindow(QMainWindow):
 
     def _focus_find_text_after_replace_all(self) -> None:
         QTimer.singleShot(0, self._focus_find_text_after_replace_all_now)
+        QTimer.singleShot(50, self._focus_find_text_after_replace_all_now)
 
     def _focus_find_text_after_replace_all_now(self) -> None:
         if self.find_replace_dialog is None or not self.find_replace_dialog.isVisible():
@@ -2804,8 +2887,9 @@ class MainWindow(QMainWindow):
         self.find_replace_dialog.show()
         self.find_replace_dialog.raise_()
         self.find_replace_dialog.activateWindow()
+        self.find_replace_dialog.replace_text_edit.select_all_and_stabilize_visible_text()
         self.find_replace_dialog.find_text_edit.setFocus()
-        self.find_replace_dialog.find_text_edit.selectAll()
+        self.find_replace_dialog.find_text_edit.select_all_and_stabilize_visible_text()
 
     def update_search_highlights(
         self,

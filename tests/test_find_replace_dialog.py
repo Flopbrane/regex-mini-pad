@@ -259,6 +259,23 @@ def test_regex_snippet_insert_enables_regex_mode_and_places_cursor(
     assert dialog.find_text_edit.cursorPosition() == 8
 
 
+def test_line_break_shortcuts_insert_into_focused_find_replace_input(
+    app: QApplication,
+) -> None:
+    _ = app
+    dialog = FindReplaceDialog(Translator(Path("resources"), "en"))
+
+    dialog.find_text_edit.setFocus()
+    dialog.insert_br_action.trigger()
+    dialog.replace_text_edit.setFocus()
+    dialog.insert_br_br_action.trigger()
+
+    assert dialog.insert_br_action.shortcut().toString() == "F8"
+    assert dialog.insert_br_br_action.shortcut().toString() == "F9"
+    assert dialog.find_text_edit.text() == "<br>"
+    assert dialog.replace_text_edit.text() == "<br><br>"
+
+
 def test_regex_insert_menu_is_grouped(app: QApplication) -> None:
     _ = app
     translator = Translator(Path("resources"), "en")

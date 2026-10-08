@@ -58,8 +58,9 @@ def test_replace_all_then_second_regex_input_keeps_display_and_regex_colors(
     assert dialog.find_text_edit.hasFocus()
     assert dialog.find_text_edit.text() == r"line-(\d+)"
     assert dialog.find_text_edit.textCursor().selectedText() == r"line-(\d+)"
+    assert dialog.replace_text_edit.textCursor().selectedText() == r"item-\1"
 
-    dialog.find_text_edit.insert(r"\nitem-\d+")
+    dialog.find_text_edit.setText(r"\nitem-\d+")
 
     assert dialog.find_text_edit.text() == r"\nitem-\d+"
 

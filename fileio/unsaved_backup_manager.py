@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +22,8 @@ class UnsavedBackupSession:
 
 
 class UnsavedBackupManager:
+    HISTORY_RETENTION_COUNT = 50
+
     def __init__(self, backup_path: Path) -> None:
         self.backup_path = backup_path
 
@@ -31,12 +34,15 @@ class UnsavedBackupManager:
         return session.tabs[min(max(session.current_index, 0), len(session.tabs) - 1)]
 
     def load_session(self) -> UnsavedBackupSession | None:
-        if not self.backup_path.exists():
+        return self.load_session_from_path(self.backup_path)
+
+    def load_session_from_path(self, load_file_path: Path) -> UnsavedBackupSession | None:
+        if not load_file_path.exists():
             return None
 
         try:
             load_data: dict[str, Any] = json.loads(
-                self.backup_path.read_text(encoding="utf-8")
+                load_file_path.read_text(encoding="utf-8")
             )
         except (OSError, json.JSONDecodeError):
             return None
@@ -82,6 +88,35 @@ class UnsavedBackupManager:
         return self.save_session(UnsavedBackupSession(tabs=[backup]))
 
     def save_session(self, session: UnsavedBackupSession) -> bool:
+        return self._write_session(self.backup_path, session)
+
+    def save_history_snapshot(self, session: UnsavedBackupSession) -> Path | None:
+        if not session.tabs:
+            return None
+
+        history_folder = self.backup_path.parent / "history"
+        timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
+        snapshot_path = history_folder / f"unsaved_backup-{timestamp}.json"
+        if not self._write_session(snapshot_path, session):
+            return None
+        self._prune_history(history_folder)
+        return snapshot_path
+
+    def history_snapshots(self) -> list[Path]:
+        history_folder = self.backup_path.parent / "history"
+        if not history_folder.exists():
+            return []
+        return sorted(
+            (item for item in history_folder.iterdir() if item.is_file()),
+            key=lambda item: item.name,
+            reverse=True,
+        )
+
+    def _write_session(
+        self,
+        save_file_path: Path,
+        session: UnsavedBackupSession,
+    ) -> bool:
         tabs = session.tabs
         if not tabs:
             self.clear()
@@ -89,7 +124,7 @@ class UnsavedBackupManager:
 
         temporary_file_path: Path | None = None
         try:
-            self.backup_path.parent.mkdir(parents=True, exist_ok=True)
+            save_file_path.parent.mkdir(parents=True, exist_ok=True)
             save_data = {
                 "version": 2,
                 "current_index": min(max(session.current_index, 0), len(tabs) - 1),
@@ -109,19 +144,27 @@ class UnsavedBackupManager:
             with tempfile.NamedTemporaryFile(
                 "w",
                 encoding="utf-8",
-                dir=self.backup_path.parent,
+                dir=save_file_path.parent,
                 delete=False,
             ) as temporary_file:
                 json.dump(save_data, temporary_file, ensure_ascii=False, indent=2)
                 temporary_file.flush()
                 temporary_file_path = Path(temporary_file.name)
 
-            temporary_file_path.replace(self.backup_path)
+            temporary_file_path.replace(save_file_path)
         except OSError:
             if temporary_file_path is not None:
                 temporary_file_path.unlink(missing_ok=True)
             return False
         return True
+
+    def _prune_history(self, history_folder: Path) -> None:
+        snapshots = self.history_snapshots()
+        for snapshot_path in snapshots[self.HISTORY_RETENTION_COUNT :]:
+            try:
+                snapshot_path.unlink(missing_ok=True)
+            except OSError:
+                continue
 
     def clear(self) -> None:
         try:

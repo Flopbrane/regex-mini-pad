@@ -243,6 +243,30 @@ def test_main_window_saves_empty_modified_tab_to_unsaved_session(
     assert [tab.text for tab in session.tabs] == [""]
 
 
+def test_main_window_saves_history_snapshot_for_timed_auto_backup(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    backup_path = tmp_path / "autosave" / "unsaved_backup.json"
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=backup_path,
+    )
+    window.editor.setPlainText("snapshot draft")
+    window.editor.document().setModified(True)
+
+    assert window._save_unsaved_backup_snapshot()
+    manager = UnsavedBackupManager(backup_path)
+    latest_session = manager.load_session()
+    snapshots = manager.history_snapshots()
+
+    assert latest_session is not None
+    assert [tab.text for tab in latest_session.tabs] == ["snapshot draft"]
+    assert len(snapshots) == 1
+    assert "snapshot draft" in snapshots[0].read_text(encoding="utf-8")
+
+
 def test_main_window_cancels_close_tab_when_autosave_fails_before_confirmation(
     app: QApplication,
     tmp_path: Path,
@@ -532,3 +556,54 @@ def test_main_window_autosaves_modified_text_before_file_backup_restore(
     assert saved_sessions[-1] == ["backup text"]
     assert window.editor.toPlainText() == "backup text"
     assert window.editor.document().isModified()
+
+
+def test_main_window_restores_unsaved_backup_history_from_restore_menu(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    backup_path = tmp_path / "autosave" / "unsaved_backup.json"
+    manager = UnsavedBackupManager(backup_path)
+    manager.save_history_snapshot(
+        UnsavedBackupSession(
+            tabs=[
+                UnsavedBackup(text="first recovered draft", encoding="utf-8"),
+                UnsavedBackup(text="second recovered draft", encoding="cp932"),
+            ],
+            current_index=1,
+        )
+    )
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=backup_path,
+        restore_unsaved_backup=False,
+    )
+    window.editor.setPlainText("current risky draft")
+    window.editor.document().setModified(True)
+
+    def select_history_backup(*args, **kwargs) -> tuple[str, bool]:
+        labels = args[3]
+        history_label = next(
+            label for label in labels if "history" in label.lower() or "履歴" in label
+        )
+        return history_label, True
+
+    monkeypatch.setattr(QInputDialog, "getItem", select_history_backup)
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: pytest.fail("unsaved prompt should not open"),
+    )
+
+    window.restore_file_backup()
+    first_editor = window._editor_at(0)
+    second_editor = window._editor_at(1)
+
+    assert first_editor is not None
+    assert second_editor is not None
+    assert first_editor.toPlainText() == "first recovered draft"
+    assert second_editor.toPlainText() == "second recovered draft"
+    assert window.tab_widget.currentIndex() == 1
+    assert window.current_encoding == "cp932"
