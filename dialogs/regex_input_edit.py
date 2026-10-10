@@ -14,6 +14,8 @@ class RegexInputHighlighter(QtGui.QSyntaxHighlighter):
     def __init__(self, document: QtGui.QTextDocument) -> None:
         super().__init__(document)
         self.enabled = False
+        self.normal_format = QtGui.QTextCharFormat()
+        self._normal_foreground_color = QtGui.QColor()
         self.regex_format = QtGui.QTextCharFormat()
         self.regex_format.setForeground(REGEX_TOKEN_COLOR)
 
@@ -22,11 +24,21 @@ class RegexInputHighlighter(QtGui.QSyntaxHighlighter):
         self.enabled = enabled
         self.rehighlight()
 
+    def set_normal_foreground(self, color: QtGui.QColor) -> None:
+        """Set the foreground color used for non-highlighted regex text."""
+        if color == self._normal_foreground_color:
+            return
+        self._normal_foreground_color = QtGui.QColor(color)
+        self.normal_format.setForeground(color)
+        self.rehighlight()
+
     def highlightBlock(self, text: str) -> None:
         """Highlight regex tokens in the given text block."""
         if not self.enabled:
             return
 
+        if text:
+            self.setFormat(0, len(text), self.normal_format)
         for start, length in self._regex_token_ranges(text):
             self.setFormat(start, length, self.regex_format)
 
@@ -106,6 +118,9 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
             QtWidgets.QSizePolicy.Policy.Expanding,
         )
         self.highlighter = RegexInputHighlighter(self.document())
+        self._visible_text_refresh_queued = False
+        self._preserve_full_selection_on_focus_out = False
+        self._update_highlighter_text_color()
 
     def sizeHint(self) -> QtCore.QSize:
         """Return the preferred size of the widget, with a single line height."""
@@ -164,6 +179,7 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
 
     def set_regex_highlighting_enabled(self, enabled: bool) -> None:
         """Enable or disable regex highlighting."""
+        self._update_highlighter_text_color()
         self.highlighter.set_enabled(enabled)
         self._queue_visible_text_refresh()
 
@@ -174,7 +190,9 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
 
     def select_all_and_stabilize_visible_text(self) -> None:
         """Select all text and refresh layout after Qt updates the selection."""
+        self._preserve_full_selection_on_focus_out = True
         self.selectAll()
+        self.highlighter.rehighlight()
         self._refresh_visible_text()
         self._queue_visible_text_refresh()
 
@@ -192,6 +210,7 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
     def focusInEvent(self, event: QtGui.QFocusEvent) -> None:
         """Refresh the visible text when the editor regains focus."""
         super().focusInEvent(event)
+        self._update_highlighter_text_color()
         self._queue_visible_text_refresh()
 
     def focusOutEvent(self, event: QtGui.QFocusEvent) -> None:
@@ -199,12 +218,14 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         super().focusOutEvent(event)
         cursor = self.textCursor()
         if (
-            cursor.hasSelection()
+            not self._preserve_full_selection_on_focus_out
+            and cursor.hasSelection()
             and cursor.selectionStart() == 0
             and cursor.selectionEnd() == len(self.toPlainText())
         ):
             cursor.setPosition(cursor.selectionEnd())
             self.setTextCursor(cursor)
+        self._preserve_full_selection_on_focus_out = False
         self._queue_visible_text_refresh()
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
@@ -214,11 +235,28 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
 
     def _queue_visible_text_refresh(self) -> None:
         """Queue a viewport refresh after Qt finishes cursor, selection, and layout updates."""
+        if self._visible_text_refresh_queued:
+            return
+        self._visible_text_refresh_queued = True
         QtCore.QTimer.singleShot(0, self._refresh_visible_text)
 
     def _refresh_visible_text(self) -> None:
         """Keep the input text visible after selection, focus, and highlighter updates."""
+        self._visible_text_refresh_queued = False
         self.ensureCursorVisible()
         self.horizontalScrollBar().setValue(0)
         self.viewport().update()
         self.updateGeometry()
+
+    def _update_highlighter_text_color(self) -> None:
+        """Keep non-regex text readable when syntax highlighting is enabled."""
+        palette = self.palette()
+        text_color = palette.color(QtGui.QPalette.ColorRole.Text)
+        base_color = palette.color(QtGui.QPalette.ColorRole.Base)
+        if text_color == base_color:
+            text_color = (
+                QtGui.QColor("#202124")
+                if base_color.lightness() > 127
+                else QtGui.QColor("#f8f9fa")
+            )
+        self.highlighter.set_normal_foreground(text_color)

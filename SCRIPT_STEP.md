@@ -2507,6 +2507,50 @@ Validation:
 - `ruff check .`: All checks passed
 - `pyright`: 0 errors, 0 warnings, 0 informations
 
+## Step13-section30 Decorative Separator and Find/Replace Display Follow-Up
+
+Date: 2026-10-09
+
+Changes:
+
+- Added a WordPress HTML snippet named `装飾区切り線` / `Decorative separator`.
+- Placed the new snippet in WordPress `レイアウト` / `Layout`.
+- Implemented it as a single `wp:html` block rather than a `wp:separator` block.
+- The inserted HTML exposes editable CSS custom properties for:
+  - line style: `--separator-line-style`
+  - thickness: `--separator-thickness`
+  - single color: `--separator-color`
+  - gradient: `--separator-gradient`
+- Added structured dictionary parameters for the same four values so a future parameter-input UI can reuse the metadata.
+- Added JA/EN labels, hints, and parameter descriptions.
+- Included the snippet in Normal, Business, and High-security WordPress modes.
+- Added regression coverage for dictionary loading, category placement, mode placement, parameter metadata, and inserted HTML structure.
+
+Find/Replace window follow-up:
+
+- The Find/Replace inputs still use `RegexInputEdit` (`QPlainTextEdit`) for multiline regex input and syntax highlighting.
+- Real GUI behavior showed that, after replacement, the search/replacement text could appear blank even though the stored text remained intact.
+- Manual dragging/selecting the text made the content visible again, suggesting a Qt layout/paint/selection refresh issue rather than data loss.
+- The current mitigation selects all text in both the search box and replacement box after replacement, then refreshes the viewport.
+- The focus restoration is run twice with `QTimer.singleShot(0, ...)` and `QTimer.singleShot(50, ...)` to cover delayed Qt repaint/layout timing.
+
+Future Find/Replace countermeasures:
+
+- Manually verify the built EXE on Windows, not only offscreen pytest, because this issue is visual and timing-sensitive.
+- Test Replace, Replace All, and Replace Marked with both short and long regex strings.
+- Test moving focus between search box, replacement box, preview table, and main editor after replacement.
+- Confirm both `.text()` and visible rendering remain correct after each operation.
+- If the visual disappearance still occurs, consider replacing `RegexInputEdit` (`QPlainTextEdit`) with a custom single/multiline input wrapper that uses `QLineEdit` for one-line patterns and opens a larger editor only on demand.
+- If keeping `QPlainTextEdit`, consider an explicit `repolish` helper that temporarily toggles focus or selection state in a controlled way after replacement.
+- Avoid changes that silently rewrite search or replacement text; display fixes must not mutate the actual pattern.
+
+Validation:
+
+- `json.tool`: `dictionaries/wordpress_html_dict.json`, `resources/app_text_ja.json`, and `resources/app_text_en.json` passed.
+- `pytest`: 322 passed.
+- `ruff check .`: All checks passed.
+- `pyright`: 0 errors, 0 warnings, 0 informations.
+
 ## Validation Commands
 
 Use the project virtual environment:
