@@ -1,20 +1,20 @@
-# pylint: disable=C0114,C0115,C0116
+# pylint: disable=C0114,C0115,C0116,C0301
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 from html import escape
 
-PARAGRAPH_BLOCK_PATTERN = re.compile(
+PARAGRAPH_BLOCK_PATTERN: re.Pattern[str] = re.compile(
     r"<!--\s+wp:paragraph\s+-->(.*?)<!--\s+/wp:paragraph\s+-->",
     re.DOTALL | re.IGNORECASE,
 )
-PARAGRAPH_TAG_PATTERN = re.compile(
+PARAGRAPH_TAG_PATTERN: re.Pattern[str] = re.compile(
     r"<p\b[^>]*>(.*?)</p>",
     re.DOTALL | re.IGNORECASE,
 )
-LEADING_BREAK_PATTERN = re.compile(r"^(?:\s*<br\s*/?>\s*)+", re.IGNORECASE)
-TRAILING_BREAK_PATTERN = re.compile(r"(?:\s*<br\s*/?>\s*)+$", re.IGNORECASE)
+LEADING_BREAK_PATTERN: re.Pattern[str] = re.compile(r"^(?:\s*<br\s*/?>\s*)+", re.IGNORECASE)
+TRAILING_BREAK_PATTERN: re.Pattern[str] = re.compile(r"(?:\s*<br\s*/?>\s*)+$", re.IGNORECASE)
 
 
 class ParagraphSplitError(ValueError):
@@ -23,6 +23,7 @@ class ParagraphSplitError(ValueError):
 
 @dataclass(frozen=True)
 class ParagraphBlock:
+    """Represents a WordPress paragraph block in the text."""
     block_start: int
     block_end: int
     content_start: int
@@ -31,12 +32,14 @@ class ParagraphBlock:
 
 @dataclass(frozen=True)
 class ParagraphReplacement:
+    """Represents the result of a paragraph replacement operation."""
     text: str
     cursor_position: int
 
 
 @dataclass(frozen=True)
 class _BuiltBlock:
+    """Represents a built block with text and cursor offset."""
     text: str
     cursor_offset: int
 
@@ -75,6 +78,7 @@ def build_paragraph_block(content: str) -> str:
 
 
 def build_spacer_block(height: int = 32) -> str:
+    """Build a WordPress spacer block with the specified height."""
     return (
         f'<!-- wp:spacer {{"height":"{height}px"}} -->\n'
         f'<div style="height:{height}px" aria-hidden="true" '
@@ -84,6 +88,7 @@ def build_spacer_block(height: int = 32) -> str:
 
 
 def build_html_code_block(content: str = "") -> str:
+    """Build a WordPress HTML code block with the specified content."""
     escaped_content = escape(_code_text_from_paragraph_content(content), quote=False)
     code_text = escaped_content if escaped_content else "\n"
     block_text = (
@@ -99,6 +104,7 @@ def build_html_code_block(content: str = "") -> str:
 
 
 def build_decorated_block(content: str = "") -> str:
+    """Build a WordPress HTML block with the specified content, decorated."""
     body = _decorated_text_from_paragraph_content(content)
     if not body:
         body = "ここに本文を入れます。"
@@ -115,7 +121,10 @@ def build_decorated_block(content: str = "") -> str:
 
 
 def split_paragraph_insert_spacer(text: str, cursor_pos: int) -> ParagraphReplacement:
-    block = _paragraph_block_for_range(text, cursor_pos, cursor_pos)
+    """Insert a spacer block at the cursor position, splitting the current paragraph."""
+    block: ParagraphBlock = _paragraph_block_for_range(text, cursor_pos, cursor_pos)
+    start: int
+    end: int
     start, end = _blank_line_range_at_cursor(text, block, cursor_pos)
     return _replace_current_paragraph_selection(
         text,
@@ -126,12 +135,17 @@ def split_paragraph_insert_spacer(text: str, cursor_pos: int) -> ParagraphReplac
 
 
 def split_paragraph_insert_html(text: str, cursor_pos: int) -> ParagraphReplacement:
-    html_block = build_html_code_block()
-    cursor_offset = html_block.index("<code>\n") + len("<code>\n")
+    """Insert an HTML code block at the cursor position, splitting the current paragraph."""
+    block: ParagraphBlock = _paragraph_block_for_range(text, cursor_pos, cursor_pos)
+    start: int
+    end: int
+    start, end = _blank_line_range_at_cursor(text, block, cursor_pos)
+    html_block: str = build_html_code_block()
+    cursor_offset: int = html_block.index("<code>\n") + len("<code>\n")
     return _replace_current_paragraph_selection(
         text,
-        cursor_pos,
-        cursor_pos,
+        start,
+        end,
         _BuiltBlock(html_block, cursor_offset),
     )
 
@@ -141,6 +155,7 @@ def wrap_selection_as_code_block(
     selection_start: int,
     selection_end: int,
 ) -> ParagraphReplacement:
+    """Wrap the selected text as a WordPress HTML code block, replacing the current paragraph selection."""
     selection_start, selection_end = _expand_selection_to_content_lines(
         text,
         selection_start,
@@ -162,6 +177,7 @@ def wrap_selection_as_decorated_block(
     selection_start: int,
     selection_end: int,
 ) -> ParagraphReplacement:
+    """Wrap the selected text as a WordPress HTML decorated block, replacing the current paragraph selection."""
     selection_start, selection_end = _expand_selection_to_content_lines(
         text,
         selection_start,
@@ -184,19 +200,22 @@ def _replace_current_paragraph_selection(
     selection_end: int,
     inserted_block: _BuiltBlock,
 ) -> ParagraphReplacement:
-    start = min(selection_start, selection_end)
-    end = max(selection_start, selection_end)
-    block = _paragraph_block_for_range(text, start, end)
-    before_content = text[block.content_start:start]
-    after_content = text[end:block.content_end]
-    before_block = build_paragraph_block(before_content)
-    after_block = build_paragraph_block(after_content)
+    """Replace the current paragraph selection with the inserted block, returning the new text and cursor position."""
+    start: int = min(selection_start, selection_end)
+    end: int = max(selection_start, selection_end)
+    block: ParagraphBlock = _paragraph_block_for_range(text, start, end)
+    before_content: str = text[block.content_start:start]
+    after_content: str = text[end:block.content_end]
+    before_block: str = build_paragraph_block(before_content)
+    after_block: str = build_paragraph_block(after_content)
+    replacement_text: str
+    cursor_offset: int
     replacement_text, cursor_offset = _join_split_blocks(
         before_block,
         inserted_block,
         after_block,
     )
-    new_text = text[: block.block_start] + replacement_text + text[block.block_end :]
+    new_text: str = text[: block.block_start] + replacement_text + text[block.block_end :]
     return ParagraphReplacement(
         text=new_text,
         cursor_position=block.block_start + cursor_offset,
@@ -204,12 +223,13 @@ def _replace_current_paragraph_selection(
 
 
 def _paragraph_block_for_range(text: str, start: int, end: int) -> ParagraphBlock:
-    block = find_current_paragraph_block(text, start)
+    """Return the wp:paragraph block containing the range [start, end), or raise an error if not valid."""
+    block: ParagraphBlock | None = find_current_paragraph_block(text, start)
     if block is None:
         raise ParagraphSplitError("現在の位置では段落分割できません。")
 
-    check_pos = max(start, end - 1)
-    end_block = find_current_paragraph_block(text, check_pos)
+    check_pos: int = max(start, end - 1)
+    end_block: ParagraphBlock | None = find_current_paragraph_block(text, check_pos)
     if end_block != block:
         raise ParagraphSplitError(
             "選択範囲が複数ブロックにまたがっているため、処理を中止しました。"
@@ -225,6 +245,7 @@ def _blank_line_range_at_cursor(
     block: ParagraphBlock,
     cursor_pos: int,
 ) -> tuple[int, int]:
+    """Return the range of the blank line at the cursor position within the paragraph block, or raise an error if not valid."""
     content = text[block.content_start : block.content_end]
     relative_pos = min(max(cursor_pos - block.content_start, 0), len(content))
     line_start = content.rfind("\n", 0, relative_pos) + 1
@@ -244,12 +265,13 @@ def _expand_selection_to_content_lines(
     selection_start: int,
     selection_end: int,
 ) -> tuple[int, int]:
+    """Expand the selection to include entire lines of content within the paragraph block."""
     start = min(selection_start, selection_end)
     end = max(selection_start, selection_end)
     if start == end:
         return start, end
 
-    block = _paragraph_block_for_range(text, start, end)
+    block: ParagraphBlock = _paragraph_block_for_range(text, start, end)
     content = text[block.content_start : block.content_end]
     relative_start = start - block.content_start
     relative_end = end - block.content_start
@@ -266,6 +288,7 @@ def _join_split_blocks(
     inserted_block: _BuiltBlock,
     after_block: str,
 ) -> tuple[str, int]:
+    """Join the before, inserted, and after blocks into a single replacement text, returning the new text and cursor offset."""
     pieces: list[tuple[str, int | None]] = []
     if before_block:
         pieces.append((before_block, None))
@@ -285,12 +308,14 @@ def _join_split_blocks(
 
 
 def _selected_text(text: str, selection_start: int, selection_end: int) -> str:
+    """Return the text within the specified selection range."""
     start = min(selection_start, selection_end)
     end = max(selection_start, selection_end)
     return text[start:end]
 
 
 def _clean_paragraph_edge_breaks(content: str) -> str:
+    """Remove leading and trailing <br> tags from the paragraph content."""
     clean_content = content.strip()
     previous = None
     while clean_content != previous:
@@ -301,11 +326,13 @@ def _clean_paragraph_edge_breaks(content: str) -> str:
 
 
 def _code_text_from_paragraph_content(content: str) -> str:
+    """Extract the code text from the paragraph content, replacing <br> tags with newlines."""
     clean_content = _clean_paragraph_edge_breaks(content)
     return re.sub(r"\s*<br\s*/?>\s*", "\n", clean_content, flags=re.IGNORECASE).strip()
 
 
 def _decorated_text_from_paragraph_content(content: str) -> str:
+    """Extract the decorated text from the paragraph content, replacing <br> tags with <br>."""
     code_text = _code_text_from_paragraph_content(content)
     if not code_text:
         return ""

@@ -1,3 +1,4 @@
+# pylint: disable=C0301
 """Find and Replace Dialog"""
 from __future__ import annotations
 
@@ -19,12 +20,13 @@ from PySide6.QtWidgets import (
 
 from dialogs.regex_input_edit import REGEX_TOKEN_COLOR, RegexInputEdit
 from localization.translator import Translator
-from normalise import normalise_operations
+from normalise import NormaliseOperation, normalise_operations
 from search.regex_lint import RegexLint, RegexLintMessage
 from search.search_engine import SearchOptions
 
 
 class FindReplaceDialog(QDialog):
+    """Dialog for finding and replacing text with regex support."""
     find_requested = Signal(str, SearchOptions)
     find_previous_requested = Signal(str, SearchOptions)
     replace_requested = Signal(str, str, SearchOptions)
@@ -89,16 +91,20 @@ class FindReplaceDialog(QDialog):
         self._update_regex_input_colors()
 
     def set_find_text(self, text: str) -> None:
+        """Set the text in the find input field and select all of it."""
         self.find_text_edit.setText(text)
         self.find_text_edit.selectAll()
 
     def set_error(self, message: str) -> None:
+        """Set the error message in the error label."""
         self.error_label.setText(message)
 
     def clear_error(self) -> None:
+        """Clear the error message in the error label."""
         self.error_label.clear()
 
     def insert_find_text(self, text: str, cursor_offset: int | None = None) -> None:
+        """Insert text into the find input field at the current cursor position or selection."""
         insert_position = (
             self.find_text_edit.selectionStart()
             if self.find_text_edit.hasSelectedText()
@@ -111,17 +117,21 @@ class FindReplaceDialog(QDialog):
         self.find_text_edit.setFocus()
 
     def current_search_options(self) -> SearchOptions:
+        """Get the current search options based on the state of the checkboxes."""
         return self._search_options()
 
     def set_regex_lint_enabled(self, enabled: bool) -> None:
+        """Enable or disable regex linting and update the linting state."""
         self.regex_lint_enabled = enabled
         self._update_regex_lint()
 
     def set_reduced_error_check_enabled(self, enabled: bool) -> None:
+        """Enable or disable reduced error checking and update the linting state."""
         self.reduced_error_check_enabled = enabled
         self._update_regex_lint()
 
     def set_search_recipe(self, search_text: str, replace_text: str) -> None:
+        """Set the find and replace text fields to the specified recipe values."""
         self.find_text_edit.setText(search_text)
         self.replace_text_edit.setText(replace_text)
         self.regular_expression_check_box.setChecked(True)
@@ -133,6 +143,7 @@ class FindReplaceDialog(QDialog):
         rows: list[tuple[int, str, str]],
         summary: str,
     ) -> None:
+        """Set the preview table rows and summary label with the provided data."""
         self.preview_summary_label.setText(summary)
         self.preview_table.setRowCount(len(rows))
         for row_index, (line_number, before_text, after_text) in enumerate(rows):
@@ -146,10 +157,12 @@ class FindReplaceDialog(QDialog):
         self.preview_table.resizeColumnsToContents()
 
     def clear_preview_rows(self) -> None:
+        """Clear the preview table rows and summary label."""
         self.preview_summary_label.clear()
         self.preview_table.setRowCount(0)
 
     def apply_language(self) -> None:
+        """Apply the current language translations to all UI elements."""
         self.setWindowTitle(self.translator.text("find.title"))
         self.find_text_label.setText(self.translator.text("find.find_text"))
         self.replace_text_label.setText(self.translator.text("find.replace_text"))
@@ -184,6 +197,7 @@ class FindReplaceDialog(QDialog):
         self._update_regex_lint()
 
     def _create_layout(self) -> None:
+        """Create the layout for the dialog, arranging all widgets in a grid and vertical layout."""
         form_layout = QGridLayout()
         find_input_layout = QGridLayout()
         find_input_layout.setContentsMargins(0, 0, 0, 0)
@@ -227,6 +241,7 @@ class FindReplaceDialog(QDialog):
         self.setLayout(root_layout)
 
     def _create_regex_insert_menu(self) -> None:
+        """Create the regex insert menu with categorized regex snippets."""
         regex_menu = QMenu(self)
         snippet_groups = [
             (
@@ -286,6 +301,7 @@ class FindReplaceDialog(QDialog):
         pattern: str,
         cursor_offset: int | None,
     ) -> None:
+        """Add an action to the regex snippet menu that inserts a regex pattern into the find input field."""
         label = self.translator.text(label_key)
         action = QAction(f"{label}    {pattern}", self)
         action.triggered.connect(
@@ -296,8 +312,9 @@ class FindReplaceDialog(QDialog):
         menu.addAction(action)
 
     def _create_recipe_menu(self) -> None:
+        """Create the recipe menu with predefined regex find and replace patterns."""
         recipe_menu = QMenu(self)
-        recipes = [
+        recipes: list[tuple[str, str, str]] = [
             ("regex.recipe.collapse_blank_lines", r"\n{3,}", "\n\n"),
             ("regex.recipe.trim_trailing_space", r"[ \t]+$", ""),
             ("regex.recipe.remove_blank_lines", r"^[ \t]*\n", ""),
@@ -326,6 +343,7 @@ class FindReplaceDialog(QDialog):
         self.recipe_button.setMenu(recipe_menu)
 
     def _create_shortcuts(self) -> None:
+        """Create keyboard shortcuts for inserting line breaks into the find or replace input fields."""
         self.insert_br_action = QAction(self)
         self.insert_br_action.setShortcut("F8")
         self.insert_br_action.triggered.connect(
@@ -341,6 +359,7 @@ class FindReplaceDialog(QDialog):
         self.addAction(self.insert_br_br_action)
 
     def _insert_text_into_focused_input(self, text: str) -> None:
+        """Insert the specified text into the currently focused input field (find or replace)."""
         focused_widget = self.focusWidget()
         if focused_widget is self.replace_text_edit:
             self.replace_text_edit.insert(text)
@@ -350,6 +369,7 @@ class FindReplaceDialog(QDialog):
         self.find_text_edit.setFocus()
 
     def _connect_signals(self) -> None:
+        """Connect signals from buttons and input fields to their respective slots."""
         self.find_button.clicked.connect(self._emit_find_requested)
         self.find_previous_button.clicked.connect(self._emit_find_previous_requested)
         self.find_next_button.clicked.connect(self._emit_find_requested)
@@ -375,6 +395,7 @@ class FindReplaceDialog(QDialog):
         self.visible_only_check_box.toggled.connect(self._emit_search_parameters_changed)
 
     def _search_options(self) -> SearchOptions:
+        """Get the current search options based on the state of the checkboxes."""
         return SearchOptions(
             case_sensitive=self.case_sensitive_check_box.isChecked(),
             regular_expression=self.regular_expression_check_box.isChecked(),
@@ -384,6 +405,7 @@ class FindReplaceDialog(QDialog):
         )
 
     def _update_regex_lint(self) -> None:
+        """Update the regex linting state and display any errors or warnings."""
         if (
             not self.regex_lint_enabled
             or self.reduced_error_check_enabled
@@ -409,23 +431,28 @@ class FindReplaceDialog(QDialog):
             self.warning_label.clear()
 
     def _update_regex_input_colors(self) -> None:
+        """Update the regex highlighting state of the find and replace input fields based on the regex checkbox."""
         regex_enabled = self.regular_expression_check_box.isChecked()
         self.find_text_edit.set_regex_highlighting_enabled(regex_enabled)
         self.replace_text_edit.set_regex_highlighting_enabled(regex_enabled)
 
     def _lint_message_text(self, message: RegexLintMessage) -> str:
+        """Get the translated text for a regex lint message."""
         return self.translator.text(message.message_key, **(message.values or {}))
 
     def _emit_find_requested(self) -> None:
+        """Emit the find_requested signal with the current find text and search options."""
         self.find_requested.emit(self.find_text_edit.text(), self._search_options())
 
     def _emit_find_previous_requested(self) -> None:
+        """Emit the find_previous_requested signal with the current find text and search options."""
         self.find_previous_requested.emit(
             self.find_text_edit.text(),
             self._search_options(),
         )
 
     def _emit_replace_requested(self) -> None:
+        """Emit the replace_requested signal with the current find text, replace text, and search options."""
         self.replace_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
@@ -433,6 +460,7 @@ class FindReplaceDialog(QDialog):
         )
 
     def _emit_replace_all_requested(self) -> None:
+        """Emit the replace_all_requested signal with the current find text, replace text, and search options."""
         self.replace_all_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
@@ -440,6 +468,7 @@ class FindReplaceDialog(QDialog):
         )
 
     def _emit_replace_marked_requested(self) -> None:
+        """Emit the replace_marked_requested signal with the current find text, replace text, and search options."""
         self.replace_marked_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
@@ -447,6 +476,7 @@ class FindReplaceDialog(QDialog):
         )
 
     def _emit_preview_requested(self) -> None:
+        """Emit the preview_requested signal with the current find text, replace text, and search options."""
         self.preview_requested.emit(
             self.find_text_edit.text(),
             self.replace_text_edit.text(),
@@ -454,7 +484,8 @@ class FindReplaceDialog(QDialog):
         )
 
     def _choose_normalise_operation(self) -> None:
-        operations = normalise_operations()
+        """Show a dialog to choose a normalise operation and emit the normalise_requested signal."""
+        operations: tuple[NormaliseOperation, ...] = normalise_operations()
         labels = [self.translator.text(operation.label_key) for operation in operations]
         selected_label, accepted = QInputDialog.getItem(
             self,
@@ -473,11 +504,13 @@ class FindReplaceDialog(QDialog):
         self.normalise_requested.emit(operations[selected_index].operation_id)
 
     def _handle_search_option_changed(self, *_args: object) -> None:
+        """Handle changes to the search options, updating regex input colors and linting."""
         self._update_regex_input_colors()
         self._update_regex_lint()
         self._emit_search_parameters_changed()
 
     def _emit_search_parameters_changed(self, *_args: object) -> None:
+        """Emit the search_parameters_changed signal with the current find text and search options."""
         if self.reduced_error_check_enabled:
             return
         self.clear_preview_rows()

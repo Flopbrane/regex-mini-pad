@@ -1,3 +1,4 @@
+# pylint: disable=C0301,I1101,C0103
 """Regex input widget with lightweight regex highlighting."""
 
 from __future__ import annotations
