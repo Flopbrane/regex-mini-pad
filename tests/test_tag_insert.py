@@ -185,10 +185,26 @@ def test_inline_html_wrap_shortcuts_are_available(app: QApplication) -> None:
 
     assert window.inline_strong_action.shortcut().toString() == "Ctrl+B"
     assert window.inline_underline_action.shortcut().toString() == "Ctrl+U"
-    assert window.inline_red_span_action.shortcut().toString() == "Ctrl+Alt+R"
+    assert [
+        shortcut.toString()
+        for shortcut in window.inline_red_span_action.shortcuts()
+    ] == ["Ctrl+Alt+1", "Ctrl+Alt+R"]
+    assert {
+        color_name: [shortcut.toString() for shortcut in action.shortcuts()]
+        for color_name, action in window.inline_color_actions.items()
+    } == {
+        "red": ["Ctrl+Alt+1", "Ctrl+Alt+R"],
+        "blue": ["Ctrl+Alt+2"],
+        "green": ["Ctrl+Alt+3"],
+        "orange": ["Ctrl+Alt+4"],
+        "purple": ["Ctrl+Alt+5"],
+        "pink": ["Ctrl+Alt+6"],
+        "gray": ["Ctrl+Alt+7"],
+    }
     assert window.inline_strong_action.text() == "選択範囲を <strong> で囲む"
     assert window.inline_underline_action.text() == "選択範囲を <u> で囲む"
-    assert window.inline_red_span_action.text() == "選択範囲を赤文字 <span> で囲む"
+    assert window.inline_red_span_action.text() == "赤文字 <span>"
+    assert window.inline_color_actions["blue"].text() == "青文字 <span>"
 
 
 def test_inline_html_wrap_actions_wrap_selected_text(app: QApplication) -> None:
@@ -221,10 +237,30 @@ def test_inline_html_wrap_actions_insert_pair_without_selection(
 
     window.inline_red_span_action.trigger()
 
-    expected_text = 'before <span style="color: red"></span>after'
+    expected_text = 'before <span style="color: #d00000"></span>after'
     assert window.editor.toPlainText() == expected_text
     assert window.editor.textCursor().position() == len(
-        'before <span style="color: red">'
+        'before <span style="color: #d00000">'
+    )
+
+
+def test_inline_color_wrap_actions_wrap_selected_text(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("before target after")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("before "))
+    cursor.setPosition(len("before target"), QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+
+    window.inline_color_actions["blue"].trigger()
+
+    assert (
+        window.editor.toPlainText()
+        == 'before <span style="color: #0057b8">target</span> after'
+    )
+    assert window.editor.textCursor().position() == len(
+        'before <span style="color: #0057b8">target'
     )
 
 

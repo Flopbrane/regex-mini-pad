@@ -32,7 +32,7 @@
 - 正規表現の警告表示。
 - 実例と置換例つきの正規表現ヘルプ。
 - HTML、Markdown、WordPress HTML向けのタグ挿入補助。
-- `<strong>`、`<u>`、赤文字 `<span>` など、よく使うインラインHTMLをショートカットで選択範囲に適用。
+- `<strong>`、`<u>`、7色の文字色 `<span>` など、よく使うインラインHTMLをショートカットで選択範囲に適用。
 - WordPress向けの段落分割とスニペット挿入補助。
 - 選択したMarkdown表やリストを内蔵 `wp_conv_core` でWordPressブロックHTMLへ変換。
 - HTML / WordPressブロック向けの文法チェック。
@@ -65,7 +65,7 @@
 - タグ候補は `dictionaries/html_dict.json`、`dictionaries/markdown_dict.json`、
   `dictionaries/wordpress_html_dict.json` に候補を分けて管理。
 - 右クリックメニューからタグやスニペットを選び、カーソル位置へ挿入。
-- よく使うインラインHTMLは、`Ctrl+B` で `<strong>`、`Ctrl+U` で `<u>`、`Ctrl+Alt+R` で赤文字 `<span>` として選択範囲を囲めます。
+- よく使うインラインHTMLは、`Ctrl+B` で `<strong>`、`Ctrl+U` で `<u>`、`Ctrl+Alt+1` から `Ctrl+Alt+7` で7色の文字色 `<span>` として選択範囲を囲めます。赤文字は既存互換として `Ctrl+Alt+R` でも使えます。
 - HTML、Markdown、WordPress HTMLの記事作成向けスニペットを挿入できます。
 - WordPress向けスニペットは、記事ブロックの境界を壊さないよう保守的に扱います。
 - 右クリックの段落分割メニューから、選択したMarkdown表やリストを内蔵 `wp_conv_core` 経由でWordPressブロックに変換できます。外部コンバーターのパス設定や環境変数は不要です。

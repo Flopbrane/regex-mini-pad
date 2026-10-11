@@ -2380,6 +2380,24 @@ Notes:
 - These shortcuts are intentionally limited to common inline editing helpers and do not replace the existing tag insertion menu.
 - Qt offscreen tests covered the action behavior; manual GUI keypress acceptance was not performed.
 
+## Step13-section26b Seven Color Inline Span Shortcuts
+
+Date: 2026-10-11
+
+Changes:
+
+- Expanded the inline color shortcut action from red-only to seven color variants.
+- Assigned `Ctrl+Alt+1` through `Ctrl+Alt+7` to red, blue, green, orange, purple, pink, and gray text spans.
+- Kept `Ctrl+Alt+R` as an additional red-text shortcut for existing muscle memory.
+- Used hex color values in the generated `<span style="color: ...">` markup.
+- Updated JA/EN action labels, README.md, and README_jp.md.
+- Added regression coverage for shortcut assignment and selected-text wrapping with the color actions.
+
+Notes:
+
+- Number shortcuts were chosen to reduce the impact if `Alt` is not detected; the prior dangerous `Ctrl+R` reload shortcut has been removed separately.
+- Qt offscreen tests cover QAction behavior, not physical Windows keypress acceptance in the packaged EXE.
+
 ## Step13-section27 Find/Replace Regex Input Follow-Up Checks
 
 Date: 2026-10-05

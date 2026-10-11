@@ -142,6 +142,15 @@ FRAME_STYLE_PREFIXES_REPLACED_BY_SETTINGS = (
     "background-color:",
     "color:",
 )
+INLINE_COLOR_SPAN_ACTIONS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
+    ("red", "#d00000", "action.inline_color_red", ("Ctrl+Alt+1", "Ctrl+Alt+R")),
+    ("blue", "#0057b8", "action.inline_color_blue", ("Ctrl+Alt+2",)),
+    ("green", "#008a3d", "action.inline_color_green", ("Ctrl+Alt+3",)),
+    ("orange", "#c85a00", "action.inline_color_orange", ("Ctrl+Alt+4",)),
+    ("purple", "#7a3db8", "action.inline_color_purple", ("Ctrl+Alt+5",)),
+    ("pink", "#c2185b", "action.inline_color_pink", ("Ctrl+Alt+6",)),
+    ("gray", "#555555", "action.inline_color_gray", ("Ctrl+Alt+7",)),
+)
 
 
 def _split_style_parts(style_text: str) -> list[str]:
@@ -313,7 +322,6 @@ class MainWindow(QMainWindow):
             self.open_with_encoding_menu.addAction(action)
 
         self.reload_action = QAction(self)
-        self.reload_action.setShortcut("Ctrl+R")
         self.reload_action.triggered.connect(self.reload_file)
 
         self.reload_with_encoding_menu = QMenu(self)
@@ -383,14 +391,18 @@ class MainWindow(QMainWindow):
             lambda: self.wrap_selection_with_inline_html("<u>", "</u>")
         )
 
-        self.inline_red_span_action = QAction(self)
-        self.inline_red_span_action.setShortcut("Ctrl+Alt+R")
-        self.inline_red_span_action.triggered.connect(
-            lambda: self.wrap_selection_with_inline_html(
-                '<span style="color: red">',
-                "</span>",
+        self.inline_color_actions: dict[str, QAction] = {}
+        for color_name, color_value, _text_key, shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+            action = QAction(self)
+            action.setShortcuts([QKeySequence(shortcut) for shortcut in shortcuts])
+            action.triggered.connect(
+                lambda checked=False, value=color_value: self.wrap_selection_with_inline_html(
+                    f'<span style="color: {value}">',
+                    "</span>",
+                )
             )
-        )
+            self.inline_color_actions[color_name] = action
+        self.inline_red_span_action = self.inline_color_actions["red"]
 
         self.html_escape_action = QAction(self)
         self.html_escape_action.triggered.connect(self.escape_selected_html)
@@ -509,7 +521,8 @@ class MainWindow(QMainWindow):
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.inline_strong_action)
         self.edit_menu.addAction(self.inline_underline_action)
-        self.edit_menu.addAction(self.inline_red_span_action)
+        for color_name, _color_value, _text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+            self.edit_menu.addAction(self.inline_color_actions[color_name])
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.insert_tag_picker_action)
         self.edit_menu.addMenu(self.insert_tag_menu)
@@ -1021,9 +1034,8 @@ class MainWindow(QMainWindow):
         self.inline_underline_action.setText(
             self.translator.text("action.inline_underline")
         )
-        self.inline_red_span_action.setText(
-            self.translator.text("action.inline_red_span")
-        )
+        for color_name, _color_value, text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+            self.inline_color_actions[color_name].setText(self.translator.text(text_key))
         self.html_escape_action.setText(self.translator.text("action.html_escape"))
         self.html_unescape_action.setText(self.translator.text("action.html_unescape"))
         self.wordpress_code_block_action.setText(
@@ -2139,6 +2151,22 @@ class MainWindow(QMainWindow):
             return True
         return self._autosave_before_risky_operation()
 
+    def _confirm_reload_current_file(self) -> bool:
+        """Confirm reloading when it would replace unsaved editor text."""
+        if not self.editor.document().isModified():
+            return True
+        if not self._autosave_before_risky_operation():
+            return False
+
+        result = QMessageBox.question(
+            self,
+            self.translator.text("dialog.reload_confirm.title"),
+            self.translator.text("dialog.reload_confirm.message"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return result == QMessageBox.StandardButton.Yes
+
     def _confirm_save_or_discard_editor(self, editor: TextEditor) -> bool:
         """Autosave tab changes before allowing the tab to be closed."""
         if not editor.document().isModified():
@@ -2194,7 +2222,7 @@ class MainWindow(QMainWindow):
         if self.current_save_file_path is None:
             self._set_search_error(self.translator.text("dialog.reload_no_file"))
             return
-        if not self._confirm_discard_changes():
+        if not self._confirm_reload_current_file():
             return
 
         selected_encoding = encoding or self.current_encoding

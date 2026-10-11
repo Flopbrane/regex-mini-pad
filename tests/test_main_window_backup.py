@@ -222,6 +222,53 @@ def test_main_window_saves_session_for_all_modified_tabs(
     assert [tab.encoding for tab in session.tabs] == ["utf-8", "cp932"]
 
 
+def test_reload_action_has_no_keyboard_shortcut(
+    app: QApplication,
+    tmp_path: Path,
+) -> None:
+    _ = app
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=tmp_path / "autosave" / "unsaved_backup.json",
+    )
+
+    assert window.reload_action.shortcut().isEmpty()
+
+
+def test_reload_file_cancel_keeps_modified_text_after_backup(
+    app: QApplication,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    load_file_path = tmp_path / "sample.txt"
+    load_file_path.write_text("saved text", encoding="utf-8")
+    backup_path = tmp_path / "autosave" / "unsaved_backup.json"
+    window = MainWindow(
+        settings_path=tmp_path / "settings.json",
+        unsaved_backup_path=backup_path,
+        restore_unsaved_backup=False,
+    )
+    window._set_current_file_state(load_file_path, "utf-8")
+    window.editor.setPlainText("draft text")
+    window.editor.document().setModified(True)
+
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: QMessageBox.StandardButton.No,
+    )
+
+    window.reload_file()
+    session = UnsavedBackupManager(backup_path).load_session()
+
+    assert window.editor.toPlainText() == "draft text"
+    assert window.editor.document().isModified()
+    assert load_file_path.read_text(encoding="utf-8") == "saved text"
+    assert session is not None
+    assert [tab.text for tab in session.tabs] == ["draft text"]
+
+
 def test_main_window_saves_empty_modified_tab_to_unsaved_session(
     app: QApplication,
     tmp_path: Path,

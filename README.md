@@ -33,7 +33,7 @@ The project focuses on practical regular expression search and replacement witho
 - Regex help with examples and replacement recipes.
 - Tag insertion assistance for HTML, Markdown, and WordPress HTML.
 - Inline HTML wrap shortcuts for selected text, including `<strong>`, `<u>`,
-  and red `<span>` text.
+  and seven colored `<span>` text variants.
 - WordPress-oriented paragraph splitting and snippet insertion helpers.
 - Selected Markdown tables and lists can be converted by the embedded
   `wp_conv_core` module and replaced with WordPress block HTML.
@@ -81,7 +81,8 @@ before pasting or saving article HTML.
 - Insert tags or snippets at the current cursor position from the editor context menu.
 - Snippet insertion supports HTML, Markdown, and WordPress HTML article helpers.
 - Common inline HTML wrappers are also available from shortcuts: `Ctrl+B` for
-  `<strong>`, `Ctrl+U` for `<u>`, and `Ctrl+Alt+R` for red `<span>` text.
+  `<strong>`, `Ctrl+U` for `<u>`, `Ctrl+Alt+1` through `Ctrl+Alt+7` for
+  colored `<span>` text, and `Ctrl+Alt+R` as a red-text alias.
 - WordPress helpers are intentionally conservative and preserve article block
   boundaries.
 - The editor context menu's Paragraph Split submenu can convert selected
