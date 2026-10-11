@@ -59,8 +59,10 @@ from dialogs.tag_insert_dialog import TagInsertDialog
 from dialogs.user_help_dialog import UserHelpDialog
 from editor.editor_tab import EditorTab
 from editor.paragraph_splitter import (
+    ParagraphBlock,
     ParagraphReplacement,
     ParagraphSplitError,
+    find_current_paragraph_block,
     split_paragraph_insert_spacer,
     wrap_selection_as_code_block,
     wrap_selection_as_decorated_block,
@@ -80,6 +82,12 @@ from editor.tag_insert import (
     wordpress_snippets_for_mode,
 )
 from editor.text_editor import TextEditor
+from editor.wordpress_markdown_converter import (
+    WordPressMarkdownConversionError,
+    convert_complex_markdown_blocks_to_wordpress_html,
+    convert_markdown_lists_to_wordpress_html,
+    convert_markdown_tables_to_wordpress_html,
+)
 from fileio.file_backup_manager import FileBackupManager
 from fileio.file_manager import FileManager
 from fileio.grammar_lint_result_store import (
@@ -393,6 +401,21 @@ class MainWindow(QMainWindow):
         self.wordpress_code_block_action = QAction(self)
         self.wordpress_code_block_action.triggered.connect(
             self.wrap_selected_as_wordpress_code_block
+        )
+
+        self.wordpress_complex_blocks_action = QAction(self)
+        self.wordpress_complex_blocks_action.triggered.connect(
+            self.convert_selected_markdown_blocks_to_wordpress_blocks
+        )
+
+        self.wordpress_table_transform_action = QAction(self)
+        self.wordpress_table_transform_action.triggered.connect(
+            self.convert_selected_markdown_tables_to_wordpress_tables
+        )
+
+        self.wordpress_list_transform_action = QAction(self)
+        self.wordpress_list_transform_action.triggered.connect(
+            self.convert_selected_markdown_lists_to_wordpress_lists
         )
 
         self.paragraph_split_spacer_action = QAction(self)
@@ -1006,6 +1029,15 @@ class MainWindow(QMainWindow):
         self.wordpress_code_block_action.setText(
             self.translator.text("action.wordpress_code_block")
         )
+        self.wordpress_complex_blocks_action.setText(
+            self.translator.text("action.wordpress_complex_blocks")
+        )
+        self.wordpress_table_transform_action.setText(
+            self.translator.text("action.wordpress_table_transform")
+        )
+        self.wordpress_list_transform_action.setText(
+            self.translator.text("action.wordpress_list_transform")
+        )
         self.paragraph_split_spacer_action.setText(
             self.translator.text("paragraph_split.insert_spacer")
         )
@@ -1156,6 +1188,10 @@ class MainWindow(QMainWindow):
         paragraph_split_menu.addAction(self.paragraph_split_spacer_action)
         paragraph_split_menu.addAction(self.paragraph_split_html_action)
         paragraph_split_menu.addAction(self.paragraph_split_decorated_action)
+        paragraph_split_menu.addSeparator()
+        paragraph_split_menu.addAction(self.wordpress_table_transform_action)
+        paragraph_split_menu.addAction(self.wordpress_list_transform_action)
+        paragraph_split_menu.addAction(self.wordpress_complex_blocks_action)
         context_menu.addMenu(paragraph_split_menu)
         context_menu.addAction(self.insert_tag_picker_action)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
@@ -1960,6 +1996,99 @@ class MainWindow(QMainWindow):
             )
 
         self._replace_selected_text(build_wordpress_code_block)
+
+    def convert_selected_markdown_blocks_to_wordpress_blocks(self) -> None:
+        """Convert selected Markdown table/list blocks to WordPress blocks."""
+        self._convert_selected_markdown_to_wordpress(
+            convert_complex_markdown_blocks_to_wordpress_html
+        )
+
+    def convert_selected_markdown_tables_to_wordpress_tables(self) -> None:
+        """Convert selected Markdown table blocks to WordPress table blocks."""
+        self._convert_selected_markdown_to_wordpress(
+            convert_markdown_tables_to_wordpress_html
+        )
+
+    def convert_selected_markdown_lists_to_wordpress_lists(self) -> None:
+        """Convert selected Markdown list blocks to WordPress list blocks."""
+        self._convert_selected_markdown_to_wordpress(
+            convert_markdown_lists_to_wordpress_html
+        )
+
+    def _convert_selected_markdown_to_wordpress(
+        self,
+        converter: Callable[[str], str],
+    ) -> None:
+        """Convert the current Markdown selection to WordPress block HTML."""
+        try:
+            self._replace_selected_markdown_text(converter)
+        except WordPressMarkdownConversionError as error:
+            self.statusBar().showMessage(
+                self.translator.text(
+                    "status.wordpress_complex_blocks_conversion_failed",
+                    error=str(error),
+                )
+            )
+
+    def _replace_selected_markdown_text(self, transform: Callable[[str], str]) -> None:
+        """Replace selected Markdown, avoiding nested WordPress paragraph blocks."""
+        cursor = self.editor.textCursor()
+        if not cursor.hasSelection():
+            self.statusBar().showMessage(self.translator.text("status.select_text"))
+            return
+
+        source_text = self.editor.toPlainText()
+        selection_start = cursor.selectionStart()
+        selection_end = cursor.selectionEnd()
+        paragraph_block = find_current_paragraph_block(source_text, selection_start)
+        if paragraph_block is None:
+            self._replace_selected_text(transform)
+            return
+
+        replacement_range = self._wordpress_paragraph_replacement_range(
+            source_text,
+            paragraph_block,
+            selection_start,
+            selection_end,
+        )
+        if replacement_range is None:
+            self.statusBar().showMessage(
+                self.translator.text("status.wordpress_paragraph_nested_conversion")
+            )
+            return
+
+        replacement_start, replacement_end = replacement_range
+        selected_text = source_text[selection_start:selection_end]
+        insert_text = transform(selected_text)
+        cursor.beginEditBlock()
+        cursor.setPosition(replacement_start)
+        cursor.setPosition(replacement_end, QTextCursor.MoveMode.KeepAnchor)
+        cursor.insertText(insert_text)
+        cursor.endEditBlock()
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def _wordpress_paragraph_replacement_range(
+        self,
+        source_text: str,
+        paragraph_block: ParagraphBlock,
+        selection_start: int,
+        selection_end: int,
+    ) -> tuple[int, int] | None:
+        """Return a whole paragraph block range when the content is fully selected."""
+        if selection_end <= selection_start:
+            return None
+        if (
+            selection_start < paragraph_block.content_start
+            or selection_end > paragraph_block.content_end
+        ):
+            return None
+
+        before_selection = source_text[paragraph_block.content_start : selection_start]
+        after_selection = source_text[selection_end : paragraph_block.content_end]
+        if before_selection.strip() or after_selection.strip():
+            return None
+        return paragraph_block.block_start, paragraph_block.block_end
 
     def _replace_selected_text(self, transform: Callable[[str], str]) -> None:
         """Replace the current selection with transformed text if text is selected."""

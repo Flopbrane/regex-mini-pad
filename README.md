@@ -35,6 +35,8 @@ The project focuses on practical regular expression search and replacement witho
 - Inline HTML wrap shortcuts for selected text, including `<strong>`, `<u>`,
   and red `<span>` text.
 - WordPress-oriented paragraph splitting and snippet insertion helpers.
+- Selected Markdown tables and lists can be converted by the embedded
+  `wp_conv_core` module and replaced with WordPress block HTML.
 - Grammar Check for lightweight HTML and WordPress block safety checks.
 - Grammar Check result list copy button.
 - Per-tab Grammar Check result display for multi-file editing.
@@ -82,6 +84,10 @@ before pasting or saving article HTML.
   `<strong>`, `Ctrl+U` for `<u>`, and `Ctrl+Alt+R` for red `<span>` text.
 - WordPress helpers are intentionally conservative and preserve article block
   boundaries.
+- The editor context menu's Paragraph Split submenu can convert selected
+  Markdown tables and lists through
+  the embedded `wp_conv_core` module, so no external converter path or
+  environment variable is required.
 
 ## Planned Direction
 

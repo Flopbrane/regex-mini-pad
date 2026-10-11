@@ -34,6 +34,7 @@
 - HTML、Markdown、WordPress HTML向けのタグ挿入補助。
 - `<strong>`、`<u>`、赤文字 `<span>` など、よく使うインラインHTMLをショートカットで選択範囲に適用。
 - WordPress向けの段落分割とスニペット挿入補助。
+- 選択したMarkdown表やリストを内蔵 `wp_conv_core` でWordPressブロックHTMLへ変換。
 - HTML / WordPressブロック向けの文法チェック。
 - 文法チェック結果一覧のコピー。
 - 複数タブ編集時のタブ別文法チェック結果表示。
@@ -67,6 +68,7 @@
 - よく使うインラインHTMLは、`Ctrl+B` で `<strong>`、`Ctrl+U` で `<u>`、`Ctrl+Alt+R` で赤文字 `<span>` として選択範囲を囲めます。
 - HTML、Markdown、WordPress HTMLの記事作成向けスニペットを挿入できます。
 - WordPress向けスニペットは、記事ブロックの境界を壊さないよう保守的に扱います。
+- 右クリックの段落分割メニューから、選択したMarkdown表やリストを内蔵 `wp_conv_core` 経由でWordPressブロックに変換できます。外部コンバーターのパス設定や環境変数は不要です。
 
 ## 今後の方針
 

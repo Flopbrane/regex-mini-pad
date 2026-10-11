@@ -104,6 +104,165 @@ def test_wordpress_code_block_escapes_multiline_indented_html(
     )
 
 
+def test_wordpress_complex_blocks_converts_selected_markdown_table(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = "before\n| Purpose | AI |\n|---|---|\n| B-roll | Runway |\nafter"
+    selected_text = "| Purpose | AI |\n|---|---|\n| B-roll | Runway |"
+    window.editor.setPlainText(source_text)
+    start = len("before\n")
+    select_text(window, start, start + len(selected_text))
+
+    def fake_convert(load_data: str) -> str:
+        assert load_data == selected_text
+        return "<!-- wp:table -->\n<table></table>\n<!-- /wp:table -->"
+
+    monkeypatch.setattr(
+        "main.convert_complex_markdown_blocks_to_wordpress_html",
+        fake_convert,
+    )
+
+    window.convert_selected_markdown_blocks_to_wordpress_blocks()
+
+    assert window.editor.toPlainText() == (
+        "before\n<!-- wp:table -->\n<table></table>\n<!-- /wp:table -->\nafter"
+    )
+
+
+def test_wordpress_table_transform_converts_selected_markdown_table(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = "before\n| Purpose | AI |\n|---|---|\n| B-roll | Runway |\nafter"
+    selected_text = "| Purpose | AI |\n|---|---|\n| B-roll | Runway |"
+    window.editor.setPlainText(source_text)
+    start = len("before\n")
+    select_text(window, start, start + len(selected_text))
+
+    window.convert_selected_markdown_tables_to_wordpress_tables()
+
+    editor_text = window.editor.toPlainText()
+    assert "<!-- wp:table -->" in editor_text
+    assert "<th>Purpose</th><th>AI</th>" in editor_text
+    assert "<td>B-roll</td><td>Runway</td>" in editor_text
+
+
+def test_wordpress_table_transform_replaces_whole_paragraph_block(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = (
+        "before\n"
+        "<!-- wp:paragraph -->\n"
+        "<p>| Purpose | AI |\n|---|---|\n| B-roll | Runway |</p>\n"
+        "<!-- /wp:paragraph -->\n"
+        "after"
+    )
+    selected_text = "| Purpose | AI |\n|---|---|\n| B-roll | Runway |"
+    window.editor.setPlainText(source_text)
+    start = source_text.index(selected_text)
+    select_text(window, start, start + len(selected_text))
+
+    window.convert_selected_markdown_tables_to_wordpress_tables()
+
+    editor_text = window.editor.toPlainText()
+    assert "<!-- wp:paragraph -->" not in editor_text
+    assert "<!-- wp:table -->" in editor_text
+    assert "<td>B-roll</td><td>Runway</td>" in editor_text
+
+
+def test_wordpress_table_transform_rejects_partial_paragraph_selection(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = (
+        "<!-- wp:paragraph -->\n"
+        "<p>Intro\n| Purpose | AI |\n|---|---|\n| B-roll | Runway |</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+    selected_text = "| Purpose | AI |\n|---|---|\n| B-roll | Runway |"
+    window.editor.setPlainText(source_text)
+    start = source_text.index(selected_text)
+    select_text(window, start, start + len(selected_text))
+
+    window.convert_selected_markdown_tables_to_wordpress_tables()
+
+    assert window.editor.toPlainText() == source_text
+    assert "段落" in window.statusBar().currentMessage()
+
+
+def test_wordpress_complex_blocks_converts_selected_markdown_list(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = "before\n- Runway\n- Kling\nafter"
+    selected_text = "- Runway\n- Kling"
+    window.editor.setPlainText(source_text)
+    start = len("before\n")
+    select_text(window, start, start + len(selected_text))
+
+    window.convert_selected_markdown_blocks_to_wordpress_blocks()
+
+    assert "<!-- wp:list -->" in window.editor.toPlainText()
+    assert "<li>Runway</li>" in window.editor.toPlainText()
+    assert "<li>Kling</li>" in window.editor.toPlainText()
+
+
+def test_wordpress_list_transform_converts_selected_markdown_list(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = "before\n1. Runway\n2. Kling\nafter"
+    selected_text = "1. Runway\n2. Kling"
+    window.editor.setPlainText(source_text)
+    start = len("before\n")
+    select_text(window, start, start + len(selected_text))
+
+    window.convert_selected_markdown_lists_to_wordpress_lists()
+
+    editor_text = window.editor.toPlainText()
+    assert '<!-- wp:list {"ordered":true} -->' in editor_text
+    assert "<li>Runway</li>" in editor_text
+    assert "<li>Kling</li>" in editor_text
+
+
+def test_wordpress_complex_blocks_failure_keeps_selection_text(
+    app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = app
+    window = MainWindow()
+    source_text = "before\nplain text\nafter"
+    selected_text = "plain text"
+    window.editor.setPlainText(source_text)
+    start = len("before\n")
+    select_text(window, start, start + len(selected_text))
+
+    def fake_convert(load_data: str) -> str:
+        assert load_data == selected_text
+        from editor.wordpress_markdown_converter import WordPressMarkdownConversionError
+
+        raise WordPressMarkdownConversionError("not a table")
+
+    monkeypatch.setattr(
+        "main.convert_complex_markdown_blocks_to_wordpress_html",
+        fake_convert,
+    )
+
+    window.convert_selected_markdown_blocks_to_wordpress_blocks()
+
+    assert window.editor.toPlainText() == source_text
+    assert "not a table" in window.statusBar().currentMessage()
+
+
 def test_html_transform_does_nothing_without_selection(app: QApplication) -> None:
     _ = app
     window = MainWindow()
@@ -123,10 +282,13 @@ def test_html_transform_context_menu_is_available(app: QApplication) -> None:
     context_menu = window._create_editor_context_menu()
 
     html_transform_menu: QMenu | None = None
+    paragraph_split_menu: QMenu | None = None
     for action in context_menu.actions():
         child_menu = action.menu()
         if isinstance(child_menu, QMenu) and child_menu.title() == "HTML変換":
             html_transform_menu = child_menu
+        if isinstance(child_menu, QMenu) and child_menu.title() == "段落分割":
+            paragraph_split_menu = child_menu
             break
 
     assert html_transform_menu is not None
@@ -135,6 +297,14 @@ def test_html_transform_context_menu_is_available(app: QApplication) -> None:
         "HTMLエスケープ解除",
         "",
         "WordPressコードブロック化",
+    ]
+    assert paragraph_split_menu is not None
+    paragraph_action_texts = [action.text() for action in paragraph_split_menu.actions()]
+    assert paragraph_action_texts[-4:] == [
+        "",
+        "表変換",
+        "リスト変換",
+        "Markdown表/リストをWordPressブロック化",
     ]
 
 
