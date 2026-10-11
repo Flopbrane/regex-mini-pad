@@ -364,6 +364,7 @@ WORDPRESS_BLOCK_ATTRIBUTE_TYPE_RULES = {
 WORDPRESS_BLOCK_ATTRIBUTE_VALUE_RULES = {
     ("paragraph", "align"): {"left", "center", "right"},
 }
+DECORATED_BLOCKS_BETTER_AS_HTML = {"group", "preformatted"}
 
 
 @dataclass(frozen=True)
@@ -1084,6 +1085,17 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     open_line_number,
                 )
             )
+        if block_name in DECORATED_BLOCKS_BETTER_AS_HTML:
+            messages.extend(
+                _lint_decorated_wordpress_block_should_use_html(
+                    block_name,
+                    block_body,
+                    open_end,
+                    line_starts,
+                    open_line_number,
+                    block_attributes,
+                )
+            )
         if block_name != "separator":
             messages.extend(
                 _lint_html_tag_structure(
@@ -1473,6 +1485,50 @@ def _lint_wordpress_separator_body(
             _match_line_number(code_match, body_start_position, line_starts, line_number),
         )
     ]
+
+
+def _lint_decorated_wordpress_block_should_use_html(
+    block_name: str,
+    block_body: str,
+    body_start_position: int,
+    line_starts: list[int],
+    line_number: int,
+    block_attributes: dict[str, Any],
+) -> list[HtmlTypoLintMessage]:
+    """Warn when fragile WordPress blocks are used for styled decoration."""
+    messages: list[HtmlTypoLintMessage] = []
+    if "style" in block_attributes:
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.wordpress_decorated_block_should_use_html",
+                line_number,
+                {"block": block_name},
+            )
+        )
+
+    style_match = re.search(
+        r"<[A-Za-z][A-Za-z0-9:-]*\b[^>]*\sstyle\s*=",
+        block_body,
+        re.IGNORECASE,
+    )
+    if style_match is not None:
+        style_line_number = _match_line_number(
+            style_match,
+            body_start_position,
+            line_starts,
+            line_number,
+        )
+        if not any(message.line_number == style_line_number for message in messages):
+            messages.append(
+                HtmlTypoLintMessage(
+                    "warning",
+                    "html_typo_lint.wordpress_decorated_block_should_use_html",
+                    style_line_number,
+                    {"block": block_name},
+                )
+            )
+    return messages
 
 
 def _first_body_content_line_number(

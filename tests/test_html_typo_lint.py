@@ -536,6 +536,56 @@ def test_lint_reports_html_block_inside_wordpress_paragraph_block() -> None:
     )
 
 
+def test_lint_guides_decorated_preformatted_block_to_custom_html() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:preformatted -->\n"
+        '<pre class="wp-block-preformatted" '
+        'style="background:#f9f9f9; padding:16px;">Prompt</pre>\n'
+        "<!-- /wp:preformatted -->"
+    )
+
+    assert any(
+        message.message_key
+        == "html_typo_lint.wordpress_decorated_block_should_use_html"
+        and message.line_number == 2
+        and message.values == {"block": "preformatted"}
+        for message in messages
+    )
+
+
+def test_lint_guides_decorated_group_block_to_custom_html() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:group {"style":{"color":{"background":"#f6f6f6"}}} -->\n'
+        '<div class="wp-block-group"><p>Note</p></div>\n'
+        "<!-- /wp:group -->"
+    )
+
+    assert any(
+        message.message_key
+        == "html_typo_lint.wordpress_decorated_block_should_use_html"
+        and message.line_number == 1
+        and message.values == {"block": "group"}
+        for message in messages
+    )
+
+
+def test_lint_accepts_plain_preformatted_and_group_blocks() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:preformatted -->\n"
+        '<pre class="wp-block-preformatted">Prompt</pre>\n'
+        "<!-- /wp:preformatted -->\n"
+        "<!-- wp:group -->\n"
+        '<div class="wp-block-group"><p>Note</p></div>\n'
+        "<!-- /wp:group -->"
+    )
+
+    assert not any(
+        message.message_key
+        == "html_typo_lint.wordpress_decorated_block_should_use_html"
+        for message in messages
+    )
+
+
 def test_lint_reports_invalid_wordpress_block_attributes() -> None:
     messages = lint_html_typos(
         '<!-- wp:spacer {"height":"32px",} -->\n'

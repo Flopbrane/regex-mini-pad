@@ -2569,6 +2569,104 @@ Validation:
 - `ruff check .`: All checks passed.
 - `pyright`: 0 errors, 0 warnings, 0 informations.
 
+## Step14-section1 Embedded WordPress Conversion Core and Shortcut Safety
+
+Date: 2026-10-11
+
+Scope:
+
+- Move the high-value Markdown-to-WordPress conversion core into RegexPad itself.
+- Keep RegexPad as a one-folder portable application with no environment-variable changes and no external `wp_converter` executable requirement.
+- Add selected-text conversion for Markdown tables and lists while avoiding nested WordPress paragraph blocks.
+- Harden risky keyboard shortcuts after a reported accidental reload/data rollback path.
+
+Embedded conversion core:
+
+- Added `wp_conv_core/` as a local, RegexPad-owned conversion module.
+- Namespaced imported converter pieces with `wp_` prefixes where needed to avoid collisions with existing project folders such as `dictionaries`.
+- Added `editor/wordpress_markdown_converter.py` as the RegexPad-facing adapter layer.
+- Supported Markdown table conversion into `wp:table`.
+- Supported unordered and ordered Markdown list conversion into `wp:list` and `wp:list-item`.
+- Supported common inline Markdown inside converted cells/items:
+  - `**strong**`
+  - `*emphasis*`
+  - backtick code
+  - Markdown links
+  - plain URL auto-linking
+
+UI integration:
+
+- Added selected Markdown table/list conversion under the editor context menu's `段落分割` submenu.
+- Added separate actions for:
+  - `表変換`
+  - `リスト変換`
+  - `Markdown表/リストをWordPressブロック化`
+- Kept the existing `HTML変換` menu focused on HTML escape/unescape and WordPress code block conversion.
+- When the selection is inside a WordPress paragraph block, conversion now only proceeds when the selected range covers the paragraph content that can safely be replaced by a standalone block.
+- Partial selections inside a paragraph are rejected with a status message so `wp:table` or `wp:list` is not inserted inside `<p>...</p>`.
+
+Shortcut safety follow-up:
+
+- Removed the `Ctrl+R` shortcut from Reload after a likely accident path was identified:
+  - user intended `Ctrl+Alt+R` for red text,
+  - `Alt` may have failed to register,
+  - the app received `Ctrl+R`,
+  - Reload replaced the editor text with the last manually saved file contents.
+- Added a reload confirmation dialog for modified documents.
+- Reload still saves an unsaved-session backup before continuing; if the user cancels the confirmation, the current editor text remains unchanged.
+- Added regression coverage that Reload has no keyboard shortcut and that cancelling Reload preserves modified text while keeping the recovery backup.
+
+Inline color shortcut follow-up:
+
+- Expanded red-only inline color wrapping into seven color actions:
+  - `Ctrl+Alt+1`: red
+  - `Ctrl+Alt+2`: blue
+  - `Ctrl+Alt+3`: green
+  - `Ctrl+Alt+4`: orange
+  - `Ctrl+Alt+5`: purple
+  - `Ctrl+Alt+6`: pink
+  - `Ctrl+Alt+7`: gray
+- Kept `Ctrl+Alt+R` as a red-text compatibility alias.
+- Used number shortcuts to reduce damage if `Alt` is not detected.
+
+Documentation:
+
+- Updated `README.md` and `README_jp.md` for the embedded `wp_conv_core` conversion behavior.
+- Updated `README.md` and `README_jp.md` for the seven inline color shortcuts.
+- Added JA/EN resource strings for conversion actions, reload confirmation, and color actions.
+
+Decorated block safety follow-up:
+
+- Added Grammar Check guidance for styled `wp:preformatted` and `wp:group` blocks.
+- If either block contains a direct `style` attribute in its HTML body, RegexPad now warns that decorated content should be moved to a Custom HTML `wp:html` block.
+- If either block uses a WordPress block-comment `style` parameter, RegexPad warns on the block opening line.
+- Plain, unstyled `wp:preformatted` and `wp:group` blocks remain accepted.
+- The warning is intentionally narrow; `wp:html` remains the preferred destination for colored text, backgrounds, borders, padding, and free-form layout.
+
+Validation:
+
+- Focused WordPress conversion tests: 29 passed.
+- `tests/test_main_window_backup.py`: 21 passed after Reload safety changes.
+- `tests/test_tag_insert.py`: 60 passed after seven color shortcut changes.
+- `tests/test_html_typo_lint.py` plus translation checks: 66 passed after decorated block guidance.
+- `json.tool`: `resources/app_text_ja.json` and `resources/app_text_en.json` passed.
+- `ruff check .`: All checks passed.
+- `pyright --pythonpath D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 338 passed, 4 failed.
+
+Known remaining failures:
+
+- `tests/test_main_window_search.py::test_replace_all_button_previews_and_replaces`
+- `tests/test_main_window_search.py::test_replace_all_button_replaces_wordpress_paragraph_gap_regex`
+- `tests/test_paragraph_splitter.py::test_split_paragraph_insert_html_code_block`
+- `tests/test_regex_input_display_flow.py::test_replace_all_then_second_regex_input_keeps_display_and_regex_colors`
+
+Notes:
+
+- The full-suite failures above are the existing Replace All preview retention and paragraph splitter issues observed before the Step14 changes.
+- Real Windows GUI keypress acceptance and packaged EXE validation remain to be performed.
+- Real Gutenberg paste/save acceptance for the generated table/list blocks remains to be performed.
+
 ## Validation Commands
 
 Use the project virtual environment:

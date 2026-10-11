@@ -523,6 +523,7 @@
   "html_typo_lint.wordpress_html_contains_block_comment": "The `wp:html` block contains a WordPress block comment. Use only ordinary HTML inside Custom HTML.",
   "html_typo_lint.wordpress_paragraph_contains_div": "The `wp:paragraph` block contains a `<div>` tag. Use a separate wp:html block when you need div.",
   "html_typo_lint.wordpress_paragraph_contains_html_block": "A wp:html block is nested inside a paragraph block. Split the paragraph first.",
+  "html_typo_lint.wordpress_decorated_block_should_use_html": "`wp:{block}` contains direct style decoration. For colored text, backgrounds, borders, padding, or free-form layout, use a Custom HTML `wp:html` block instead.",
   "html_typo_lint.invalid_wordpress_block_attributes": "`wp:{block}` has `{{}}` parameters that are not valid JSON. Check double quotes and commas.",
   "html_typo_lint.unknown_wordpress_block_attribute": "`wp:{block}` parameter `{attribute}` is not in the core block attributes checked here. Check for an unnecessary parameter or a block type mix-up.",
   "html_typo_lint.unknown_wordpress_block_attribute_with_suggestion": "`wp:{block}` parameter `{attribute}` is not in the core block attributes checked here. Suggestion: `{suggestion}`",

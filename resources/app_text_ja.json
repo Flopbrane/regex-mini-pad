@@ -523,6 +523,7 @@
   "html_typo_lint.wordpress_html_contains_block_comment": "`wp:html` ブロック内に WordPress ブロックコメントがあります。カスタムHTML内では通常のHTMLだけにしてください。",
   "html_typo_lint.wordpress_paragraph_contains_div": "`wp:paragraph` ブロック内に `<div>` タグがあります。div を使う場合は wp:html ブロックに分けてください。",
   "html_typo_lint.wordpress_paragraph_contains_html_block": "paragraph ブロック内に wp:html ブロックが入っています。段落を分割してください。",
+  "html_typo_lint.wordpress_decorated_block_should_use_html": "`wp:{block}` に直接 style 装飾があります。文字色、背景、枠線、余白、自由なレイアウトを使う場合は、カスタムHTMLの `wp:html` ブロックへ分けてください。",
   "html_typo_lint.invalid_wordpress_block_attributes": "`wp:{block}` の `{{}}` パラメータがJSONとして読めません。ダブルクォートやカンマを確認してください。",
   "html_typo_lint.unknown_wordpress_block_attribute": "`wp:{block}` の `{attribute}` パラメータは、このチェックで確認しているコアブロック属性には含まれていません。不要なパラメータ、またはブロック種類の取り違えがないか確認してください。",
   "html_typo_lint.unknown_wordpress_block_attribute_with_suggestion": "`wp:{block}` の `{attribute}` パラメータは、このチェックで確認しているコアブロック属性には含まれていません。候補: `{suggestion}`",
