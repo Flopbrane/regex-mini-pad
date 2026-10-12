@@ -6,10 +6,18 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import QEventLoop, QTimer
 from PySide6.QtWidgets import QApplication
 
 from dialogs.regex_input_edit import REGEX_TOKEN_COLOR
 from main import MainWindow
+
+
+def _process_delayed_ui_events(delay_ms: int = 75) -> None:
+    loop = QEventLoop()
+    QTimer.singleShot(delay_ms, loop.quit)
+    loop.exec()
+    QApplication.processEvents()
 
 
 def _highlighted_fragments(edit) -> list[str]:
@@ -51,14 +59,15 @@ def test_replace_all_then_second_regex_input_keeps_display_and_regex_colors(
     assert r"\1" in _highlighted_fragments(dialog.replace_text_edit)
 
     dialog.replace_all_button.click()
-    QApplication.processEvents()
+    _process_delayed_ui_events()
 
     assert window.editor.toPlainText() == "item-001\nitem-002\n"
     assert dialog.preview_table.rowCount() == 2
     assert dialog.find_text_edit.hasFocus()
     assert dialog.find_text_edit.text() == r"line-(\d+)"
-    assert dialog.find_text_edit.textCursor().selectedText() == r"line-(\d+)"
-    assert dialog.replace_text_edit.textCursor().selectedText() == r"item-\1"
+    assert dialog.replace_text_edit.text() == r"item-\1"
+    assert not dialog.find_text_edit.hasSelectedText()
+    assert not dialog.replace_text_edit.hasSelectedText()
 
     dialog.find_text_edit.setText(r"\nitem-\d+")
 
@@ -82,6 +91,11 @@ def test_replace_all_then_second_regex_input_keeps_display_and_regex_colors(
 
     dialog.replace_text_edit.setText(r"\nrow")
     dialog.replace_all_button.click()
-    QApplication.processEvents()
+    _process_delayed_ui_events()
 
     assert window.editor.toPlainText() == "item-001\nrow\n"
+    assert dialog.find_text_edit.hasFocus()
+    assert dialog.find_text_edit.text() == r"\nitem-\d+"
+    assert dialog.replace_text_edit.text() == r"\nrow"
+    assert not dialog.find_text_edit.hasSelectedText()
+    assert not dialog.replace_text_edit.hasSelectedText()

@@ -3036,17 +3036,17 @@ class MainWindow(QMainWindow):
 
     def _focus_find_text_after_replace_all(self) -> None:
         QTimer.singleShot(0, self._focus_find_text_after_replace_all_now)
-        QTimer.singleShot(50, self._focus_find_text_after_replace_all_now)
 
     def _focus_find_text_after_replace_all_now(self) -> None:
         if self.find_replace_dialog is None or not self.find_replace_dialog.isVisible():
             return
-        self.find_replace_dialog.show()
-        self.find_replace_dialog.raise_()
-        self.find_replace_dialog.activateWindow()
-        self.find_replace_dialog.replace_text_edit.select_all_and_stabilize_visible_text()
-        self.find_replace_dialog.find_text_edit.setFocus()
-        self.find_replace_dialog.find_text_edit.select_all_and_stabilize_visible_text()
+        dialog = self.find_replace_dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+        dialog.replace_text_edit.stabilize_visible_text()
+        dialog.find_text_edit.stabilize_visible_text()
+        dialog.find_text_edit.setFocus()
 
     def update_search_highlights(
         self,

@@ -144,23 +144,28 @@ def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
     assert dialog.current_search_options().visible_only
 
 
-def test_regex_inputs_can_expand_for_multiline_patterns(app: QApplication) -> None:
+def test_regex_inputs_resize_for_multiline_patterns(app: QApplication) -> None:
     _ = app
     translator = Translator(Path("resources"), "en")
     dialog = FindReplaceDialog(translator)
     multiline_pattern = "first line\nsecond line"
+    dialog.show()
+    QApplication.processEvents()
+    single_line_height = dialog.find_text_edit.height()
 
     dialog.find_text_edit.setText(multiline_pattern)
+    QApplication.processEvents()
 
     assert dialog.find_text_edit.text() == multiline_pattern
-    assert dialog.find_text_edit.minimumHeight() < dialog.find_text_edit.maximumHeight()
+    assert dialog.find_text_edit.height() > single_line_height
+    assert dialog.find_text_edit.minimumHeight() == dialog.find_text_edit.maximumHeight()
     assert (
         dialog.find_text_edit.verticalScrollBarPolicy()
         == Qt.ScrollBarPolicy.ScrollBarAsNeeded
     )
     assert (
         dialog.find_text_edit.sizePolicy().verticalPolicy()
-        == QSizePolicy.Policy.Expanding
+        == QSizePolicy.Policy.Fixed
     )
     assert (
         dialog.find_text_edit.lineWrapMode()
@@ -170,6 +175,49 @@ def test_regex_inputs_can_expand_for_multiline_patterns(app: QApplication) -> No
         dialog.replace_text_edit.lineWrapMode()
         == QPlainTextEdit.LineWrapMode.WidgetWidth
     )
+
+
+def test_multiline_regex_input_keeps_text_visible_around_blank_line(
+    app: QApplication,
+) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+    multiline_pattern = "<!-- /wp:heading -->\n\n<!-- wp:paragraph -->"
+    blank_line_position = multiline_pattern.index("\n") + 1
+
+    dialog.show()
+    dialog.find_text_edit.setText(multiline_pattern)
+    dialog.regular_expression_check_box.setChecked(True)
+    dialog.find_text_edit.setCursorPosition(blank_line_position)
+    dialog.find_text_edit.ensureCursorVisible()
+    QApplication.processEvents()
+
+    assert dialog.find_text_edit.text() == multiline_pattern
+    assert dialog.find_text_edit.textCursor().blockNumber() == 1
+    assert dialog.find_text_edit.firstVisibleBlock().blockNumber() == 0
+    assert dialog.find_text_edit.viewport().height() >= (
+        dialog.find_text_edit.fontMetrics().lineSpacing()
+        * 3
+    )
+
+
+def test_regex_input_height_is_capped_for_many_lines(app: QApplication) -> None:
+    _ = app
+    translator = Translator(Path("resources"), "en")
+    dialog = FindReplaceDialog(translator)
+
+    dialog.show()
+    dialog.find_text_edit.setText("\n".join(f"line {index}" for index in range(10)))
+    QApplication.processEvents()
+
+    expected_height = (
+        dialog.find_text_edit.fontMetrics().lineSpacing()
+        * dialog.find_text_edit.MAXIMUM_VISIBLE_LINES
+        + 12
+    )
+    assert dialog.find_text_edit.height() == expected_height
+    assert dialog.find_text_edit.verticalScrollBar().maximum() > 0
 
 
 def test_regex_inputs_refresh_visible_text_after_selection(app: QApplication) -> None:

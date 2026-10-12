@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 
 from PySide6 import QtCore, QtGui, QtWidgets
@@ -106,6 +107,8 @@ class RegexInputHighlighter(QtGui.QSyntaxHighlighter):
 class RegexInputEdit(QtWidgets.QPlainTextEdit):
     """Plain text edit widget for regex input with lightweight regex highlighting."""
     returnPressed = QtCore.Signal()
+    MINIMUM_VISIBLE_LINES = 1
+    MAXIMUM_VISIBLE_LINES = 5
 
     def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -113,29 +116,32 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setTabChangesFocus(True)
-        self.setMinimumHeight(self._single_line_height())
+        self._visible_line_count = self.MINIMUM_VISIBLE_LINES
+        self._height_refresh_queued = False
+        self.setFixedHeight(self._visible_text_height())
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Fixed,
         )
         self.highlighter = RegexInputHighlighter(self.document())
         self._visible_text_refresh_queued = False
         self._preserve_full_selection_on_focus_out = False
+        self.textChanged.connect(self._queue_height_refresh)
         self._update_highlighter_text_color()
 
     def sizeHint(self) -> QtCore.QSize:
-        """Return the preferred size of the widget, with a single line height."""
+        """Return the preferred size with enough height to keep blank lines visible."""
         size = super().sizeHint()
-        return QtCore.QSize(size.width(), self._single_line_height())
+        return QtCore.QSize(size.width(), self._visible_text_height())
 
     def minimumSizeHint(self) -> QtCore.QSize:
-        """Return the minimum size of the widget, with a single line height."""
+        """Return the minimum size with surrounding lines visible."""
         size = super().minimumSizeHint()
-        return QtCore.QSize(size.width(), self._single_line_height())
+        return QtCore.QSize(size.width(), self._visible_text_height())
 
-    def _single_line_height(self) -> int:
-        """Return the height of a single line of text, plus padding."""
-        return self.fontMetrics().height() + 12
+    def _visible_text_height(self) -> int:
+        """Return the height needed for the configured visible line count."""
+        return self.fontMetrics().lineSpacing() * self._visible_line_count + 12
 
     def text(self) -> str:
         """Return the current text in the widget."""
@@ -233,6 +239,32 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         """Refresh after mouse selection, where hidden horizontal scrolling can linger."""
         super().mouseReleaseEvent(event)
         self._queue_visible_text_refresh()
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        """Recalculate wrapped line height when the input width changes."""
+        super().resizeEvent(event)
+        self._queue_height_refresh()
+
+    def _queue_height_refresh(self) -> None:
+        """Queue a height update after Qt finishes the document layout."""
+        if self._height_refresh_queued:
+            return
+        self._height_refresh_queued = True
+        QtCore.QTimer.singleShot(0, self._refresh_height_for_content)
+
+    def _refresh_height_for_content(self) -> None:
+        """Fit the input to its visual lines, capped to keep the dialog compact."""
+        self._height_refresh_queued = False
+        visual_line_count = max(1, math.ceil(self.document().size().height()))
+        visible_line_count = min(
+            max(visual_line_count, self.MINIMUM_VISIBLE_LINES),
+            self.MAXIMUM_VISIBLE_LINES,
+        )
+        if visible_line_count == self._visible_line_count:
+            return
+        self._visible_line_count = visible_line_count
+        self.setFixedHeight(self._visible_text_height())
+        self.updateGeometry()
 
     def _queue_visible_text_refresh(self) -> None:
         """Queue a viewport refresh after Qt finishes cursor, selection, and layout updates."""

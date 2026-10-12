@@ -82,12 +82,9 @@ def test_replace_all_returns_focus_to_find_text(
     assert window.editor.toPlainText() == "done done"
     assert window.find_replace_dialog.find_text_edit.hasFocus()
     assert window.find_replace_dialog.find_text_edit.text() == "target"
-    assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
-        "target"
-    )
-    assert window.find_replace_dialog.replace_text_edit.textCursor().selectedText() == (
-        "done"
-    )
+    assert window.find_replace_dialog.replace_text_edit.text() == "done"
+    assert not window.find_replace_dialog.find_text_edit.hasSelectedText()
+    assert not window.find_replace_dialog.replace_text_edit.hasSelectedText()
 
 
 def test_replace_current_returns_focus_to_find_text(
@@ -109,12 +106,9 @@ def test_replace_current_returns_focus_to_find_text(
     assert window.editor.toPlainText() == "done target"
     assert window.find_replace_dialog.find_text_edit.hasFocus()
     assert window.find_replace_dialog.find_text_edit.text() == "target"
-    assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
-        "target"
-    )
-    assert window.find_replace_dialog.replace_text_edit.textCursor().selectedText() == (
-        "done"
-    )
+    assert window.find_replace_dialog.replace_text_edit.text() == "done"
+    assert not window.find_replace_dialog.find_text_edit.hasSelectedText()
+    assert not window.find_replace_dialog.replace_text_edit.hasSelectedText()
 
 
 def test_replace_marked_returns_focus_to_find_text(
@@ -136,12 +130,9 @@ def test_replace_marked_returns_focus_to_find_text(
     assert window.editor.toPlainText() == "done keep done"
     assert window.find_replace_dialog.find_text_edit.hasFocus()
     assert window.find_replace_dialog.find_text_edit.text() == "target"
-    assert window.find_replace_dialog.find_text_edit.textCursor().selectedText() == (
-        "target"
-    )
-    assert window.find_replace_dialog.replace_text_edit.textCursor().selectedText() == (
-        "done"
-    )
+    assert window.find_replace_dialog.replace_text_edit.text() == "done"
+    assert not window.find_replace_dialog.find_text_edit.hasSelectedText()
+    assert not window.find_replace_dialog.replace_text_edit.hasSelectedText()
 
 
 def test_replace_all_button_previews_and_replaces(
