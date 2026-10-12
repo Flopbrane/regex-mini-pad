@@ -2546,13 +2546,16 @@ Changes:
 
 Find/Replace window follow-up:
 
+- Historical note: the selection/repaint mitigation recorded below was superseded on 2026-10-13 by `Step14-section2`.
+- Do not restore automatic full selection of both inputs or the duplicate 0 ms / 50 ms focus callbacks. Those operations contributed to the visible-text instability.
+
 - The Find/Replace inputs still use `RegexInputEdit` (`QPlainTextEdit`) for multiline regex input and syntax highlighting.
 - Real GUI behavior showed that, after replacement, the search/replacement text could appear blank even though the stored text remained intact.
 - Manual dragging/selecting the text made the content visible again, suggesting a Qt layout/paint/selection refresh issue rather than data loss.
-- The current mitigation selects all text in both the search box and replacement box after replacement, then refreshes the viewport.
-- The focus restoration is run twice with `QTimer.singleShot(0, ...)` and `QTimer.singleShot(50, ...)` to cover delayed Qt repaint/layout timing.
+- The 2026-10-09 mitigation selected all text in both inputs after replacement, then refreshed the viewport. This behavior has now been removed.
+- That mitigation also ran focus restoration twice with `QTimer.singleShot(0, ...)` and `QTimer.singleShot(50, ...)`. The 50 ms callback has now been removed.
 
-Future Find/Replace countermeasures:
+Historical Find/Replace countermeasure notes:
 
 - Manually verify the built EXE on Windows, not only offscreen pytest, because this issue is visual and timing-sensitive.
 - Test Replace, Replace All, and Replace Marked with both short and long regex strings.
@@ -2666,6 +2669,82 @@ Notes:
 - The full-suite failures above are the existing Replace All preview retention and paragraph splitter issues observed before the Step14 changes.
 - Real Windows GUI keypress acceptance and packaged EXE validation remain to be performed.
 - Real Gutenberg paste/save acceptance for the generated table/list blocks remains to be performed.
+
+## Step14-section2 Find/Replace Visible Text and Automatic Input Height
+
+Date: 2026-10-13
+
+Reported symptoms:
+
+- After Replace, Replace All, or Replace Marked, the search/replacement strings could appear blank even though the document markers still reacted to the stored search value.
+- A second reported case used this multiline search text:
+  - `<!-- /wp:heading -->`
+  - a blank line
+  - `<!-- wp:paragraph -->`
+- Moving the cursor to edit the real newline as the regex token `\n` made the whole input appear empty.
+- In both cases, the internal value remained intact; this was a rendering, selection, focus, scroll, and viewport-height problem rather than data loss.
+
+Historical comparison:
+
+- Compared the packaged `regex-pad_Step11-section14.zip` build with repository history.
+- The EXE timestamp was 2026-09-23 21:41 and closely matched commit `a2c7306` from 21:38.
+- That stable build used `QLineEdit` for both Find and Replace inputs.
+- Commit `9767b36` on 2026-09-24 changed both inputs to `RegexInputEdit`, based on `QPlainTextEdit`, so multiline input and partial regex syntax coloring could be supported.
+- The display instability started after this widget change; the later Markdown table/list core import was not the cause.
+
+Change policy:
+
+- Keep `RegexInputEdit` / `QPlainTextEdit` so partial brown regex-token highlighting and multiline search input remain available.
+- Never rewrite or reassign the stored search/replacement text merely to repair its appearance.
+- Display recovery must preserve cursor position, selection state, undo behavior, IME state, replacement preview rows, and search markers.
+- Do not automatically select all text after replacement.
+- Restore focus once on the next Qt event cycle; do not run a second delayed 50 ms focus/selection callback.
+- Use non-mutating viewport refreshes only when a repaint is needed.
+- Fit each input to its visual line count, including wrapped lines, from 1 through 5 visible lines.
+- For 6 or more visual lines, keep the input at 5 lines and use the vertical scrollbar.
+- A repaint alone cannot fix a one-line viewport that is correctly showing an empty logical line. The viewport must expose surrounding non-empty lines.
+
+Modified locations:
+
+- `main.py`
+  - `_focus_find_text_after_replace_all()` now queues only one 0 ms focus restoration.
+  - `_focus_find_text_after_replace_all_now()` refreshes both inputs without selecting or rewriting their contents, then focuses the Find input.
+- `dialogs/regex_input_edit.py`
+  - Added automatic height calculation from the laid-out document height so real newlines and wrapped lines are both counted.
+  - Added a 1-line minimum and 5-line maximum.
+  - Added queued height recalculation after text and width changes.
+  - Retained regex syntax highlighting and non-mutating viewport refresh behavior.
+- `tests/test_main_window_search.py`
+  - Replace, Replace All, and Replace Marked now assert that both input strings remain intact and neither input is automatically selected.
+- `tests/test_regex_input_display_flow.py`
+  - Added repeated replacement coverage and checks that the second replacement keeps both strings visible and unselected.
+- `tests/test_find_replace_dialog.py`
+  - Added automatic one-line-to-multiline height coverage.
+  - Added the exact WordPress heading/blank-line/paragraph regression pattern.
+  - Added the 5-line height-cap and vertical-scroll regression check.
+
+Observed dimensions in the offscreen GUI check:
+
+- One visual line: 26 px.
+- The reported three-line pattern: 54 px.
+- Ten lines: 82 px, capped at five visible lines with vertical scrolling.
+- With the cursor on the blank middle line, the first and third lines remained inside the visible viewport.
+
+Validation:
+
+- Focused Find/Replace tests: 65 passed.
+- Full suite excluding the known paragraph-splitter mismatch: 337 passed.
+- Full suite: 346 passed, 1 failed.
+- Ruff: All checks passed.
+- Pyright with the project interpreter: 0 errors, 0 warnings, 0 informations.
+- `git diff --check`: passed.
+- User-confirmed source-script acceptance on Windows: the text remained drawn after the second replacement.
+
+Known remaining issue and acceptance scope:
+
+- `tests/test_paragraph_splitter.py::test_split_paragraph_insert_html_code_block` still fails because the test places the cursor on non-empty `行B`, while the current implementation requires an empty user-created line. This failure is unrelated to Find/Replace rendering.
+- The newly rebuilt packaged EXE has not yet been tested for this change.
+- Continue checking repeated replacement, focus movement, actual newlines, literal `\n`, long wrapped regex patterns, and Japanese IME input in the Windows GUI.
 
 ## Validation Commands
 
