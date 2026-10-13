@@ -20,7 +20,7 @@ from html import escape, unescape
 from pathlib import Path
 from re import error as RegexError
 
-from portable_runtime import app_base_dir, configure_portable_runtime
+from portable_runtime import app_base_dir, bundled_base_dir, configure_portable_runtime
 
 configure_portable_runtime()
 
@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.window_id: str = window_id or str(uuid.uuid4())
         self.setObjectName(f"main-window-{self.window_id}")
-        self.resources_path: Path = Path(__file__).parent / "resources"
+        self.resources_path: Path = bundled_base_dir() / "resources"
         config_path = settings_path or default_config_path()
         migrate_legacy_settings_if_needed(config_path)
         self.settings_manager = SettingsManager(config_path)
@@ -3262,7 +3262,7 @@ class MainWindow(QMainWindow):
         is_new_dialog = self.schema_reference_dialog is None
         if self.schema_reference_dialog is None:
             self.schema_reference_dialog = SchemaReferenceDialog(
-                app_base_dir() / "dictionaries" / "standards",
+                bundled_base_dir() / "dictionaries" / "standards",
                 self.translator,
                 self,
             )

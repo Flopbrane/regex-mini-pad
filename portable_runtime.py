@@ -14,6 +14,13 @@ def app_base_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+def bundled_base_dir() -> Path:
+    """Return the read-only bundled application data folder."""
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", app_base_dir())).resolve()
+    return Path(__file__).resolve().parent
+
+
 def _add_site_dir(site_dir: Path) -> None:
     if site_dir.exists():
         site.addsitedir(str(site_dir))

@@ -1,12 +1,39 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(SPECPATH)
+JSON_EXCLUDE_PARTS = {
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    "__pycache__",
+    "_internal",
+    "build",
+    "dist",
+}
+
+
+def _project_json_datas():
+    json_datas = []
+    for json_path in sorted(PROJECT_ROOT.rglob("*.json")):
+        relative_path = json_path.relative_to(PROJECT_ROOT)
+        if any(part in JSON_EXCLUDE_PARTS for part in relative_path.parts):
+            continue
+        source_path = relative_path.as_posix()
+        target_dir = relative_path.parent.as_posix()
+        if target_dir == ".":
+            target_dir = "."
+        json_datas.append((source_path, target_dir))
+    return json_datas
+
 
 app_datas = [
-    ('resources/app_text_en.json', 'resources'),
-    ('resources/app_text_ja.json', 'resources'),
-    ('resources/regex_help_en.json', 'resources'),
-    ('resources/regex_help_ja.json', 'resources'),
-    ('dictionaries', 'dictionaries'),
+    *_project_json_datas(),
     ('readme.txt', '.'),
     ('readme_jp.txt', '.'),
     ('LICENSE.txt', '.'),

@@ -3030,6 +3030,41 @@ Validation:
 - `json.tool`: `resources/app_text_ja.json` and `resources/app_text_en.json` passed.
 - `ruff check main.py tests/test_tag_insert.py`: All checks passed.
 
+## Step15-section6 PyInstaller JSON Data Bundling
+
+Date: 2026-10-13
+
+Goal:
+
+- Ensure the EXE build includes all existing project JSON files needed by resources, dictionaries, standards, lint, and embedded conversion features.
+- Keep runtime/user-generated JSON such as `_internal/autosave` out of the packaged app.
+
+Implementation:
+
+- `regex-pad.spec`
+  - Replaced the fixed JSON list with `_project_json_datas()`.
+  - Recursively collects project `*.json` files at build time.
+  - Preserves each JSON file's relative destination so PyInstaller places them under the one-folder `_internal` contents tree.
+  - Excludes generated/cache/runtime folders including `_internal`, `build`, `dist`, `.pytest_cache`, `.ruff_cache`, `.git`, `.vscode`, `.venv`, and `__pycache__`.
+- `portable_runtime.py`
+  - Added `bundled_base_dir()` for read-only bundled assets.
+  - Uses `sys._MEIPASS` when frozen so bundled resources are read from PyInstaller's `_internal` folder.
+- `main.py`
+  - Loads `resources` and schema-reference standards from `bundled_base_dir()`.
+  - Keeps writable runtime data such as autosave and backup under `app_base_dir() / "_internal"`.
+- `tests/test_pyinstaller_spec.py`
+  - Added coverage that the spec dynamically collects JSON files.
+  - Added coverage that current source JSON files such as `resources/app_text_ja.json`, `dictionaries/standards/standard_css.json`, and `config.json` are included.
+  - Added coverage that `_internal/...` runtime JSON is excluded.
+- `tests/test_portable_runtime.py`
+  - Added coverage that frozen runtime reads bundled data from `sys._MEIPASS`.
+
+Validation:
+
+- Spec JSON collection smoke check: 19 project JSON entries collected; `_internal/autosave` entries excluded.
+- `pytest tests/test_pyinstaller_spec.py tests/test_portable_runtime.py tests/test_schema_reference_dialog.py tests/test_app_translation.py`: 12 passed.
+- `ruff check main.py portable_runtime.py tests/test_pyinstaller_spec.py tests/test_portable_runtime.py`: All checks passed.
+
 ## Validation Commands
 
 Use the project virtual environment:
