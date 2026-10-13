@@ -44,7 +44,7 @@ def test_schema_reference_dialog_is_modeless_and_has_separate_tables(
     assert "src" in dialog.html_browser.toPlainText()
     assert "border-collapse" in dialog.css_browser.toPlainText()
     assert "text-aling" in dialog.css_browser.toPlainText()
-    assert "core/paragraph" in dialog.wordpress_browser.toPlainText()
+    assert "wp:paragraph" in dialog.wordpress_browser.toPlainText()
     assert "level" in dialog.wordpress_browser.toPlainText()
 
 
@@ -60,6 +60,16 @@ def test_schema_reference_dialog_follows_language_change(app: QApplication) -> N
     assert dialog.tab_widget.tabText(0) == "HTML Tag / Attribute Table"
     assert dialog.tab_widget.tabText(1) == "CSS Property Table"
     assert dialog.tab_widget.tabText(2) == "WordPress Block JSON Table"
+    html_reference_text = dialog.html_browser.toPlainText()
+    assert "Description" in html_reference_text
+    assert "Sets the destination URL for a link or linked resource." in html_reference_text
+    css_reference_text = dialog.css_browser.toPlainText()
+    assert "Description" in css_reference_text
+    assert "color / keyword / css_variable" in css_reference_text
+    assert "Sets the background color." in css_reference_text
+    wordpress_reference_text = dialog.wordpress_browser.toPlainText()
+    assert "Description" in wordpress_reference_text
+    assert "Stores the block's editable content text." in wordpress_reference_text
 
 
 def test_main_window_opens_reference_without_disabling_editor(

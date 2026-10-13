@@ -69,7 +69,7 @@ def test_split_paragraph_insert_spacer_rejects_nonblank_line() -> None:
         split_paragraph_insert_spacer(text, text.index("行B"))
 
 
-def test_split_paragraph_insert_html_code_block() -> None:
+def test_split_paragraph_insert_html_code_block_rejects_nonblank_line() -> None:
     text = (
         "<!-- wp:paragraph -->\n"
         "<p>行A<br><br>\n"
@@ -78,7 +78,21 @@ def test_split_paragraph_insert_html_code_block() -> None:
         "<!-- /wp:paragraph -->"
     )
 
-    replacement = split_paragraph_insert_html(text, text.index("行B"))
+    with pytest.raises(ParagraphSplitError, match="空行で右クリック"):
+        split_paragraph_insert_html(text, text.index("行B"))
+
+
+def test_split_paragraph_insert_html_code_block_at_blank_line() -> None:
+    text = (
+        "<!-- wp:paragraph -->\n"
+        "<p>行A<br><br>\n"
+        "\n"
+        "行B<br><br>\n"
+        "</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    replacement = split_paragraph_insert_html(text, text.index("\n\n") + 1)
 
     assert replacement.text == (
         "<!-- wp:paragraph -->\n"

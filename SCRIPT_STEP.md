@@ -2949,6 +2949,50 @@ Notes:
 - This does not yet implement schema-backed WordPress block attribute semantics from `wordpress_block_schema.json`.
 - The next modular lint step is to connect syntactically valid block-comment JSON to the WordPress block schema.
 
+## Step15-section4 CSS Reference Description Column
+
+Date: 2026-10-13
+
+Goal:
+
+- Make the CSS reference table easier to read by adding a short explanation column after `型・使用可能な値`.
+
+Implementation:
+
+- `dialogs/schema_help.py`
+  - Added a localized `解説` / `Description` column to the CSS property table.
+  - Added the same localized explanation column to the HTML tag/attribute tables.
+  - Added the same localized explanation column to the WordPress block JSON tables.
+  - Corrected CSS reference formatting so entries using `value_types` display concrete types such as `color / keyword / css_variable` instead of `unknown`.
+  - Added localized HTML attribute, WordPress block-attribute, and CSS property descriptions with safe fallback text.
+  - Kept support for future dictionary-provided `description`, `description_ja`, and `description_en` fields.
+  - Changed WordPress block reference labels from internal `core/...` names to user-facing `wp:...` names.
+- `tests/test_schema_reference_dialog.py`
+  - Added regression coverage for the new English `Description` headers.
+  - Added coverage that HTML, CSS, and WordPress explanations render in the reference text.
+  - Added coverage that `value_types` render in the CSS reference text.
+- `tests/test_paragraph_splitter.py`
+  - Synchronized the paragraph-split HTML insertion regression test with the confirmed policy that insertion is allowed only from a user-created blank line.
+
+Validation:
+
+- `pytest tests/test_schema_reference_dialog.py`: 3 passed.
+- `pytest tests/test_schema_reference_dialog.py tests/test_paragraph_splitter.py`: 14 passed.
+- `ruff check dialogs/schema_help.py tests/test_schema_reference_dialog.py`: All checks passed.
+- `ruff check .`: All checks passed.
+- `pyright --pythonpath D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe`: 0 errors, 0 warnings, 0 informations.
+- `git diff --check`: passed.
+- `pytest`: 376 passed.
+- Manual schema generation smoke check confirmed Japanese CSS rows render as:
+  - `| プロパティ | 型・使用可能な値 | 解説 |`
+  - `| background-color | color / keyword / css_variable | 背景色を指定します。 |`
+- Manual schema generation smoke check confirmed WordPress block rows render as `wp:code`, `wp:column`, and related `wp:...` labels.
+- Manual schema generation smoke check confirmed Japanese HTML and WordPress rows render as:
+  - `| タグ | 属性 | 型・使用可能な値 | 解説 | 必須 |`
+  - `| <a> | href | url | リンク先や参照先のURLを指定します。 | いいえ |`
+  - `| ブロック | 属性 | 型・使用可能な値 | 解説 |`
+  - `| wp:paragraph | content | string | ブロックの編集可能な本文を保存します。 |`
+
 ## Validation Commands
 
 Use the project virtual environment:
