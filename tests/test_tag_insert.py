@@ -280,14 +280,30 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
 
     action_texts = [action.text() for action in context_menu.actions()]
     insert_tag_menu: QMenu | None = None
+    css_insert_menu: QMenu | None = None
     for action in context_menu.actions():
         child_menu = action.menu()
         if isinstance(child_menu, QMenu) and child_menu.title() == "タグ挿入(&T)":
             insert_tag_menu = child_menu
-            break
+        if isinstance(child_menu, QMenu) and child_menu.title() == "CSS挿入":
+            css_insert_menu = child_menu
 
     assert "タグ挿入..." in action_texts
     assert isinstance(insert_tag_menu, QMenu)
+    assert isinstance(css_insert_menu, QMenu)
+    assert [action.text() for action in css_insert_menu.actions()] == [
+        'style="" 属性',
+        "color",
+        "background-color",
+        "font-size",
+        "font-weight: bold",
+        "text-align",
+        "margin",
+        "padding",
+        "border",
+        "border-radius",
+        "display: inline-block",
+    ]
     paragraph_split_menu = next(
         (
             child_menu
@@ -312,6 +328,28 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
         "Markdown",
         "WordPress HTML",
     ]
+
+
+def test_css_insert_context_menu_actions_insert_editable_text(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("<p >Body</p>")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(3)
+    window.editor.setTextCursor(cursor)
+
+    window.css_parameter_actions["style_attribute"].trigger()
+
+    assert window.editor.toPlainText() == '<p style="">Body</p>'
+    assert window.editor.textCursor().position() == len('<p style="')
+
+    window.editor.setPlainText("")
+    window.css_parameter_actions["background_color"].trigger()
+
+    assert window.editor.toPlainText() == "background-color: ;"
+    assert window.editor.textCursor().position() == len("background-color: ")
 
 
 def test_tag_insert_dialog_filters_and_accepts_with_keyboard(

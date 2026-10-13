@@ -2993,6 +2993,43 @@ Validation:
   - `| ブロック | 属性 | 型・使用可能な値 | 解説 |`
   - `| wp:paragraph | content | string | ブロックの編集可能な本文を保存します。 |`
 
+## Step15-section5 CSS Parameter Insert Context Menu
+
+Date: 2026-10-13
+
+Goal:
+
+- Put an easy entry point for inserting `style` and common CSS parameters in the editor right-click menu.
+
+Implementation:
+
+- `main.py`
+  - Added a right-click `CSS挿入` / `Insert CSS` submenu.
+  - Added fixed insert actions for:
+    - `style=""`
+    - `color`
+    - `background-color`
+    - `font-size`
+    - `font-weight: bold`
+    - `text-align`
+    - `margin`
+    - `padding`
+    - `border`
+    - `border-radius`
+    - `display: inline-block`
+  - Extended `insert_text_at_cursor()` so each action can place the cursor at the editable value position.
+- `resources/app_text_ja.json` / `resources/app_text_en.json`
+  - Added localized labels for the new context-menu entry and CSS insert actions.
+- `tests/test_tag_insert.py`
+  - Added coverage that the right-click context menu exposes the `CSS挿入` submenu.
+  - Added coverage that `style=""` and `background-color: ;` insert text and leave the cursor in the value position.
+
+Validation:
+
+- `pytest tests/test_tag_insert.py::test_editor_context_menu_has_tag_insert_actions tests/test_tag_insert.py::test_css_insert_context_menu_actions_insert_editable_text tests/test_app_translation.py`: 6 passed.
+- `json.tool`: `resources/app_text_ja.json` and `resources/app_text_en.json` passed.
+- `ruff check main.py tests/test_tag_insert.py`: All checks passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

@@ -155,6 +155,39 @@ INLINE_COLOR_SPAN_ACTIONS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
     ("pink", "#c2185b", "action.inline_color_pink", ("Ctrl+Alt+6",)),
     ("gray", "#555555", "action.inline_color_gray", ("Ctrl+Alt+7",)),
 )
+CSS_PARAMETER_INSERT_ACTIONS: tuple[tuple[str, str, str, int], ...] = (
+    ("style_attribute", "action.css_insert_style_attribute", 'style=""', len('style="')),
+    ("color", "action.css_insert_color", "color: ;", len("color: ")),
+    (
+        "background_color",
+        "action.css_insert_background_color",
+        "background-color: ;",
+        len("background-color: "),
+    ),
+    ("font_size", "action.css_insert_font_size", "font-size: ;", len("font-size: ")),
+    (
+        "font_weight",
+        "action.css_insert_font_weight",
+        "font-weight: bold;",
+        len("font-weight: "),
+    ),
+    ("text_align", "action.css_insert_text_align", "text-align: ;", len("text-align: ")),
+    ("margin", "action.css_insert_margin", "margin: ;", len("margin: ")),
+    ("padding", "action.css_insert_padding", "padding: ;", len("padding: ")),
+    ("border", "action.css_insert_border", "border: 1px solid #999;", len("border: ")),
+    (
+        "border_radius",
+        "action.css_insert_border_radius",
+        "border-radius: ;",
+        len("border-radius: "),
+    ),
+    (
+        "display_inline_block",
+        "action.css_insert_display_inline_block",
+        "display: inline-block;",
+        len("display: "),
+    ),
+)
 
 
 def _split_style_parts(style_text: str) -> list[str]:
@@ -434,6 +467,16 @@ class MainWindow(QMainWindow):
         self.wordpress_list_transform_action.triggered.connect(
             self.convert_selected_markdown_lists_to_wordpress_lists
         )
+
+        self.css_parameter_actions: dict[str, QAction] = {}
+        for action_id, _text_key, insert_text, cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
+            action = QAction(self)
+            action.triggered.connect(
+                lambda checked=False,
+                text=insert_text,
+                offset=cursor_offset: self.insert_text_at_cursor(text, offset),
+            )
+            self.css_parameter_actions[action_id] = action
 
         self.paragraph_split_spacer_action = QAction(self)
         self.paragraph_split_spacer_action.triggered.connect(
@@ -1059,6 +1102,8 @@ class MainWindow(QMainWindow):
         self.wordpress_list_transform_action.setText(
             self.translator.text("action.wordpress_list_transform")
         )
+        for action_id, text_key, _insert_text, _cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
+            self.css_parameter_actions[action_id].setText(self.translator.text(text_key))
         self.paragraph_split_spacer_action.setText(
             self.translator.text("paragraph_split.insert_spacer")
         )
@@ -1207,6 +1252,13 @@ class MainWindow(QMainWindow):
         html_transform_menu.addSeparator()
         html_transform_menu.addAction(self.wordpress_code_block_action)
         context_menu.addMenu(html_transform_menu)
+        css_insert_menu = QMenu(
+            self.translator.text("action.css_insert"),
+            context_menu,
+        )
+        for action_id, _text_key, _insert_text, _cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
+            css_insert_menu.addAction(self.css_parameter_actions[action_id])
+        context_menu.addMenu(css_insert_menu)
         paragraph_split_menu = QMenu(
             self.translator.text("paragraph_split.menu"),
             context_menu,
@@ -1997,12 +2049,19 @@ class MainWindow(QMainWindow):
             return self.frame_text_color.strip()
         return "#333333"
 
-    def insert_text_at_cursor(self, insert_text: str) -> None:
+    def insert_text_at_cursor(
+        self,
+        insert_text: str,
+        cursor_offset: int | None = None,
+    ) -> None:
         """Insert fixed text into the current editor at the cursor position."""
         cursor = self.editor.textCursor()
+        insert_start = cursor.selectionStart()
         cursor.beginEditBlock()
         cursor.insertText(insert_text)
         cursor.endEditBlock()
+        if cursor_offset is not None:
+            cursor.setPosition(insert_start + cursor_offset)
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
 
