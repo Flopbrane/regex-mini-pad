@@ -109,6 +109,11 @@ from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import EditorSettings, SettingsManager
 
 GrammarLintMessage = HtmlTypoLintMessage | CssLintIssue
+GRAMMAR_SEVERITY_ORDER = {
+    "error": 0,
+    "warning": 1,
+    "info": 2,
+}
 
 ENCODING_OPTIONS: dict[str, str] = {
     "UTF-8": "utf-8",
@@ -1577,23 +1582,25 @@ class MainWindow(QMainWindow):
             )
             return
 
-        self._set_grammar_issue_highlights(messages)
-        self._set_cursor_to_line(messages[0].line_number)
+        sorted_messages = self._sort_grammar_messages(messages)
+        self._set_grammar_issue_highlights(sorted_messages)
+        self._set_cursor_to_line(sorted_messages[0].line_number)
         status_message = self.translator.text(
-            "grammar_check.issues_found",
-            count=len(messages),
+            "grammar_check.issues_found_with_severity",
+            count=len(sorted_messages),
+            details=self._grammar_severity_count_text(sorted_messages),
         )
         self.statusBar().showMessage(status_message)
         rows = [
-            (message.line_number, self._html_typo_lint_message_text(message))
-            for message in messages
+            (message.line_number, self._grammar_lint_message_text(message))
+            for message in sorted_messages
         ]
         self._save_grammar_lint_result(
             self.editor,
             source_text=source_text,
             summary=status_message,
             rows=rows,
-            issue_lines=[message.line_number for message in messages],
+            issue_lines=[message.line_number for message in sorted_messages],
         )
         self._show_grammar_check_dialog_for_editor(
             self.editor,
@@ -1614,6 +1621,20 @@ class MainWindow(QMainWindow):
         else:
             messages.extend(lint_html_typos(source_text))
         return messages
+
+    def _sort_grammar_messages(
+        self,
+        messages: list[GrammarLintMessage],
+    ) -> list[GrammarLintMessage]:
+        """Show more serious grammar findings first, then keep line order."""
+        return sorted(
+            messages,
+            key=lambda message: (
+                GRAMMAR_SEVERITY_ORDER.get(message.severity, 99),
+                message.line_number,
+                message.message_key,
+            ),
+        )
 
     def _grammar_result_path_for_editor(self, editor: TextEditor) -> Path:
         result_path = self.tab_grammar_result_paths.get(editor)
@@ -1760,9 +1781,10 @@ class MainWindow(QMainWindow):
             self.editor.clear_grammar_issue_lines()
             return True
 
-        self._set_grammar_issue_highlights(messages)
-        self._set_cursor_to_line(messages[0].line_number)
-        summary = self._grammar_check_summary(messages)
+        sorted_messages = self._sort_grammar_messages(messages)
+        self._set_grammar_issue_highlights(sorted_messages)
+        self._set_cursor_to_line(sorted_messages[0].line_number)
+        summary = self._grammar_check_summary(sorted_messages)
         try:
             result = QMessageBox.question(
                 self,
@@ -1798,14 +1820,18 @@ class MainWindow(QMainWindow):
     ) -> str:
         shown_messages = messages[:limit]
         rows = [
-            self.translator.text("grammar_check.issues_found", count=len(messages)),
+            self.translator.text(
+                "grammar_check.issues_found_with_severity",
+                count=len(messages),
+                details=self._grammar_severity_count_text(messages),
+            ),
             "",
         ]
         rows.extend(
             self.translator.text(
                 "grammar_check.issue_row",
                 line=message.line_number,
-                message=self._html_typo_lint_message_text(message),
+                message=self._grammar_lint_message_text(message),
             )
             for message in shown_messages
         )
@@ -1818,6 +1844,30 @@ class MainWindow(QMainWindow):
                 )
             )
         return "\n".join(rows)
+
+    def _grammar_lint_message_text(self, message: GrammarLintMessage) -> str:
+        severity_label = self.translator.text(
+            f"grammar_check.severity.{message.severity}"
+        )
+        return (
+            f"{severity_label} "
+            f"{self._html_typo_lint_message_text(message)}"
+        )
+
+    def _grammar_severity_count_text(
+        self,
+        messages: list[GrammarLintMessage],
+    ) -> str:
+        counts = {"error": 0, "warning": 0, "info": 0}
+        for message in messages:
+            if message.severity in counts:
+                counts[message.severity] += 1
+        return self.translator.text(
+            "grammar_check.severity_counts",
+            error=counts["error"],
+            warning=counts["warning"],
+            info=counts["info"],
+        )
 
     def _html_typo_lint_message_text(self, message: GrammarLintMessage) -> str:
         values = message.values or {}

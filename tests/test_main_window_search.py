@@ -388,6 +388,8 @@ def test_grammar_check_reports_html_and_wordpress_typos(
     assert "paragraph" in result_text
     assert "Typoです" in result_text
     assert "wp:paragraph" in result_text
+    assert window.translator.text("grammar_check.severity.warning") in result_text
+    assert "警告" in window.grammar_check_dialog.summary_label.text()
     assert window.grammar_check_dialog.copy_button.isEnabled() is True
     window.grammar_check_dialog.copy_results_to_clipboard()
     assert QApplication.clipboard().text() == result_text

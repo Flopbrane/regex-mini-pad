@@ -72,7 +72,7 @@ def wp_parse_complex_markdown_blocks(markdown_text: str) -> list[WPComplexMarkdo
         if _wp_is_table_row(stripped_line):
             _wp_flush_list_blocks(blocks, list_items, list_ordered)
             list_ordered = False
-            table_lines.append(stripped_line)
+            table_lines.append(_wp_normalize_escaped_table_delimiters(stripped_line))
             continue
 
         list_match = _wp_match_list_item(line)
@@ -116,6 +116,7 @@ def _wp_render_complex_block(block: WPComplexMarkdownBlock) -> str:
     if block.block_type == "table":
         headers = _wp_split_table_row(block.lines[0])
         rows = [_wp_split_table_row(row) for row in block.lines[2:]]
+        headers, rows = _wp_normalize_table_width(headers, rows)
         return wp_create_table_block_from_rows(
             headers,
             rows,
@@ -152,7 +153,11 @@ def _wp_flush_list_blocks(
 
 
 def _wp_is_table_row(stripped_line: str) -> bool:
-    return bool(WP_MARKDOWN_TABLE_ROW_PATTERN.match(stripped_line))
+    return bool(
+        WP_MARKDOWN_TABLE_ROW_PATTERN.match(
+            _wp_normalize_escaped_table_delimiters(stripped_line)
+        )
+    )
 
 
 def _wp_match_list_item(line: str) -> tuple[str, bool] | None:
@@ -166,8 +171,60 @@ def _wp_match_list_item(line: str) -> tuple[str, bool] | None:
 
 
 def _wp_split_table_row(row: str) -> list[str]:
-    return [cell.strip() for cell in row.strip().strip("|").split("|")]
+    normalized_row = _wp_normalize_escaped_table_delimiters(row)
+    stripped_row = normalized_row.strip()
+    stripped_row = stripped_row.removeprefix("|")
+    if stripped_row.endswith("|") and not stripped_row.endswith(r"\|"):
+        stripped_row = stripped_row[:-1]
+
+    cells: list[str] = []
+    current_cell: list[str] = []
+    escaped = False
+    for character in stripped_row:
+        if escaped:
+            current_cell.append(character)
+            escaped = False
+            continue
+        if character == "\\":
+            escaped = True
+            continue
+        if character == "|":
+            cells.append("".join(current_cell).strip())
+            current_cell = []
+            continue
+        current_cell.append(character)
+    if escaped:
+        current_cell.append("\\")
+    cells.append("".join(current_cell).strip())
+    return cells
+
+
+def _wp_normalize_table_width(
+    headers: list[str],
+    rows: list[list[str]],
+) -> tuple[list[str], list[list[str]]]:
+    """Pad simple Markdown tables so all WordPress rows have the same width."""
+    column_count = max(
+        [len(headers), *(len(row) for row in rows)],
+        default=0,
+    )
+    if column_count == 0:
+        return headers, rows
+    normalized_headers = [*headers, *([""] * (column_count - len(headers)))]
+    normalized_rows = [
+        [*row, *([""] * (column_count - len(row)))]
+        for row in rows
+    ]
+    return normalized_headers, normalized_rows
+
+
+def _wp_normalize_escaped_table_delimiters(markdown_line: str) -> str:
+    """Accept web-copied tables where structural pipes are escaped."""
+    stripped_line = markdown_line.strip()
+    if stripped_line.startswith(r"\|") and stripped_line.endswith(r"\|"):
+        return stripped_line.replace(r"\|", "|")
+    return markdown_line
 
 
 def _wp_normalize_escaped_pipe_table(markdown_text: str) -> str:
-    return markdown_text.replace(r"\|", "|").strip()
+    return markdown_text.strip()

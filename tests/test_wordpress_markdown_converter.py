@@ -36,6 +36,27 @@ def test_convert_complex_markdown_blocks_accepts_escaped_pipe_text() -> None:
     assert "<th>Purpose</th><th>AI</th>" in result
 
 
+def test_convert_markdown_table_keeps_literal_escaped_pipe_in_cell() -> None:
+    result = convert_markdown_tables_to_wordpress_html(
+        "| Tool | Note |\n"
+        "|---|---|\n"
+        r"| Runway | speed \| quality |"
+    )
+
+    assert "<td>Runway</td><td>speed | quality</td>" in result
+
+
+def test_convert_markdown_table_pads_short_rows_for_stable_columns() -> None:
+    result = convert_markdown_tables_to_wordpress_html(
+        "| Purpose | AI | Cost |\n"
+        "|---|---|---|\n"
+        "| B-roll | Runway |"
+    )
+
+    assert "<th>Purpose</th><th>AI</th><th>Cost</th>" in result
+    assert "<td>B-roll</td><td>Runway</td><td></td>" in result
+
+
 def test_convert_markdown_tables_converts_only_table_blocks() -> None:
     result = convert_markdown_tables_to_wordpress_html(
         "| Purpose | AI |\n"

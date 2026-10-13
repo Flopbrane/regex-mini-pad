@@ -3103,6 +3103,41 @@ Validation:
 - `pytest`: 382 passed.
 - `git diff --check`: passed.
 
+## Step15-section8 Markdown Table Recheck And Grammar Readability
+
+Date: 2026-10-13
+
+Goal:
+
+- Re-check simple Markdown table conversion before expanding conversion scope further.
+- Make Grammar Check results easier to scan without changing the underlying lint rules.
+
+Implementation:
+
+- `wp_conv_core/wp_converters/wp_markdown_converter.py`
+  - Kept literal escaped pipes inside table cells as text, for example `speed \| quality`.
+  - Continued accepting web-copied tables where structural pipes are escaped as `\|`.
+  - Normalized simple table width by padding short rows with empty cells so generated WordPress table rows stay rectangular.
+- `main.py`
+  - Sorted Grammar Check rows by severity, then by line number.
+  - Added severity labels to each row: error, warning, and note.
+  - Added severity counts to the Grammar Check summary and pre-save summary.
+- `resources/app_text_ja.json` / `resources/app_text_en.json`
+  - Added localized severity labels and summary text.
+- Tests
+  - Added table conversion regressions for literal escaped pipes and padded short rows.
+  - Added Grammar Check assertions for visible severity labels and summary counts.
+
+Validation:
+
+- `pytest tests/test_wordpress_markdown_converter.py tests/test_html_transform.py::test_wordpress_table_transform_converts_selected_markdown_table tests/test_main_window_search.py::test_grammar_check_reports_html_and_wordpress_typos`: 14 passed.
+- `json.tool`: `resources/app_text_ja.json` and `resources/app_text_en.json` passed.
+- `ruff check main.py wp_conv_core\wp_converters\wp_markdown_converter.py tests\test_wordpress_markdown_converter.py`: All checks passed.
+- `ruff check .`: All checks passed.
+- `pyright --pythonpath D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe`: 0 errors, 0 warnings, 0 informations.
+- `pytest`: 384 passed.
+- `git diff --check`: passed.
+
 ## Validation Commands
 
 Use the project virtual environment:
