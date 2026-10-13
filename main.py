@@ -102,9 +102,12 @@ from fileio.unsaved_backup_manager import (
 )
 from localization.translator import Translator
 from normalise import apply_normalise_operation
+from search.css_lint import CssLintIssue, lint_stylesheet
 from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
 from settings.settings_manager import EditorSettings, SettingsManager
+
+GrammarLintMessage = HtmlTypoLintMessage | CssLintIssue
 
 ENCODING_OPTIONS: dict[str, str] = {
     "UTF-8": "utf-8",
@@ -1494,9 +1497,9 @@ class MainWindow(QMainWindow):
             )
 
     def run_grammar_check(self) -> None:
-        """Run the HTML / WordPress typo grammar check for the current document."""
+        """Run the CSS or HTML / WordPress grammar check for the current document."""
         source_text = self.editor.toPlainText()
-        messages = lint_html_typos(source_text)
+        messages = self._lint_document(source_text)
         if not messages:
             self.editor.clear_grammar_issue_lines()
             status_message = self.translator.text("grammar_check.no_issues")
@@ -1541,6 +1544,17 @@ class MainWindow(QMainWindow):
 
     def _source_hash(self, source_text: str) -> str:
         return sha256(source_text.encode("utf-8")).hexdigest()
+
+    def _lint_document(self, source_text: str) -> list[GrammarLintMessage]:
+        messages: list[GrammarLintMessage] = []
+        if (
+            self.current_save_file_path is not None
+            and self.current_save_file_path.suffix.lower() == ".css"
+        ):
+            messages.extend(lint_stylesheet(source_text))
+        else:
+            messages.extend(lint_html_typos(source_text))
+        return messages
 
     def _grammar_result_path_for_editor(self, editor: TextEditor) -> Path:
         result_path = self.tab_grammar_result_paths.get(editor)
@@ -1682,7 +1696,7 @@ class MainWindow(QMainWindow):
         if not self.html_typo_lint_enabled:
             return True
 
-        messages = lint_html_typos(save_data)
+        messages = self._lint_document(save_data)
         if not messages:
             self.editor.clear_grammar_issue_lines()
             return True
@@ -1709,7 +1723,7 @@ class MainWindow(QMainWindow):
 
     def _set_grammar_issue_highlights(
         self,
-        messages: list[HtmlTypoLintMessage],
+        messages: list[GrammarLintMessage],
     ) -> None:
         self.editor.set_grammar_issue_lines(
             [message.line_number for message in messages]
@@ -1720,7 +1734,7 @@ class MainWindow(QMainWindow):
 
     def _grammar_check_summary(
         self,
-        messages: list[HtmlTypoLintMessage],
+        messages: list[GrammarLintMessage],
         limit: int = 20,
     ) -> str:
         shown_messages = messages[:limit]
@@ -1746,7 +1760,7 @@ class MainWindow(QMainWindow):
             )
         return "\n".join(rows)
 
-    def _html_typo_lint_message_text(self, message: HtmlTypoLintMessage) -> str:
+    def _html_typo_lint_message_text(self, message: GrammarLintMessage) -> str:
         values = message.values or {}
         if message.message_key == "html_typo_lint.unknown_wordpress_block":
             suggestion = values.get("suggestion")

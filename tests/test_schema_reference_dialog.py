@@ -36,11 +36,14 @@ def test_schema_reference_dialog_is_modeless_and_has_separate_tables(
 
     assert dialog.windowModality() == Qt.WindowModality.NonModal
     assert dialog.isModal() is False
-    assert dialog.tab_widget.count() == 2
+    assert dialog.tab_widget.count() == 3
     assert dialog.tab_widget.tabText(0) == "HTMLタグ・属性表"
-    assert dialog.tab_widget.tabText(1) == "WordPressブロックJSON表"
+    assert dialog.tab_widget.tabText(1) == "CSSプロパティ表"
+    assert dialog.tab_widget.tabText(2) == "WordPressブロックJSON表"
     assert "<img>" in dialog.html_browser.toPlainText()
     assert "src" in dialog.html_browser.toPlainText()
+    assert "border-collapse" in dialog.css_browser.toPlainText()
+    assert "text-aling" in dialog.css_browser.toPlainText()
     assert "core/paragraph" in dialog.wordpress_browser.toPlainText()
     assert "level" in dialog.wordpress_browser.toPlainText()
 
@@ -53,9 +56,10 @@ def test_schema_reference_dialog_follows_language_change(app: QApplication) -> N
     translator.set_language("en")
     dialog.apply_language()
 
-    assert dialog.windowTitle() == "HTML / WordPress Reference Tables"
+    assert dialog.windowTitle() == "HTML / CSS / WordPress Reference Tables"
     assert dialog.tab_widget.tabText(0) == "HTML Tag / Attribute Table"
-    assert dialog.tab_widget.tabText(1) == "WordPress Block JSON Table"
+    assert dialog.tab_widget.tabText(1) == "CSS Property Table"
+    assert dialog.tab_widget.tabText(2) == "WordPress Block JSON Table"
 
 
 def test_main_window_opens_reference_without_disabling_editor(
@@ -71,6 +75,8 @@ def test_main_window_opens_reference_without_disabling_editor(
     assert window.schema_reference_dialog.isVisible()
     assert window.schema_reference_dialog.isModal() is False
     assert window.editor.isEnabled()
-    assert window.schema_reference_action.text() == "HTML / WordPress 参考表(&R)..."
+    assert window.schema_reference_action.text() == (
+        "HTML / CSS / WordPress 参考表(&R)..."
+    )
 
     window.close()

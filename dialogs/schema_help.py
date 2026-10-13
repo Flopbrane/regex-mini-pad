@@ -25,6 +25,19 @@ _TEXT = {
         "none": "None",
         "void_tags": "Void tags",
         "prefixes": "Additional allowed prefixes",
+        "css_title": "CSS Property Table",
+        "css_intro": (
+            "This table is generated from `standard_css.json` and is also used "
+            "by CSS syntax checks for HTML style attributes and .css files."
+        ),
+        "properties": "Properties",
+        "property": "Property",
+        "known_typos": "Known Typo Corrections",
+        "incorrect": "Incorrect",
+        "correction": "Correction",
+        "units": "Units",
+        "category": "Category",
+        "values": "Values",
         "wp_title": "WordPress Block JSON Table",
         "wp_intro": (
             "This initial table is generated from `wordpress_block_schema.json`. "
@@ -55,6 +68,19 @@ _TEXT = {
         "none": "なし",
         "void_tags": "終了タグを持たないタグ",
         "prefixes": "追加で使用可能な接頭辞",
+        "css_title": "CSSプロパティ表",
+        "css_intro": (
+            "この表は `standard_css.json` から自動生成しています。"
+            "HTMLのstyle属性と.cssファイルのCSS文法チェックでも同じ辞書を使用します。"
+        ),
+        "properties": "プロパティ",
+        "property": "プロパティ",
+        "known_typos": "既知のTypo修正候補",
+        "incorrect": "誤りの候補",
+        "correction": "修正候補",
+        "units": "単位",
+        "category": "分類",
+        "values": "値",
         "wp_title": "WordPressブロックJSON表",
         "wp_intro": (
             "この初期表は `wordpress_block_schema.json` から自動生成しています。"
@@ -73,20 +99,25 @@ _TEXT = {
 def load_schema_help_topics(
     standards_path: Path,
     language_code: str,
-) -> tuple[HelpTopic, HelpTopic]:
-    """Build separate HTML and WordPress reference topics from bundled schemas."""
+) -> tuple[HelpTopic, HelpTopic, HelpTopic]:
+    """Build separate HTML, CSS, and WordPress topics from bundled schemas."""
     language = "en" if language_code == "en" else "ja"
     html_topic = _load_topic(
         standards_path / "html_tag_schema.json",
         language,
         "html",
     )
+    css_topic = _load_topic(
+        standards_path / "standard_css.json",
+        language,
+        "css",
+    )
     wordpress_topic = _load_topic(
         standards_path / "wordpress_block_schema.json",
         language,
         "wordpress",
     )
-    return html_topic, wordpress_topic
+    return html_topic, css_topic, wordpress_topic
 
 
 def _load_topic(
@@ -95,14 +126,20 @@ def _load_topic(
     schema_kind: str,
 ) -> HelpTopic:
     text = _TEXT[language]
-    title_key = "html_title" if schema_kind == "html" else "wp_title"
-    title = text[title_key]
+    title_keys = {
+        "html": "html_title",
+        "css": "css_title",
+        "wordpress": "wp_title",
+    }
+    title = text[title_keys[schema_kind]]
     try:
         load_data: Any = json.loads(load_file_path.read_text(encoding="utf-8"))
         if not isinstance(load_data, dict):
             raise TypeError("schema root must be an object")
         if schema_kind == "html":
             return title, _build_html_topic(load_data, language)
+        if schema_kind == "css":
+            return title, _build_css_topic(load_data, language)
         return title, _build_wordpress_topic(load_data, language)
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
         return title, f"# {title}\n\n{text['load_error']}: `{error}`"
@@ -132,7 +169,7 @@ def _build_html_topic(schema: dict[str, Any], language: str) -> str:
         if not attributes:
             lines.append(
                 _table_row(
-                    _code(f"<{tag_name}>") ,
+                    _code(f"<{tag_name}>"),
                     text["none"],
                     "-",
                     text["no"],
@@ -143,7 +180,7 @@ def _build_html_topic(schema: dict[str, Any], language: str) -> str:
             attribute_data = _as_dict(attributes[attribute_name])
             lines.append(
                 _table_row(
-                    _code(f"<{tag_name}>") ,
+                    _code(f"<{tag_name}>"),
                     _code(attribute_name),
                     _format_rule(attribute_data),
                     text["yes"] if attribute_name in required_attributes else text["no"],
@@ -178,6 +215,61 @@ def _build_html_topic(schema: dict[str, Any], language: str) -> str:
             f"- {text['prefixes']}: {prefixes or '-'}",
         ]
     )
+    return "\n".join(lines)
+
+
+def _build_css_topic(schema: dict[str, Any], language: str) -> str:
+    text = _TEXT[language]
+    lines = [
+        f"# {text['css_title']}",
+        "",
+        text["css_intro"],
+        "",
+        f"## {text['properties']}",
+        "",
+        _table_header(text["property"], text["rule"]),
+    ]
+    properties = _require_dict(schema, "properties")
+    for property_name in sorted(properties):
+        lines.append(
+            _table_row(
+                _code(property_name),
+                _format_rule(_as_dict(properties[property_name])),
+            )
+        )
+
+    known_typos = _require_dict(schema, "known_typos")
+    lines.extend(
+        [
+            "",
+            f"## {text['known_typos']}",
+            "",
+            _table_header(text["category"], text["incorrect"], text["correction"]),
+        ]
+    )
+    for typo_category in ("property_names", "units"):
+        typo_items = _as_dict(known_typos.get(typo_category, {}))
+        for incorrect, correction in sorted(typo_items.items()):
+            lines.append(
+                _table_row(
+                    _code(typo_category),
+                    _code(str(incorrect)),
+                    _code(str(correction)),
+                )
+            )
+
+    lines.extend(
+        [
+            "",
+            f"## {text['units']}",
+            "",
+            _table_header(text["category"], text["values"]),
+        ]
+    )
+    units = _require_dict(schema, "units")
+    for unit_category in sorted(units):
+        unit_values = ", ".join(_code(str(value)) for value in _as_list(units[unit_category]))
+        lines.append(_table_row(_code(unit_category), unit_values))
     return "\n".join(lines)
 
 
@@ -235,7 +327,7 @@ def _format_rule(rule: dict[str, Any]) -> str:
     type_names = raw_types if isinstance(raw_types, list) else [raw_types]
     parts = [" / ".join(_code(str(type_name)) for type_name in type_names)]
 
-    enum_values = rule.get("enum", rule.get("values"))
+    enum_values = rule.get("enum", rule.get("values", rule.get("keywords")))
     if isinstance(enum_values, list) and enum_values:
         parts.append(" / ".join(_code(str(value)) for value in enum_values))
     if "minimum" in rule:

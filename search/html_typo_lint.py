@@ -9,6 +9,9 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
+from json_lint import lint_json_fragment
+from search.css_lint import CssLintIssue, lint_inline_style, lint_stylesheet
+
 LINT_REFERENCE_PATH = Path(__file__).resolve().parent.parent / "dictionaries" / "lint_reference.json"
 BLOCK_COMMENT_PATTERN = re.compile(
     r"<!--\s*(/)?\s*wp:([a-zA-Z0-9_/-]+)(?:\s+([^\r\n]*?))?\s*-->",
@@ -402,6 +405,7 @@ class _LintToken:
 
 
 _WordPressBlockStackItem = tuple[str, int, int, dict[str, Any], bool]
+_ParsedWordPressBlockAttributes = tuple[dict[str, Any], bool, int | None]
 
 
 def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
@@ -415,6 +419,7 @@ def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages.extend(_lint_wordpress_block_typos(load_data))
     messages.extend(_lint_wordpress_block_structure(load_data))
     messages.extend(_lint_known_fragile_typos(load_data))
+    messages.extend(_lint_embedded_stylesheets(load_data))
     parser = HtmlTypoLintParser(load_data, suppressed_ranges)
     parser.feed(load_data)
     parser.close()
@@ -672,7 +677,6 @@ def _lint_known_fragile_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     )
     ordinary_checks = (
         (r"<\\p\s*>", "html_typo_lint.invalid_p_closing_tag"),
-        (r"margin\s*:\s*2en\b", "html_typo_lint.known_typo_margin_2en"),
     )
     for pattern, message_key in ordinary_checks:
         for match in re.finditer(pattern, load_data, re.IGNORECASE):
@@ -741,6 +745,31 @@ def _mask_ranges(load_data: str, ranges: list[tuple[int, int]]) -> str:
 
 def _position_in_ranges(position: int, ranges: list[tuple[int, int]]) -> bool:
     return any(start <= position < end for start, end in ranges)
+
+
+def _lint_embedded_stylesheets(load_data: str) -> list[HtmlTypoLintMessage]:
+    messages: list[HtmlTypoLintMessage] = []
+    pattern = re.compile(r"<style\b[^>]*>(.*?)</style\s*>", re.IGNORECASE | re.DOTALL)
+    for match in pattern.finditer(load_data):
+        css_text = match.group(1)
+        line_offset = load_data.count("\n", 0, match.start(1))
+        messages.extend(
+            _css_issue_to_html(issue, line_offset)
+            for issue in lint_stylesheet(css_text)
+        )
+    return messages
+
+
+def _css_issue_to_html(
+    issue: CssLintIssue,
+    line_offset: int = 0,
+) -> HtmlTypoLintMessage:
+    return HtmlTypoLintMessage(
+        issue.severity,
+        issue.message_key,
+        issue.line_number + line_offset,
+        issue.values,
+    )
 
 
 def _wordpress_block_tokens(load_data: str) -> list[_LintToken]:
@@ -961,19 +990,25 @@ def _lint_wordpress_block_structure(load_data: str) -> list[HtmlTypoLintMessage]
                     )
                 )
                 block_stack.pop()
-            block_attributes_valid = True
-            block_attributes = _parse_wordpress_block_attributes(block_match.group(3))
-            if block_attributes is None:
+            (
+                block_attributes,
+                block_attributes_valid,
+                attributes_error_line_number,
+            ) = _parse_wordpress_block_attributes(
+                block_match.group(3),
+                block_match.start(3) if block_match.group(3) is not None else -1,
+                line_starts,
+                line_number,
+            )
+            if not block_attributes_valid:
                 messages.append(
                     HtmlTypoLintMessage(
                         "warning",
                         "html_typo_lint.invalid_wordpress_block_attributes",
-                        line_number,
+                        attributes_error_line_number or line_number,
                         {"block": block_name},
                     )
                 )
-                block_attributes_valid = False
-                block_attributes = {}
             messages.extend(
                 _lint_unknown_wordpress_block_attributes(
                     block_name,
@@ -1146,19 +1181,37 @@ def _missing_wordpress_block_message(
     )
 
 
-def _parse_wordpress_block_attributes(attributes_text: str | None) -> dict[str, Any] | None:
+def _parse_wordpress_block_attributes(
+    attributes_text: str | None,
+    attributes_start_position: int,
+    line_starts: list[int],
+    fallback_line_number: int,
+) -> _ParsedWordPressBlockAttributes:
     if attributes_text is None:
-        return {}
+        return {}, True, None
     attributes_text = attributes_text.strip()
     if not attributes_text:
-        return {}
-    try:
-        block_attributes = json.loads(attributes_text)
-    except json.JSONDecodeError:
-        return None
+        return {}, True, None
+    attributes_line_number = _line_number_at(
+        attributes_start_position,
+        line_starts,
+    )
+    attributes_column_number = _column_number_at(
+        attributes_start_position,
+        line_starts,
+    )
+    json_issues = lint_json_fragment(
+        attributes_text,
+        start_line_number=attributes_line_number,
+        start_column_number=attributes_column_number,
+        require_container=True,
+    )
+    if json_issues:
+        return {}, False, json_issues[0].line_number
+    block_attributes = json.loads(attributes_text)
     if not isinstance(block_attributes, dict):
-        return None
-    return block_attributes
+        return {}, False, attributes_line_number
+    return block_attributes, True, None
 
 
 def _lint_unknown_wordpress_block_attributes(
@@ -1583,6 +1636,11 @@ def _line_number_at(position: int, line_starts: list[int]) -> int:
     return line_number
 
 
+def _column_number_at(position: int, line_starts: list[int]) -> int:
+    line_number = _line_number_at(position, line_starts)
+    return position - line_starts[line_number - 1] + 1
+
+
 def _normalize_block_name(block_name: str) -> str:
     clean_block_name = block_name.strip().lower()
     if clean_block_name.startswith("core/"):
@@ -1669,6 +1727,11 @@ class HtmlTypoLintParser(HTMLParser):
         self._lint_unknown_html_attrs(clean_tag, attrs_dict, line_number)
         self._lint_unexpected_html_attrs_for_tag(clean_tag, attrs_dict, line_number)
         self._lint_restricted_html_attrs(clean_tag, attrs_dict, line_number)
+        if "style" in attrs_dict:
+            self.messages.extend(
+                _css_issue_to_html(issue)
+                for issue in lint_inline_style(attrs_dict["style"], line_number)
+            )
 
     def _lint_inline_endtag(self, tag: str, line_number: int) -> None:
         if tag in INLINE_TAGS:

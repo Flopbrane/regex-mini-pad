@@ -2794,19 +2794,20 @@ Implementation:
   - Checks required HTML attributes, enum candidates, global attributes, allowed prefixes, and void tags.
   - Checks that WordPress block and attribute names remain compatible with `lint_reference.json` and use defined value types.
 - `dialogs/schema_help.py`
-  - Generates separate Japanese or English Markdown tables directly from `html_tag_schema.json` and `wordpress_block_schema.json`.
+  - Generates separate Japanese or English Markdown tables directly from `html_tag_schema.json`, `standard_css.json`, and `wordpress_block_schema.json`.
   - The HTML topic shows tag-specific attributes, types, candidate values, required attributes, global attributes, allowed prefixes, and void tags.
+  - The CSS topic shows registered properties and value rules, known typo corrections, and accepted units.
   - The WordPress topic shows each core block's known attributes and constraints separately from shared attribute candidates.
   - Missing or malformed schema files show a local table-load message without preventing the rest of Help from opening.
 - `dialogs/schema_reference_dialog.py`
-  - Shows `HTMLタグ・属性表` and `WordPressブロックJSON表` as separate tabs in an independent resizable window.
+  - Shows `HTMLタグ・属性表`, `CSSプロパティ表`, and `WordPressブロックJSON表` as separate tabs in an independent resizable window.
   - Uses a non-modal `Qt.Window`, so the main editor remains enabled and editable while the reference is visible.
   - Places the reference to the right of the main window on first display when space is available, otherwise tries the left side and remains freely movable for Windows snapping.
-  - Regenerates both tables when the application language changes.
+  - Regenerates all three tables when the application language changes.
 - `main.py` / `resources/app_text_ja.json` / `resources/app_text_en.json`
-  - Adds `HTML / WordPress 参考表...` to the Help menu and retains one reusable reference window.
+  - Adds `HTML / CSS / WordPress 参考表...` to the Help menu and retains one reusable reference window.
 - `tests/test_schema_reference_dialog.py`
-  - Checks independent HTML and WordPress tabs, modeless operation, Japanese/English updates, visibility, and continued editor availability.
+  - Checks independent HTML, CSS, and WordPress tabs, modeless operation, Japanese/English updates, visibility, and continued editor availability.
 - `README.md` / `README_jp.md`
   - Document the independent schema-generated reference window.
 - `regex-pad.spec`
@@ -2833,10 +2834,120 @@ Validation:
 
 Next implementation stage:
 
-- Add `css_lint.py` and validate standalone CSS plus HTML `style` values with the same dictionary.
 - Extend `json_lint.py` so extracted WordPress comment fragments can be checked with correct source positions.
 - Add the schema-backed HTML tag/attribute/value checks without duplicating CSS rules.
 - Connect parsed Gutenberg attributes to the WordPress block schema after JSON syntax succeeds.
+
+## Step15-section2 Dictionary-Backed CSS Lint and Reference Table
+
+Date: 2026-10-13
+
+Goal:
+
+- Use one CSS dictionary for standalone stylesheets, HTML inline styles, embedded `<style>` elements, and the Help reference table.
+- Report repair locations and likely corrections without rewriting the user's source text.
+- Keep the CSS layer separate so HTML lint delegates style values instead of maintaining duplicate CSS rules.
+
+Implementation:
+
+- `search/css_lint.py`
+  - Adds `lint_inline_style()` for HTML `style` attributes and `lint_stylesheet()` for complete CSS text.
+  - Returns line-aware `CssLintIssue` objects compatible with the existing Grammar Check result dialog.
+  - Handles semicolons inside quoted strings and CSS functions, CSS comments, nested blocks such as `@media`, and CSS custom properties.
+- `search/html_typo_lint.py`
+  - Delegates every HTML `style` attribute and each `<style>` element to the CSS linter.
+  - Converts CSS findings into the existing HTML lint message shape while retaining source line numbers.
+  - Removes the old one-off `margin:2en` rule because the shared CSS typo dictionary now owns that check.
+- `main.py`
+  - Dispatches standalone `.css` documents to `lint_stylesheet()` for manual and pre-save Grammar Check.
+  - Leaves non-CSS documents on the existing HTML / WordPress lint path.
+- `dictionaries/standards/standard_css.json`
+  - Expands article-writing coverage for tables, lists, text decoration, wrapping, spacing, object positioning, background attachment, and aspect ratio.
+  - Keeps property definitions, value categories, units, functions, at-rules, typo repairs, and full-width punctuation repairs in one data source.
+- `dialogs/schema_help.py` / `dialogs/schema_reference_dialog.py`
+  - Adds the CSS property table as the middle tab of the independent reference window.
+  - Shows registered value rules, typo corrections, and units from the same dictionary used by lint.
+- `resources/app_text_ja.json` / `resources/app_text_en.json`
+  - Adds localized CSS findings and updates the reference-window action/title to HTML / CSS / WordPress.
+- `tests/test_css_lint.py` / `tests/test_html_typo_lint.py` / `tests/test_schema_reference_dialog.py`
+  - Covers valid article CSS, property and unit typos, punctuation and delimiter damage, missing colon/semicolon candidates, comments, colors, keywords, ranges, custom properties, nested at-rules, inline styles, embedded stylesheets, standalone `.css` routing, and the CSS reference tab.
+- `README.md` / `README_jp.md`
+  - Documents CSS Grammar Check coverage and the three-part reference window.
+
+CSS findings:
+
+- Structural syntax:
+  - missing or unexpected `{}`
+  - unclosed `/* ... */`, quotes, and parentheses
+  - full-width CSS punctuation
+  - missing `:` and likely missing `;`
+- Dictionary-backed semantics:
+  - unknown or known-misspelled property names
+  - known unit typos and likely missing units
+  - invalid registered keywords and hexadecimal colors
+  - integer/range checks for selected properties
+  - duplicate declarations as information-level findings
+  - unknown at-rules
+
+Safety boundary:
+
+- The linter only reports findings and never rewrites CSS or HTML.
+- Unknown properties are warnings because browser and plugin ecosystems can introduce valid properties before the bundled dictionary is updated.
+- Custom properties such as `--article-color` and values using `var(...)` remain accepted.
+- Registered keyword validation is limited to properties whose accepted keyword set is defined by the dictionary.
+- Automated Qt offscreen checks establish dialog structure and routing, but do not replace a manual Windows GUI or packaged-EXE display check.
+
+Validation:
+
+- CSS, HTML, schema-reference, dictionary, and main-window focused tests: 136 passed.
+- JSON syntax validation: passed for `standard_css.json`, `app_text_ja.json`, and `app_text_en.json`.
+- Ruff: All checks passed.
+- Pyright with the project interpreter: 0 errors, 0 warnings, 0 informations.
+- Full suite: 371 passed, 1 failed.
+- The remaining failure is the existing `tests/test_paragraph_splitter.py::test_split_paragraph_insert_html_code_block` cursor-position mismatch. It places the cursor on non-empty `行B`, while the implementation requires a user-created empty line, and is unrelated to CSS lint.
+- Qt offscreen smoke checks confirmed standalone `.css` routing plus Grammar Check and CSS reference-tab construction. Manual Windows GUI and packaged-EXE checks remain open.
+
+## Step15-section3 JSON Fragment Lint for WordPress Block Comments
+
+Date: 2026-10-13
+
+Goal:
+
+- Continue the modular lint flow recorded in Step15:
+  - HTML detects CSS and delegates to `css_lint.py`.
+  - WordPress block parsing detects `{...}` JSON fragments and delegates JSON syntax to `json_lint.py`.
+- Preserve source-document positions when linting extracted JSON fragments so Grammar Check can point to the correct line.
+
+Implementation:
+
+- `json_lint.py`
+  - Added `JsonFragmentIssue`.
+  - Added `lint_json_fragment()` for linting extracted JSON strings.
+  - Added source-position mapping from `JSONDecodeError` line/column values back to the original document line and column.
+  - Kept `lint_json_file()` and `validate_json_file()` compatible with existing file-level dictionary checks.
+- `search/html_typo_lint.py`
+  - Replaced direct `json.loads()` error detection in WordPress block-comment attributes with `lint_json_fragment()`.
+  - Kept the existing recovery behavior: malformed block JSON still allows block start/end structure tracking to continue.
+  - Kept WordPress semantic checks separate from JSON syntax checks; valid JSON that is semantically wrong remains the WordPress block layer's responsibility.
+  - Added explicit rejection for non-object WordPress block attributes such as `<!-- wp:paragraph [1, 2] -->`.
+- `tests/test_multi_lang_lint.py`
+  - Added source-position regression coverage for JSON fragments.
+  - Added root-container validation coverage for fragments.
+- `tests/test_html_typo_lint.py`
+  - Added coverage for non-object WordPress block attributes.
+  - Retained invalid-JSON block recovery coverage.
+
+Validation:
+
+- JSON fragment and WordPress block focused tests: 5 passed.
+- CSS, HTML typo lint, and multi-language lint focused tests: 92 passed.
+- Ruff on changed lint/test files: All checks passed.
+- Pyright on changed lint/test files: 0 errors, 0 warnings, 0 informations.
+
+Notes:
+
+- This does not yet implement schema-backed WordPress block attribute semantics from `wordpress_block_schema.json`.
+- The next modular lint step is to connect syntactically valid block-comment JSON to the WordPress block schema.
 
 ## Validation Commands
 

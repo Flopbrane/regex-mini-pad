@@ -343,7 +343,7 @@ def test_separator_cascade_keeps_independent_fragile_typo() -> None:
 
     assert {message.message_key for message in messages} == {
         "html_typo_lint.wordpress_separator_contains_code",
-        "html_typo_lint.known_typo_margin_2en",
+        "css_lint.known_unit_typo",
     }
     assert all(message.line_number == 2 for message in messages)
 
@@ -514,7 +514,59 @@ def test_lint_reports_known_fragile_typos() -> None:
 
     message_keys = {message.message_key for message in messages}
     assert "html_typo_lint.invalid_p_closing_tag" in message_keys
-    assert "html_typo_lint.known_typo_margin_2en" in message_keys
+    assert "css_lint.known_unit_typo" in message_keys
+
+
+def test_inline_style_uses_css_dictionary_lint() -> None:
+    messages = lint_html_typos(
+        '<p style="text-aling:center; display:blick; color:#zzzzzz">本文</p>'
+    )
+    message_keys = {message.message_key for message in messages}
+
+    assert "css_lint.known_property_typo" in message_keys
+    assert "css_lint.invalid_keyword" in message_keys
+    assert "css_lint.invalid_color" in message_keys
+    assert all(message.line_number == 1 for message in messages)
+
+
+def test_multiline_inline_style_reports_original_html_line() -> None:
+    messages = lint_html_typos(
+        '<p style="color:#333;\n'
+        "display:blick;\n"
+        'padding:10px">本文</p>'
+    )
+
+    invalid_keyword = next(
+        message
+        for message in messages
+        if message.message_key == "css_lint.invalid_keyword"
+    )
+    assert invalid_keyword.line_number == 2
+
+
+def test_embedded_stylesheet_uses_css_lint_with_original_line() -> None:
+    messages = lint_html_typos(
+        "<style>\n"
+        ".note {\n"
+        "  display:blick;\n"
+        "}\n"
+        "</style>"
+    )
+
+    invalid_keyword = next(
+        message
+        for message in messages
+        if message.message_key == "css_lint.invalid_keyword"
+    )
+    assert invalid_keyword.line_number == 3
+
+
+def test_valid_inline_style_does_not_add_css_messages() -> None:
+    messages = lint_html_typos(
+        '<p style="color:#333; padding:10px; margin:1em auto">本文</p>'
+    )
+
+    assert not any(message.message_key.startswith("css_lint.") for message in messages)
 
 
 def test_lint_reports_html_block_inside_wordpress_paragraph_block() -> None:
@@ -595,6 +647,20 @@ def test_lint_reports_invalid_wordpress_block_attributes() -> None:
 
     assert any(
         message.message_key == "html_typo_lint.invalid_wordpress_block_attributes"
+        for message in messages
+    )
+
+
+def test_lint_rejects_non_object_wordpress_block_attributes() -> None:
+    messages = lint_html_typos(
+        "<!-- wp:paragraph [1, 2] -->\n"
+        "<p>Body</p>\n"
+        "<!-- /wp:paragraph -->"
+    )
+
+    assert any(
+        message.message_key == "html_typo_lint.invalid_wordpress_block_attributes"
+        and message.line_number == 1
         for message in messages
     )
 

@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from json_lint import lint_json_file, validate_json_file
+from json_lint import lint_json_file, lint_json_fragment, validate_json_file
 from multi_lang_lint import (
     lint_dictionary_plugin,
     lint_standard_files,
@@ -45,6 +45,32 @@ def test_json_lint_rejects_scalar_root(tmp_path: Path) -> None:
     issues = lint_json_file(load_file_path)
 
     assert len(issues) == 1
+    assert "object or an array" in issues[0].message
+
+
+def test_json_lint_fragment_preserves_source_position() -> None:
+    issues = lint_json_fragment(
+        '{"level":\n}',
+        start_line_number=12,
+        start_column_number=18,
+    )
+
+    assert len(issues) == 1
+    assert issues[0].line_number == 13
+    assert issues[0].column_number == 1
+    assert "line 13, column 1" in issues[0].message
+
+
+def test_json_lint_fragment_can_require_container_root() -> None:
+    issues = lint_json_fragment(
+        '"sample"',
+        start_line_number=5,
+        start_column_number=9,
+    )
+
+    assert len(issues) == 1
+    assert issues[0].line_number == 5
+    assert issues[0].column_number == 9
     assert "object or an array" in issues[0].message
 
 

@@ -37,20 +37,27 @@ The project focuses on practical regular expression search and replacement witho
 - WordPress-oriented paragraph splitting and snippet insertion helpers.
 - Selected Markdown tables and lists can be converted by the embedded
   `wp_conv_core` module and replaced with WordPress block HTML.
-- Grammar Check for lightweight HTML and WordPress block safety checks.
+- Grammar Check for lightweight CSS, HTML, and WordPress block safety checks.
 - Grammar Check result list copy button.
 - Per-tab Grammar Check result display for multi-file editing.
-- Optional pre-save HTML / WordPress typo check.
-- A modeless HTML / WordPress reference window that can remain beside the
+- Optional pre-save CSS, HTML, and WordPress typo check.
+- A modeless HTML / CSS / WordPress reference window that can remain beside the
   editable main window, with separate tables generated from the bundled lint schemas.
 
-## HTML / WordPress Grammar Check
+## CSS / HTML / WordPress Grammar Check
 
 Grammar Check is a lightweight paste-safety linter. It is not a full browser or
 WordPress parser, but it is designed to catch common document-breaking mistakes
 before pasting or saving article HTML.
 
 - Detects unknown HTML tags and suspicious HTML attribute typos.
+- Uses the same CSS dictionary to check HTML `style` attributes, `<style>`
+  elements, and standalone `.css` documents.
+- Detects missing or extra braces, unclosed comments, quotes and parentheses,
+  full-width punctuation, missing colons, and likely missing semicolons.
+- Detects unknown or misspelled CSS properties and units, invalid registered
+  keywords, malformed hexadecimal colors, missing units, duplicate properties,
+  and selected numeric range/type mistakes.
 - Warns when a known HTML attribute appears on an unusual tag, such as
   `href` on `<p>` or `src` on `<a>`.
 - Detects unknown WordPress core block names.

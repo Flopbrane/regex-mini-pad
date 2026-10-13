@@ -19,7 +19,7 @@ WINDOW_GAP = 8
 
 
 class SchemaReferenceDialog(QDialog):
-    """Modeless reference window generated from the HTML and WordPress schemas."""
+    """Modeless reference window generated from HTML, CSS, and WordPress schemas."""
 
     def __init__(
         self,
@@ -36,8 +36,10 @@ class SchemaReferenceDialog(QDialog):
 
         self.tab_widget = QTabWidget(self)
         self.html_browser = self._create_browser()
+        self.css_browser = self._create_browser()
         self.wordpress_browser = self._create_browser()
         self.tab_widget.addTab(self.html_browser, "")
+        self.tab_widget.addTab(self.css_browser, "")
         self.tab_widget.addTab(self.wordpress_browser, "")
 
         self.button_box = QDialogButtonBox(
@@ -54,19 +56,22 @@ class SchemaReferenceDialog(QDialog):
         self.apply_language()
 
     def apply_language(self) -> None:
-        """Reload both generated tables using the current application language."""
+        """Reload all generated tables using the current application language."""
         language_code = "en" if self.translator.language_code == "en" else "ja"
-        html_topic, wordpress_topic = load_schema_help_topics(
+        html_topic, css_topic, wordpress_topic = load_schema_help_topics(
             self.standards_path,
             language_code,
         )
         html_title, html_body = html_topic
+        css_title, css_body = css_topic
         wordpress_title, wordpress_body = wordpress_topic
 
         self.setWindowTitle(self.translator.text("schema_reference.title"))
         self.tab_widget.setTabText(0, html_title)
-        self.tab_widget.setTabText(1, wordpress_title)
+        self.tab_widget.setTabText(1, css_title)
+        self.tab_widget.setTabText(2, wordpress_title)
         self.html_browser.setMarkdown(html_body)
+        self.css_browser.setMarkdown(css_body)
         self.wordpress_browser.setMarkdown(wordpress_body)
         self.button_box.button(QDialogButtonBox.StandardButton.Close).setText(
             self.translator.text("schema_reference.close")
