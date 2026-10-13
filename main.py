@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 import uuid
@@ -471,11 +472,17 @@ class MainWindow(QMainWindow):
         self.css_parameter_actions: dict[str, QAction] = {}
         for action_id, _text_key, insert_text, cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
             action = QAction(self)
-            action.triggered.connect(
-                lambda checked=False,
-                text=insert_text,
-                offset=cursor_offset: self.insert_text_at_cursor(text, offset),
-            )
+            if action_id == "style_attribute":
+                action.triggered.connect(self.insert_style_attribute_at_cursor)
+            else:
+                action.triggered.connect(
+                    lambda checked=False,
+                    text=insert_text,
+                    offset=cursor_offset: self.insert_css_declaration_at_cursor(
+                        text,
+                        offset,
+                    ),
+                )
             self.css_parameter_actions[action_id] = action
 
         self.paragraph_split_spacer_action = QAction(self)
@@ -1243,22 +1250,6 @@ class MainWindow(QMainWindow):
         """Create and return the context menu for the editor, including standard actions and the insert tag menu."""
         context_menu = self.editor.createStandardContextMenu()
         context_menu.addSeparator()
-        html_transform_menu = QMenu(
-            self.translator.text("action.html_transform"),
-            context_menu,
-        )
-        html_transform_menu.addAction(self.html_escape_action)
-        html_transform_menu.addAction(self.html_unescape_action)
-        html_transform_menu.addSeparator()
-        html_transform_menu.addAction(self.wordpress_code_block_action)
-        context_menu.addMenu(html_transform_menu)
-        css_insert_menu = QMenu(
-            self.translator.text("action.css_insert"),
-            context_menu,
-        )
-        for action_id, _text_key, _insert_text, _cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
-            css_insert_menu.addAction(self.css_parameter_actions[action_id])
-        context_menu.addMenu(css_insert_menu)
         paragraph_split_menu = QMenu(
             self.translator.text("paragraph_split.menu"),
             context_menu,
@@ -1271,11 +1262,27 @@ class MainWindow(QMainWindow):
         paragraph_split_menu.addAction(self.wordpress_list_transform_action)
         paragraph_split_menu.addAction(self.wordpress_complex_blocks_action)
         context_menu.addMenu(paragraph_split_menu)
-        context_menu.addAction(self.insert_tag_picker_action)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
         self._set_tag_menu_tooltips_visible(insert_tag_menu)
         self._populate_insert_tag_menu(insert_tag_menu)
         context_menu.addMenu(insert_tag_menu)
+        css_insert_menu = QMenu(
+            self.translator.text("action.css_insert"),
+            context_menu,
+        )
+        for action_id, _text_key, _insert_text, _cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
+            css_insert_menu.addAction(self.css_parameter_actions[action_id])
+        context_menu.addMenu(css_insert_menu)
+        context_menu.addAction(self.insert_tag_picker_action)
+        html_transform_menu = QMenu(
+            self.translator.text("action.html_transform"),
+            context_menu,
+        )
+        html_transform_menu.addAction(self.html_escape_action)
+        html_transform_menu.addAction(self.html_unescape_action)
+        html_transform_menu.addSeparator()
+        html_transform_menu.addAction(self.wordpress_code_block_action)
+        context_menu.addMenu(html_transform_menu)
         return context_menu
 
     def show_tag_insert_dialog(self) -> None:
@@ -2064,6 +2071,153 @@ class MainWindow(QMainWindow):
             cursor.setPosition(insert_start + cursor_offset)
         self.editor.setTextCursor(cursor)
         self.editor.setFocus()
+
+    def insert_style_attribute_at_cursor(self) -> None:
+        """Insert style="" inside the nearest opening tag when possible."""
+        source_text = self.editor.toPlainText()
+        cursor = self.editor.textCursor()
+        tag_bounds = self._opening_tag_bounds_near_cursor(source_text, cursor.position())
+        if tag_bounds is None:
+            self.insert_text_at_cursor('style=""', len('style="'))
+            return
+
+        _tag_start, tag_end = tag_bounds
+        insert_position = tag_end - 1
+        prefix = "" if source_text[insert_position - 1].isspace() else " "
+        insert_text = f'{prefix}style=""'
+        self._insert_text_at_position(
+            insert_position,
+            insert_text,
+            len(prefix) + len('style="'),
+        )
+
+    def insert_css_declaration_at_cursor(
+        self,
+        declaration_text: str,
+        cursor_offset: int,
+    ) -> None:
+        """Insert a CSS declaration in the nearest style attribute when possible."""
+        source_text = self.editor.toPlainText()
+        cursor = self.editor.textCursor()
+        cursor_position = cursor.position()
+        style_bounds = self._style_attribute_value_bounds_near_cursor(
+            source_text,
+            cursor_position,
+        )
+        if style_bounds is not None:
+            value_start, value_end = style_bounds
+            insert_position = (
+                cursor_position
+                if value_start <= cursor_position <= value_end
+                else value_end
+            )
+            insert_text = self._css_declaration_insert_text(
+                source_text,
+                insert_position,
+                value_start,
+                value_end,
+                declaration_text,
+            )
+            self._insert_text_at_position(
+                insert_position,
+                insert_text,
+                insert_text.find(";") if ";" in insert_text else cursor_offset,
+            )
+            return
+
+        tag_bounds = self._opening_tag_bounds_near_cursor(source_text, cursor_position)
+        if tag_bounds is not None:
+            _tag_start, tag_end = tag_bounds
+            insert_text = f' style="{declaration_text}"'
+            self._insert_text_at_position(
+                tag_end - 1,
+                insert_text,
+                insert_text.find(";") if ";" in insert_text else cursor_offset,
+            )
+            return
+
+        self.insert_text_at_cursor(declaration_text, cursor_offset)
+
+    def _insert_text_at_position(
+        self,
+        insert_position: int,
+        insert_text: str,
+        cursor_offset: int | None = None,
+    ) -> None:
+        """Insert fixed text at an absolute editor position."""
+        cursor = self.editor.textCursor()
+        cursor.beginEditBlock()
+        cursor.setPosition(insert_position)
+        cursor.insertText(insert_text)
+        cursor.endEditBlock()
+        if cursor_offset is not None:
+            cursor.setPosition(insert_position + cursor_offset)
+        self.editor.setTextCursor(cursor)
+        self.editor.setFocus()
+
+    def _opening_tag_bounds_near_cursor(
+        self,
+        source_text: str,
+        cursor_position: int,
+    ) -> tuple[int, int] | None:
+        """Return the nearest same-line opening tag around the cursor."""
+        line_start = source_text.rfind("\n", 0, cursor_position) + 1
+        line_end = source_text.find("\n", cursor_position)
+        if line_end == -1:
+            line_end = len(source_text)
+        line_text = source_text[line_start:line_end]
+        for match in re.finditer(r"<(?!/|!|\?)[A-Za-z][^<>\n]*>", line_text):
+            tag_start = line_start + match.start()
+            tag_end = line_start + match.end()
+            if tag_start <= cursor_position <= tag_end:
+                return tag_start, tag_end
+        return None
+
+    def _style_attribute_value_bounds_near_cursor(
+        self,
+        source_text: str,
+        cursor_position: int,
+    ) -> tuple[int, int] | None:
+        """Return value bounds for a style attribute in the nearest opening tag."""
+        tag_bounds = self._opening_tag_bounds_near_cursor(
+            source_text,
+            cursor_position,
+        )
+        if tag_bounds is None:
+            return None
+        tag_start, tag_end = tag_bounds
+        tag_text = source_text[tag_start:tag_end]
+        style_match = re.search(r"\sstyle\s*=\s*([\"'])(.*?)\1", tag_text)
+        if style_match is None:
+            return None
+        value_start = tag_start + style_match.start(2)
+        value_end = tag_start + style_match.end(2)
+        return value_start, value_end
+
+    def _css_declaration_insert_text(
+        self,
+        source_text: str,
+        insert_position: int,
+        value_start: int,
+        value_end: int,
+        declaration_text: str,
+    ) -> str:
+        """Return a CSS declaration with spacing suited to the target style value."""
+        if value_start == value_end:
+            return declaration_text
+        needs_leading_space = (
+            insert_position > value_start
+            and source_text[insert_position - 1] not in {" ", "\t", ";", "\n"}
+        )
+        needs_trailing_space = (
+            insert_position < value_end
+            and source_text[insert_position] not in {" ", "\t", ";", "\n"}
+        )
+        return (
+            (" " if needs_leading_space else "")
+            + declaration_text
+            + (" " if needs_trailing_space else "")
+        )
 
     def escape_selected_html(self) -> None:
         """HTML-escape only the selected text, preserving quote characters."""

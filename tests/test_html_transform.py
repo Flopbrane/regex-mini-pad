@@ -285,11 +285,16 @@ def test_html_transform_context_menu_is_available(app: QApplication) -> None:
     paragraph_split_menu: QMenu | None = None
     for action in context_menu.actions():
         child_menu = action.menu()
-        if isinstance(child_menu, QMenu) and child_menu.title() == "HTML変換":
+        if (
+            isinstance(child_menu, QMenu)
+            and child_menu.title() == window.translator.text("action.html_transform")
+        ):
             html_transform_menu = child_menu
-        if isinstance(child_menu, QMenu) and child_menu.title() == "段落分割":
+        if (
+            isinstance(child_menu, QMenu)
+            and child_menu.title() == window.translator.text("paragraph_split.menu")
+        ):
             paragraph_split_menu = child_menu
-            break
 
     assert html_transform_menu is not None
     assert [action.text() for action in html_transform_menu.actions()] == [

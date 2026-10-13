@@ -3065,6 +3065,44 @@ Validation:
 - `pytest tests/test_pyinstaller_spec.py tests/test_portable_runtime.py tests/test_schema_reference_dialog.py tests/test_app_translation.py`: 12 passed.
 - `ruff check main.py portable_runtime.py tests/test_pyinstaller_spec.py tests/test_portable_runtime.py`: All checks passed.
 
+## Step15-section7 Context Menu Priority And CSS Insertion Follow-Up
+
+Date: 2026-10-13
+
+User decisions:
+
+- EXE distribution check item 1 is accepted.
+- WordPress conversion should stay biased toward Custom HTML blocks when block behavior differs by mode.
+- Simple table conversion needs another focused re-check.
+- Context menu operation priority is:
+  1. Paragraph Split
+  2. Insert Tag submenu
+  3. CSS Insert
+  4. Insert Tag dialog (`Ctrl+Shift+T`)
+  5. HTML Escape Transform
+- Grammar Check readability improvements should be handled next.
+- Unsaved-session recovery has been manually verified on real hardware.
+- Documentation cleanup can wait until the main implementation pass is complete.
+
+Implementation:
+
+- Reordered the editor right-click menu to match the requested operation priority.
+- Kept CSS insertion in the right-click menu and changed the visible labels to editable snippets such as `color: ;`.
+- Changed `style=""` insertion so it is placed inside the nearest opening tag before `>` when the cursor is on or just after that tag.
+- Changed CSS declaration insertion so declarations go into an existing nearest `style` value, or create `style="..."` inside the nearest opening tag when needed.
+- CSS declarations with an empty value keep the cursor before `;`, for example `color: |;`.
+- Renamed the HTML transform menu label to make the escape/unescape purpose clearer.
+
+Validation:
+
+- `pytest tests/test_tag_insert.py::test_editor_context_menu_has_tag_insert_actions tests/test_tag_insert.py::test_css_insert_context_menu_actions_insert_editable_text tests/test_tag_insert.py::test_css_insert_style_attribute_stays_inside_opening_tag_after_tag_cursor tests/test_tag_insert.py::test_css_insert_declaration_uses_existing_style_value tests/test_tag_insert.py::test_css_insert_declaration_creates_style_attribute_in_tag tests/test_html_transform.py::test_html_transform_context_menu_is_available`: 6 passed.
+- `json.tool`: `resources/app_text_ja.json` and `resources/app_text_en.json` passed.
+- `ruff check main.py tests/test_tag_insert.py tests/test_html_transform.py`: All checks passed.
+- `ruff check .`: All checks passed.
+- `pyright --pythonpath D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe`: 0 errors, 0 warnings, 0 informations.
+- `pytest`: 382 passed.
+- `git diff --check`: passed.
+
 ## Validation Commands
 
 Use the project virtual environment:

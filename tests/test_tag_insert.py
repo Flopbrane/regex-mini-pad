@@ -281,28 +281,37 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
     action_texts = [action.text() for action in context_menu.actions()]
     insert_tag_menu: QMenu | None = None
     css_insert_menu: QMenu | None = None
+    child_menu_titles: list[str] = []
     for action in context_menu.actions():
         child_menu = action.menu()
-        if isinstance(child_menu, QMenu) and child_menu.title() == "タグ挿入(&T)":
-            insert_tag_menu = child_menu
-        if isinstance(child_menu, QMenu) and child_menu.title() == "CSS挿入":
-            css_insert_menu = child_menu
+        if isinstance(child_menu, QMenu):
+            child_menu_titles.append(child_menu.title())
+            if child_menu.title() == window.translator.text("action.insert_tag"):
+                insert_tag_menu = child_menu
+            if child_menu.title() == window.translator.text("action.css_insert"):
+                css_insert_menu = child_menu
 
-    assert "タグ挿入..." in action_texts
+    assert window.translator.text("action.insert_tag_picker") in action_texts
     assert isinstance(insert_tag_menu, QMenu)
     assert isinstance(css_insert_menu, QMenu)
+    assert child_menu_titles[-4:] == [
+        window.translator.text("paragraph_split.menu"),
+        window.translator.text("action.insert_tag"),
+        window.translator.text("action.css_insert"),
+        window.translator.text("action.html_transform"),
+    ]
     assert [action.text() for action in css_insert_menu.actions()] == [
-        'style="" 属性',
-        "color",
-        "background-color",
-        "font-size",
-        "font-weight: bold",
-        "text-align",
-        "margin",
-        "padding",
-        "border",
-        "border-radius",
-        "display: inline-block",
+        window.translator.text("action.css_insert_style_attribute"),
+        window.translator.text("action.css_insert_color"),
+        window.translator.text("action.css_insert_background_color"),
+        window.translator.text("action.css_insert_font_size"),
+        window.translator.text("action.css_insert_font_weight"),
+        window.translator.text("action.css_insert_text_align"),
+        window.translator.text("action.css_insert_margin"),
+        window.translator.text("action.css_insert_padding"),
+        window.translator.text("action.css_insert_border"),
+        window.translator.text("action.css_insert_border_radius"),
+        window.translator.text("action.css_insert_display_inline_block"),
     ]
     paragraph_split_menu = next(
         (
@@ -350,6 +359,52 @@ def test_css_insert_context_menu_actions_insert_editable_text(
 
     assert window.editor.toPlainText() == "background-color: ;"
     assert window.editor.textCursor().position() == len("background-color: ")
+
+
+def test_css_insert_style_attribute_stays_inside_opening_tag_after_tag_cursor(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("<div>本文</div>")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("<div>"))
+    window.editor.setTextCursor(cursor)
+
+    window.css_parameter_actions["style_attribute"].trigger()
+
+    assert window.editor.toPlainText() == '<div style="">本文</div>'
+    assert window.editor.textCursor().position() == len('<div style="')
+
+
+def test_css_insert_declaration_uses_existing_style_value(app: QApplication) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText('<span style="">本文</span>')
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len('<span style="'))
+    window.editor.setTextCursor(cursor)
+
+    window.css_parameter_actions["color"].trigger()
+
+    assert window.editor.toPlainText() == '<span style="color: ;">本文</span>'
+    assert window.editor.textCursor().position() == len('<span style="color: ')
+
+
+def test_css_insert_declaration_creates_style_attribute_in_tag(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText("<span>本文</span>")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len("<span>"))
+    window.editor.setTextCursor(cursor)
+
+    window.css_parameter_actions["color"].trigger()
+
+    assert window.editor.toPlainText() == '<span style="color: ;">本文</span>'
+    assert window.editor.textCursor().position() == len('<span style="color: ')
 
 
 def test_tag_insert_dialog_filters_and_accepts_with_keyboard(
