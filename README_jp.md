@@ -39,6 +39,8 @@
 - 文法チェック結果一覧のコピー。
 - 複数タブ編集時のタブ別文法チェック結果表示。
 - 保存前のHTML / WordPress typoチェック。
+- メイン本文を編集しながら横に置ける独立したHTML / WordPress参考表ウインドウ。
+  HTMLタグ・属性表とWordPressブロックJSON表は同梱lintスキーマから自動生成します。
 
 ## HTML / WordPress 文法チェック
 

@@ -2746,6 +2746,98 @@ Known remaining issue and acceptance scope:
 - The newly rebuilt packaged EXE has not yet been tested for this change.
 - Continue checking repeated replacement, focus movement, actual newlines, literal `\n`, long wrapped regex patterns, and Japanese IME input in the Windows GUI.
 
+## Step15-section1 CSS, JSON, HTML Tag, and WordPress Block Dictionaries
+
+Date: 2026-10-13
+
+Goal:
+
+- Prepare dictionary-backed syntax and semantic checks before expanding the lint pipeline.
+- Keep the intended flow explicit:
+  - whole-text typo checks
+  - HTML parsing and `style` attribute extraction
+  - CSS validation by the future `css_lint.py`
+  - WordPress core-block parsing and JSON attribute extraction
+  - JSON syntax validation by `json_lint.py`
+- Make HTML checks derive allowed attributes from the combination of the tag name and its attribute definitions.
+
+Dictionary responsibilities:
+
+- `dictionaries/lint_reference.json`
+  - Remains the broad reference for known HTML tags, globally allowed attributes, tag-specific attribute names, permitted `aria-` / `data-` prefixes, WordPress core-block names, and block-attribute names.
+  - This file answers whether a tag or attribute name is known and allowed.
+- `dictionaries/standards/html_tag_schema.json`
+  - Adds typed definitions for common tag-specific and global attributes.
+  - Records enum candidates, integer minimums, required attributes, allowed empty values, and void elements.
+  - Starts with common article tags, headings, lists, tables, images, links, media, code, figures, quotations, and time elements.
+  - `img` requires both `src` and `alt`; an empty `alt` remains valid for decorative images.
+  - The `style` global attribute points to the `css_inline_style` value schema so HTML lint can later delegate its value to CSS lint.
+- `dictionaries/standards/standard_css.json`
+  - Replaces the placeholder with an active CSS reference.
+  - Defines stylesheet and inline-style contexts, common properties, accepted value categories, units, CSS functions, at-rules, global keywords, custom/vendor prefixes, common typo repairs, and full-width punctuation repairs.
+- `dictionaries/standards/standard_json.json`
+  - Defines JSON root/value types, literals, escapes, number syntax, unsupported JavaScript-style features, common typo repairs, full-width punctuation repairs, and syntax-error hints.
+- `dictionaries/standards/wordpress_block_schema.json`
+  - Adds typed attributes for 15 common Gutenberg core blocks.
+  - Defines shared attributes plus per-block string, boolean, integer, array, object, enum, range, URL, and CSS-length constraints.
+
+Implementation:
+
+- `multi_lang_lint.py`
+  - Registers all new standard files.
+  - Validates each file as JSON and checks its identifier plus required non-empty collections.
+- `tests/test_multi_lang_lint.py`
+  - Checks dictionary presence and JSON validity.
+  - Checks that CSS properties/functions reference defined value types.
+  - Checks JSON syntax metadata and common corrections.
+  - Checks that HTML tags and their typed attributes remain subsets of `lint_reference.json`.
+  - Checks required HTML attributes, enum candidates, global attributes, allowed prefixes, and void tags.
+  - Checks that WordPress block and attribute names remain compatible with `lint_reference.json` and use defined value types.
+- `dialogs/schema_help.py`
+  - Generates separate Japanese or English Markdown tables directly from `html_tag_schema.json` and `wordpress_block_schema.json`.
+  - The HTML topic shows tag-specific attributes, types, candidate values, required attributes, global attributes, allowed prefixes, and void tags.
+  - The WordPress topic shows each core block's known attributes and constraints separately from shared attribute candidates.
+  - Missing or malformed schema files show a local table-load message without preventing the rest of Help from opening.
+- `dialogs/schema_reference_dialog.py`
+  - Shows `HTMLタグ・属性表` and `WordPressブロックJSON表` as separate tabs in an independent resizable window.
+  - Uses a non-modal `Qt.Window`, so the main editor remains enabled and editable while the reference is visible.
+  - Places the reference to the right of the main window on first display when space is available, otherwise tries the left side and remains freely movable for Windows snapping.
+  - Regenerates both tables when the application language changes.
+- `main.py` / `resources/app_text_ja.json` / `resources/app_text_en.json`
+  - Adds `HTML / WordPress 参考表...` to the Help menu and retains one reusable reference window.
+- `tests/test_schema_reference_dialog.py`
+  - Checks independent HTML and WordPress tabs, modeless operation, Japanese/English updates, visibility, and continued editor availability.
+- `README.md` / `README_jp.md`
+  - Document the independent schema-generated reference window.
+- `regex-pad.spec`
+  - No change is needed because the existing specification packages the complete `dictionaries` directory.
+
+Safety boundary:
+
+- This section establishes and validates the dictionaries and exposes them as read-only Help tables.
+- It does not yet change user-visible lint findings or automatically rewrite HTML, CSS, JSON, or WordPress block markup.
+- The WordPress Help table describes known block attributes, not a guarantee that every displayed content attribute should be written into block-comment JSON. Some attributes are sourced from saved HTML, and the table states this limitation.
+- The future HTML lint integration should look up the current tag first, merge its tag-specific attributes with global attributes and allowed prefixes, then validate each value by its declared type.
+- Inline `style` values should be passed to `css_lint.py`; CSS parsing rules should not be duplicated inside `html_lint.py`.
+- WordPress block-comment JSON should first be syntax-checked by `json_lint.py`, then checked against `wordpress_block_schema.json` by the core-block lint layer.
+- Unknown or newly introduced valid web-platform values should initially produce conservative warnings rather than destructive rewrites.
+
+Validation:
+
+- Schema-reference, user-help, and dictionary-focused tests: 18 passed.
+- JSON syntax validation: passed for the CSS, JSON, HTML-tag, and WordPress-block dictionaries.
+- Ruff: All checks passed.
+- Pyright with the project interpreter: 0 errors, 0 warnings, 0 informations.
+- Full suite: 353 passed, 1 failed.
+- The remaining failure is the existing `tests/test_paragraph_splitter.py::test_split_paragraph_insert_html_code_block` cursor-position mismatch and is unrelated to these dictionaries.
+
+Next implementation stage:
+
+- Add `css_lint.py` and validate standalone CSS plus HTML `style` values with the same dictionary.
+- Extend `json_lint.py` so extracted WordPress comment fragments can be checked with correct source positions.
+- Add the schema-backed HTML tag/attribute/value checks without duplicating CSS rules.
+- Connect parsed Gutenberg attributes to the WordPress block schema after JSON syntax succeeds.
+
 ## Validation Commands
 
 Use the project virtual environment:

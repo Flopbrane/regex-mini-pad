@@ -1,0 +1,28 @@
+{
+  "language_id": "json",
+  "display_name": "JSON",
+  "status": "active",
+  "schema_version": 1,
+  "extensions": [".json"],
+  "root_types": ["object", "array"],
+  "value_types": ["object", "array", "string", "number", "boolean", "null"],
+  "literals": ["true", "false", "null"],
+  "string_escapes": ["\\\"", "\\\\", "\\/", "\\b", "\\f", "\\n", "\\r", "\\t", "\\uXXXX"],
+  "number_pattern": "-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?",
+  "unsupported_features": {
+    "comments": "JSON does not allow // or /* */ comments.",
+    "nan_or_infinity": "JSON numbers cannot use NaN or Infinity.",
+    "single_quoted_strings": "JSON strings and object keys require double quotes.",
+    "trailing_commas": "JSON does not allow a comma immediately before ] or }.",
+    "unquoted_object_keys": "JSON object keys require double quotes."
+  },
+  "known_typos": {"False": "false", "None": "null", "NULL": "null", "True": "true", "undefined": "null"},
+  "full_width_replacements": {"：": ":", "，": ",", "｛": "{", "｝": "}", "［": "[", "］": "]", "“": "\"", "”": "\""},
+  "error_hints": {
+    "expecting_colon": "Check for a missing colon after an object key or a full-width colon.",
+    "expecting_comma": "Check for a missing comma between values or properties.",
+    "expecting_property_name": "Check for a trailing comma or an object key without double quotes.",
+    "invalid_escape": "Use a JSON escape such as \\n, \\t, \\\", \\\\, or \\uXXXX.",
+    "unterminated_string": "Close the string with a double quote."
+  }
+}

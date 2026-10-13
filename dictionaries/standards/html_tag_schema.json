@@ -1,0 +1,158 @@
+{
+  "schema_id": "html_tags",
+  "status": "active",
+  "schema_version": 1,
+  "description": "Common HTML tags and typed attributes used by the HTML lint pipeline.",
+  "value_types": [
+    "boolean",
+    "integer",
+    "string",
+    "token",
+    "token_list",
+    "url",
+    "css_length",
+    "enum"
+  ],
+  "allowed_attribute_prefixes": ["aria-", "data-"],
+  "global_attributes": {
+    "aria-hidden": {"type": "enum", "values": ["false", "true"]},
+    "aria-label": {"type": "string"},
+    "class": {"type": "token_list"},
+    "data": {"type": "string"},
+    "id": {"type": "token"},
+    "lang": {"type": "token"},
+    "role": {"type": "token"},
+    "style": {"type": "string", "value_schema": "css_inline_style"},
+    "tabindex": {"type": "integer"},
+    "title": {"type": "string"}
+  },
+  "void_tags": ["br", "hr", "img", "source"],
+  "tags": {
+    "a": {
+      "required_attributes": [],
+      "attributes": {
+        "download": {"type": "string"},
+        "href": {"type": "url"},
+        "hreflang": {"type": "token"},
+        "referrerpolicy": {"type": "token"},
+        "rel": {"type": "token_list"},
+        "target": {"type": "enum", "values": ["_blank", "_parent", "_self", "_top"]},
+        "type": {"type": "token"}
+      }
+    },
+    "audio": {
+      "required_attributes": [],
+      "attributes": {
+        "autoplay": {"type": "boolean"},
+        "controls": {"type": "boolean"},
+        "loop": {"type": "boolean"},
+        "muted": {"type": "boolean"},
+        "preload": {"type": "enum", "values": ["auto", "metadata", "none"]},
+        "src": {"type": "url"}
+      }
+    },
+    "blockquote": {
+      "required_attributes": [],
+      "attributes": {"cite": {"type": "url"}}
+    },
+    "br": {"required_attributes": [], "attributes": {}},
+    "code": {"required_attributes": [], "attributes": {}},
+    "div": {"required_attributes": [], "attributes": {}},
+    "figcaption": {"required_attributes": [], "attributes": {}},
+    "figure": {"required_attributes": [], "attributes": {}},
+    "h1": {"required_attributes": [], "attributes": {}},
+    "h2": {"required_attributes": [], "attributes": {}},
+    "h3": {"required_attributes": [], "attributes": {}},
+    "h4": {"required_attributes": [], "attributes": {}},
+    "h5": {"required_attributes": [], "attributes": {}},
+    "h6": {"required_attributes": [], "attributes": {}},
+    "hr": {"required_attributes": [], "attributes": {}},
+    "img": {
+      "required_attributes": ["src", "alt"],
+      "attributes": {
+        "alt": {"type": "string", "allow_empty": true},
+        "crossorigin": {"type": "enum", "values": ["anonymous", "use-credentials"]},
+        "decoding": {"type": "enum", "values": ["async", "auto", "sync"]},
+        "fetchpriority": {"type": "enum", "values": ["auto", "high", "low"]},
+        "height": {"type": "integer", "minimum": 1},
+        "loading": {"type": "enum", "values": ["eager", "lazy"]},
+        "referrerpolicy": {"type": "token"},
+        "sizes": {"type": "string"},
+        "src": {"type": "url"},
+        "srcset": {"type": "string"},
+        "usemap": {"type": "string"},
+        "width": {"type": "integer", "minimum": 1}
+      }
+    },
+    "li": {
+      "required_attributes": [],
+      "attributes": {"value": {"type": "integer"}}
+    },
+    "ol": {
+      "required_attributes": [],
+      "attributes": {
+        "reversed": {"type": "boolean"},
+        "start": {"type": "integer"},
+        "type": {"type": "enum", "values": ["1", "A", "I", "a", "i"]}
+      }
+    },
+    "p": {"required_attributes": [], "attributes": {}},
+    "pre": {"required_attributes": [], "attributes": {}},
+    "source": {
+      "required_attributes": [],
+      "attributes": {
+        "height": {"type": "integer", "minimum": 1},
+        "media": {"type": "string"},
+        "sizes": {"type": "string"},
+        "src": {"type": "url"},
+        "srcset": {"type": "string"},
+        "type": {"type": "token"},
+        "width": {"type": "integer", "minimum": 1}
+      }
+    },
+    "span": {"required_attributes": [], "attributes": {}},
+    "table": {"required_attributes": [], "attributes": {}},
+    "tbody": {"required_attributes": [], "attributes": {}},
+    "td": {
+      "required_attributes": [],
+      "attributes": {
+        "colspan": {"type": "integer", "minimum": 1},
+        "headers": {"type": "token_list"},
+        "rowspan": {"type": "integer", "minimum": 1}
+      }
+    },
+    "tfoot": {"required_attributes": [], "attributes": {}},
+    "th": {
+      "required_attributes": [],
+      "attributes": {
+        "abbr": {"type": "string"},
+        "colspan": {"type": "integer", "minimum": 1},
+        "headers": {"type": "token_list"},
+        "rowspan": {"type": "integer", "minimum": 1},
+        "scope": {"type": "enum", "values": ["col", "colgroup", "row", "rowgroup"]}
+      }
+    },
+    "thead": {"required_attributes": [], "attributes": {}},
+    "time": {
+      "required_attributes": [],
+      "attributes": {"datetime": {"type": "string"}}
+    },
+    "tr": {"required_attributes": [], "attributes": {}},
+    "ul": {"required_attributes": [], "attributes": {}},
+    "video": {
+      "required_attributes": [],
+      "attributes": {
+        "autoplay": {"type": "boolean"},
+        "controls": {"type": "boolean"},
+        "height": {"type": "integer", "minimum": 1},
+        "loop": {"type": "boolean"},
+        "muted": {"type": "boolean"},
+        "playsinline": {"type": "boolean"},
+        "poster": {"type": "url"},
+        "preload": {"type": "enum", "values": ["auto", "metadata", "none"]},
+        "src": {"type": "url"},
+        "width": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

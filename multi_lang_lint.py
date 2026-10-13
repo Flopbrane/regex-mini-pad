@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 from json_lint import JsonLintIssue, lint_json_file
 
@@ -8,7 +10,35 @@ STANDARD_FILE_NAMES = (
     "standard_javascript.json",
     "standard_textscript.json",
     "standard_css.json",
+    "standard_json.json",
+    "html_tag_schema.json",
+    "wordpress_block_schema.json",
 )
+
+REFERENCE_FILE_CONTRACTS = {
+    "standard_javascript.json": ("language_id", "javascript", ()),
+    "standard_textscript.json": ("language_id", "textscript", ()),
+    "standard_css.json": (
+        "language_id",
+        "css",
+        ("properties", "value_types", "known_typos"),
+    ),
+    "standard_json.json": (
+        "language_id",
+        "json",
+        ("value_types", "literals", "unsupported_features"),
+    ),
+    "html_tag_schema.json": (
+        "schema_id",
+        "html_tags",
+        ("global_attributes", "tags", "value_types"),
+    ),
+    "wordpress_block_schema.json": (
+        "schema_id",
+        "wordpress_core_blocks",
+        ("shared_attributes", "blocks", "value_types"),
+    ),
+}
 
 
 def standard_file_names() -> tuple[str, ...]:
@@ -27,7 +57,40 @@ def lint_standard_files(standards_path: Path) -> tuple[JsonLintIssue, ...]:
                 )
             )
             continue
-        issues.extend(lint_json_file(load_file_path))
+        file_issues = lint_json_file(load_file_path)
+        issues.extend(file_issues)
+        if not file_issues:
+            issues.extend(_lint_reference_contract(load_file_path))
+    return tuple(issues)
+
+
+def _lint_reference_contract(load_file_path: Path) -> tuple[JsonLintIssue, ...]:
+    """Check the identifier and required collections for a bundled reference file."""
+    contract = REFERENCE_FILE_CONTRACTS.get(load_file_path.name)
+    if contract is None:
+        return ()
+    identifier_key, expected_identifier, required_collections = contract
+    load_data: Any = json.loads(load_file_path.read_text(encoding="utf-8"))
+    if not isinstance(load_data, dict):
+        return (JsonLintIssue(load_file_path, "Reference root must be an object."),)
+
+    issues: list[JsonLintIssue] = []
+    if load_data.get(identifier_key) != expected_identifier:
+        issues.append(
+            JsonLintIssue(
+                load_file_path,
+                f"{identifier_key} must be {expected_identifier!r}.",
+            )
+        )
+    for collection_name in required_collections:
+        collection = load_data.get(collection_name)
+        if not isinstance(collection, dict | list) or not collection:
+            issues.append(
+                JsonLintIssue(
+                    load_file_path,
+                    f"{collection_name} must be a non-empty object or array.",
+                )
+            )
     return tuple(issues)
 
 

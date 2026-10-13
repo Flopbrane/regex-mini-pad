@@ -55,6 +55,7 @@ from dialogs.find_replace_dialog import FindReplaceDialog
 from dialogs.grammar_check_dialog import GrammarCheckDialog
 from dialogs.options_dialog import OptionsDialog
 from dialogs.regex_help_dialog import RegexHelpDialog
+from dialogs.schema_reference_dialog import SchemaReferenceDialog
 from dialogs.tag_insert_dialog import TagInsertDialog
 from dialogs.user_help_dialog import UserHelpDialog
 from editor.editor_tab import EditorTab
@@ -206,6 +207,7 @@ class MainWindow(QMainWindow):
         self.regex_help_dialog: RegexHelpDialog | None = None
         self.tag_insert_dialog: TagInsertDialog | None = None
         self.user_help_dialog: UserHelpDialog | None = None
+        self.schema_reference_dialog: SchemaReferenceDialog | None = None
         self.options_dialog: OptionsDialog | None = None
         self.search_scope: tuple[int, int] | None = None
         self.wordpress_mode_label_key = settings.wordpress_mode_label_key
@@ -478,6 +480,9 @@ class MainWindow(QMainWindow):
         self.user_help_action.setShortcut("F1")
         self.user_help_action.triggered.connect(self.show_user_help_dialog)
 
+        self.schema_reference_action = QAction(self)
+        self.schema_reference_action.triggered.connect(self.show_schema_reference_dialog)
+
         self.english_action = QAction(self)
         self.english_action.setCheckable(True)
         self.english_action.triggered.connect(lambda: self.set_language("en"))
@@ -550,6 +555,7 @@ class MainWindow(QMainWindow):
 
         self.help_menu = QMenu(self)
         self.help_menu.addAction(self.user_help_action)
+        self.help_menu.addAction(self.schema_reference_action)
         menu_bar.addMenu(self.help_menu)
 
     def _create_status_bar(self) -> None:
@@ -1070,6 +1076,9 @@ class MainWindow(QMainWindow):
         self.ruler_action.setText(self.translator.text("options.item.ruler"))
         self.options_action.setText(self.translator.text("action.options"))
         self.user_help_action.setText(self.translator.text("action.user_help"))
+        self.schema_reference_action.setText(
+            self.translator.text("action.schema_reference")
+        )
         self.english_action.setText(self.translator.text("language.english"))
         self.japanese_action.setText(self.translator.text("language.japanese"))
 
@@ -1083,6 +1092,8 @@ class MainWindow(QMainWindow):
             self.tag_insert_dialog.apply_language()
         if self.user_help_dialog is not None:
             self.user_help_dialog.apply_language()
+        if self.schema_reference_dialog is not None:
+            self.schema_reference_dialog.apply_language()
         if self.options_dialog is not None:
             self.options_dialog.apply_language()
         self._update_status_bar()
@@ -3172,6 +3183,22 @@ class MainWindow(QMainWindow):
         self.user_help_dialog.show()
         self.user_help_dialog.raise_()
         self.user_help_dialog.activateWindow()
+
+    def show_schema_reference_dialog(self) -> None:
+        """Show modeless HTML and WordPress schema tables beside the editor."""
+        is_new_dialog = self.schema_reference_dialog is None
+        if self.schema_reference_dialog is None:
+            self.schema_reference_dialog = SchemaReferenceDialog(
+                app_base_dir() / "dictionaries" / "standards",
+                self.translator,
+                self,
+            )
+
+        self.schema_reference_dialog.show()
+        if is_new_dialog:
+            self.schema_reference_dialog.place_next_to(self)
+        self.schema_reference_dialog.raise_()
+        self.schema_reference_dialog.activateWindow()
 
     def _insert_regex_pattern(self, pattern: str) -> None:
         """Insert the given regex pattern into the find text field of the find and replace dialog."""

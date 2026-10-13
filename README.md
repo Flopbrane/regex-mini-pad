@@ -41,6 +41,8 @@ The project focuses on practical regular expression search and replacement witho
 - Grammar Check result list copy button.
 - Per-tab Grammar Check result display for multi-file editing.
 - Optional pre-save HTML / WordPress typo check.
+- A modeless HTML / WordPress reference window that can remain beside the
+  editable main window, with separate tables generated from the bundled lint schemas.
 
 ## HTML / WordPress Grammar Check
 

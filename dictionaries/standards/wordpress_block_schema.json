@@ -1,0 +1,171 @@
+{
+  "schema_id": "wordpress_core_blocks",
+  "display_name": "WordPress Core Block Attributes",
+  "status": "active",
+  "schema_version": 1,
+  "namespace": "core",
+  "coverage": "initial_common_blocks",
+  "unknown_attribute_level": "warning",
+  "value_types": ["array", "boolean", "integer", "null", "number", "object", "string"],
+  "shared_attributes": {
+    "align": {"type": "string", "enum": ["center", "full", "left", "right", "wide"]},
+    "anchor": {"type": "string"},
+    "backgroundColor": {"type": "string"},
+    "className": {"type": "string"},
+    "fontSize": {"type": "string"},
+    "gradient": {"type": "string"},
+    "lock": {"type": "object"},
+    "metadata": {"type": "object"},
+    "style": {"type": "object"},
+    "textColor": {"type": "string"}
+  },
+  "blocks": {
+    "paragraph": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "content": {"type": "string"},
+        "direction": {"type": "string", "enum": ["ltr", "rtl"]},
+        "dropCap": {"type": "boolean"},
+        "placeholder": {"type": "string"}
+      }
+    },
+    "heading": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "content": {"type": "string"},
+        "level": {"type": "integer", "minimum": 1, "maximum": 6, "default": 2},
+        "levelOptions": {"type": "array", "item_type": "integer"},
+        "placeholder": {"type": "string"}
+      }
+    },
+    "image": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "alt": {"type": "string"},
+        "aspectRatio": {"type": "string"},
+        "caption": {"type": "string"},
+        "focalPoint": {"type": "object"},
+        "height": {"type": ["number", "string"], "value_type": "css_length"},
+        "href": {"type": "string", "value_type": "url"},
+        "id": {"type": "integer", "minimum": 1},
+        "isDecorative": {"type": "boolean"},
+        "lightbox": {"type": "object"},
+        "linkClass": {"type": "string"},
+        "linkDestination": {"type": "string", "enum": ["attachment", "custom", "media", "none"]},
+        "linkTarget": {"type": "string", "enum": ["_blank", "_self"]},
+        "rel": {"type": "string"},
+        "scale": {"type": "string", "enum": ["contain", "cover", "fill"]},
+        "sizeSlug": {"type": "string"},
+        "title": {"type": "string"},
+        "url": {"type": "string", "value_type": "url"},
+        "width": {"type": ["number", "string"], "value_type": "css_length"}
+      }
+    },
+    "spacer": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "height": {"type": "string", "value_type": "css_length", "default": "100px"},
+        "width": {"type": "string", "value_type": "css_length"}
+      }
+    },
+    "table": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "body": {"type": "array"},
+        "caption": {"type": "string"},
+        "foot": {"type": "array"},
+        "hasFixedLayout": {"type": "boolean"},
+        "head": {"type": "array"}
+      }
+    },
+    "list": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "ordered": {"type": "boolean"},
+        "placeholder": {"type": "string"},
+        "reversed": {"type": "boolean"},
+        "start": {"type": "integer", "minimum": 1},
+        "type": {"type": "string", "enum": ["ol", "ul"]},
+        "values": {"type": "string"}
+      }
+    },
+    "list-item": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "content": {"type": "string"},
+        "placeholder": {"type": "string"}
+      }
+    },
+    "group": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "tagName": {"type": "string", "enum": ["article", "aside", "div", "footer", "header", "main", "section"]},
+        "templateLock": {"type": ["boolean", "string"], "enum": [false, "all", "contentOnly", "insert"]}
+      }
+    },
+    "html": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "content": {"type": "string"}
+      }
+    },
+    "media-text": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "focalPoint": {"type": "object"},
+        "href": {"type": "string", "value_type": "url"},
+        "imageFill": {"type": "boolean"},
+        "isStackedOnMobile": {"type": "boolean"},
+        "linkClass": {"type": "string"},
+        "linkDestination": {"type": "string", "enum": ["attachment", "custom", "media", "none"]},
+        "linkTarget": {"type": "string", "enum": ["_blank", "_self"]},
+        "mediaAlt": {"type": "string"},
+        "mediaId": {"type": "integer", "minimum": 1},
+        "mediaLink": {"type": "string", "value_type": "url"},
+        "mediaPosition": {"type": "string", "enum": ["left", "right"]},
+        "mediaSizeSlug": {"type": "string"},
+        "mediaType": {"type": "string", "enum": ["image", "video"]},
+        "mediaUrl": {"type": "string", "value_type": "url"},
+        "mediaWidth": {"type": "integer", "minimum": 0, "maximum": 100},
+        "rel": {"type": "string"},
+        "useFeaturedImage": {"type": "boolean"},
+        "verticalAlignment": {"type": "string", "enum": ["bottom", "center", "top"]}
+      }
+    },
+    "columns": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "isStackedOnMobile": {"type": "boolean"},
+        "templateLock": {"type": ["boolean", "string"], "enum": [false, "all", "contentOnly", "insert"]},
+        "verticalAlignment": {"type": "string", "enum": ["bottom", "center", "top"]}
+      }
+    },
+    "column": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "templateLock": {"type": ["boolean", "string"], "enum": [false, "all", "contentOnly", "insert"]},
+        "verticalAlignment": {"type": "string", "enum": ["bottom", "center", "top"]},
+        "width": {"type": ["number", "string"], "value_type": "css_length"}
+      }
+    },
+    "separator": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "opacity": {"type": "string", "enum": ["css", "default", "dots"]},
+        "tagName": {"type": "string", "enum": ["hr"]}
+      }
+    },
+    "code": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "content": {"type": "string"}
+      }
+    },
+    "preformatted": {
+      "include_shared_attributes": true,
+      "attributes": {
+        "content": {"type": "string"}
+      }
+    }
+  }
+}
