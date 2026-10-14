@@ -34,6 +34,7 @@ from PySide6.QtGui import (  # pylint: disable=no-name-in-module
     QFont,
     QKeySequence,
     QTextCursor,
+    QIcon,
 )
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
@@ -195,6 +196,8 @@ CSS_PARAMETER_INSERT_ACTIONS: tuple[tuple[str, str, str, int], ...] = (
     ),
 )
 
+BASE_DIR = Path(__file__).resolve().parent
+ICON_PATH = BASE_DIR / "assets" / "icons" / "regex_pad_icon.png"
 
 def _split_style_parts(style_text: str) -> list[str]:
     return [part.strip() for part in style_text.split(";") if part.strip()]
@@ -3725,7 +3728,9 @@ class MainWindow(QMainWindow):
 def main() -> int:
     """Entry point for the application."""
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(str(ICON_PATH)))
     window = MainWindow()
+    window.setWindowIcon(QIcon(str(ICON_PATH)))
     window.show()
     return app.exec()
 

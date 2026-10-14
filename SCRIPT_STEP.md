@@ -3138,6 +3138,69 @@ Validation:
 - `pytest`: 384 passed.
 - `git diff --check`: passed.
 
+## Step15-section9 Remaining Work Snapshot
+
+Date: 2026-10-13
+
+Purpose:
+
+- Record the remaining likely work before ending the current implementation session.
+- Keep the next session focused on validation and packaging rather than widening features too early.
+
+High priority:
+
+- Rebuild the EXE and distribution ZIP after the JSON bundling and runtime path fixes.
+- Verify the rebuilt one-folder EXE on Windows:
+  - App launches.
+  - Translation resources load.
+  - HTML / CSS / WordPress reference tables open.
+  - `wp_conv_core` conversion runs inside the packaged app.
+  - Writable runtime data such as autosave and backup remains under the portable `_internal` area.
+- Paste-check the generated WordPress blocks in Gutenberg:
+  - Markdown table to `wp:table`.
+  - Markdown list to `wp:list`.
+  - Paragraph Split to `wp:html`.
+  - Decorated Custom HTML frames.
+  - `wp:preformatted` and `wp:group` warning guidance.
+- Manually smoke-test right-click CSS insertion in the real GUI:
+  - `<div>|text</div>` with `style=""`.
+  - `<span style="">|text</span>` with `color: ;`.
+  - `<span>|text</span>` with `color: ;`.
+  - Existing attributes on the same opening tag.
+  - Multi-line tags are not a primary target yet.
+
+Medium priority:
+
+- Use real examples to decide whether Grammar Check needs more readability features:
+  - Color-coded rows.
+  - Error-only filtering.
+  - Folding duplicate warning kinds.
+  - Stronger separation between error, warning, and note.
+- Re-check additional Markdown table cases only if they appear in actual use:
+  - Larger tables.
+  - Extra or missing cells.
+  - HTML inside cells.
+  - Text-table or box-drawing style tables.
+  - Cells that appear to contain line breaks.
+- Re-check list conversion only if needed:
+  - Nested lists.
+  - Mixed ordered and unordered lists.
+  - Checklist syntax such as `- [ ]`.
+  - Multi-line list item descriptions.
+- Keep complex or risky conversion biased toward `wp:html` rather than forcing fragile native Gutenberg blocks.
+
+Low priority / final cleanup:
+
+- Create a distribution checklist before office use.
+- Update `README.md` and `README_jp.md` after the remaining behavior is stable.
+- Gradually replace brittle Japanese literal assertions in tests with translator-key based assertions where useful.
+- Ignore old temporary worktrees for future implementation; continue editing in `D:\PC\Python\regex_pad_project`.
+
+Current stopping point:
+
+- Core checks were green after Step15-section8.
+- Next best action is packaging and real-GUI / real-WordPress verification.
+
 ## Validation Commands
 
 Use the project virtual environment:
