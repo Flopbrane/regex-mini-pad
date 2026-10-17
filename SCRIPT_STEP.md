@@ -3223,3 +3223,66 @@ Use the project virtual environment:
 - Do not modify text during search.
 - Modify text only when the user explicitly runs Replace or Replace All.
 - Keep English and Japanese help aligned in meaning.
+
+## Step15-section10 Packaging Rebuild And Bundle Verification
+
+Date: 2026-10-14
+
+Goal:
+
+- Continue the Step15-section9 packaging work in the main project checkout.
+- Rebuild the one-folder EXE after the JSON bundling and runtime-path fixes.
+- Confirm the packaged app contains the resources needed by translation, schema/reference dialogs, and portable startup.
+
+Implementation:
+
+- `regex-pad.spec`
+  - Added a project JSON collection helper for PyInstaller data files.
+  - Included JSON files under `resources`, `dictionaries`, and other project data locations.
+  - Ensured a minimal `config.json` exists for packaging when no local config has been created yet.
+  - Excluded build/runtime/development folders and files from JSON collection: `build`, `dist`, `_internal`, `.git`, `.vscode`, and `pyrightconfig.json`.
+  - Kept the GUI bundle settings aligned with packaging expectations: `console=False` and `upx=False`.
+- `build.ps1`
+  - Not edited in this section. The existing ChatGPT-updated build script was used as-is.
+- Distribution output:
+  - Rebuilt `D:\PC\Python\regex_pad_project\dist\regex-pad`.
+  - Created `D:\PC\Python\regex_pad_project\dist\regex-pad_step15-section10.zip`.
+
+Validation:
+
+- `pytest tests\test_pyinstaller_spec.py tests\test_portable_runtime.py`: 5 passed.
+- `ruff check regex-pad.spec tests\test_pyinstaller_spec.py tests\test_portable_runtime.py`: All checks passed.
+- `git diff --check`: passed. Git reported CRLF/LF notices for pre-existing `.gitignore` and `build.ps1` working-copy line endings.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1`: passed.
+- Bundle file checks passed:
+  - `dist\regex-pad\regex-pad.exe`
+  - `dist\regex-pad\_internal\resources\app_text_ja.json`
+  - `dist\regex-pad\_internal\resources\regex_help_ja.json`
+  - `dist\regex-pad\_internal\dictionaries\standards\standard_css.json`
+  - `dist\regex-pad\_internal\dictionaries\standards\wordpress_block_schema.json`
+  - `dist\regex-pad\_internal\config.json`
+- Development-file exclusion checks passed:
+  - `_internal\.git`: absent.
+  - `_internal\.vscode`: absent.
+  - `_internal\pyrightconfig.json`: absent.
+- ZIP content check confirmed:
+  - `regex-pad/regex-pad.exe`
+  - `regex-pad/_internal/config.json`
+  - `regex-pad/_internal/dictionaries/standards/standard_css.json`
+  - `regex-pad/_internal/resources/app_text_ja.json`
+- Packaged EXE smoke test:
+  - `dist\regex-pad\regex-pad.exe` launched successfully and was still running after 5 seconds.
+  - The process was then stopped intentionally, so the observed exit code was `-1`.
+
+Remaining:
+
+- Manual GUI operation inside the packaged EXE is still not fully checked:
+  - Open HTML / CSS / WordPress reference tables.
+  - Run selected Markdown conversion inside the packaged app.
+  - Confirm writable autosave/backup behavior from normal user operation.
+- Real Gutenberg paste acceptance is still unverified:
+  - Markdown table to `wp:table`.
+  - Markdown list to `wp:list`.
+  - Paragraph Split to `wp:html`.
+  - Decorated Custom HTML frames.
+  - `wp:preformatted` and `wp:group` warning guidance.

@@ -49,6 +49,7 @@ Thumbs.db
 .idea/
 CODEX_RULES.md
 NEXT_STEPS.md
+.depricate/
 
 # Temporary files
 *.tmp

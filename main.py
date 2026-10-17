@@ -32,9 +32,9 @@ from PySide6.QtGui import (  # pylint: disable=no-name-in-module
     QActionGroup,
     QCloseEvent,
     QFont,
+    QIcon,
     QKeySequence,
     QTextCursor,
-    QIcon,
 )
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
     QApplication,
