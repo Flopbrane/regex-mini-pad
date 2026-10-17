@@ -141,7 +141,12 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
 
     def _visible_text_height(self) -> int:
         """Return the height needed for the configured visible line count."""
-        return self.fontMetrics().lineSpacing() * self._visible_line_count + 12
+        metrics = self.fontMetrics()
+        line_height = max(metrics.height(), metrics.lineSpacing())
+        margins = math.ceil(self.document().documentMargin() * 2)
+        # Include the actual frame and a rounding allowance. An exact-fit
+        # viewport can acquire an extra scroll step on the Windows 11 style.
+        return line_height * self._visible_line_count + margins + self.frameWidth() * 2 + 2
 
     def text(self) -> str:
         """Return the current text in the widget."""
@@ -240,6 +245,18 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
         super().mouseReleaseEvent(event)
         self._queue_visible_text_refresh()
 
+    def scrollContentsBy(self, dx: int, dy: int) -> None:
+        """Keep selection autoscrolling from leaving the document entirely."""
+        super().scrollContentsBy(dx, dy)
+        self._restore_valid_scroll_position()
+
+    def _restore_valid_scroll_position(self) -> None:
+        """Recover only when the viewport has scrolled beyond every text block."""
+        if not self.firstVisibleBlock().isValid():
+            scroll_bar = self.verticalScrollBar()
+            scroll_bar.setValue(scroll_bar.minimum())
+            self.viewport().update()
+
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Recalculate wrapped line height when the input width changes."""
         super().resizeEvent(event)
@@ -276,6 +293,7 @@ class RegexInputEdit(QtWidgets.QPlainTextEdit):
     def _refresh_visible_text(self) -> None:
         """Keep the input text visible after selection, focus, and highlighter updates."""
         self._visible_text_refresh_queued = False
+        self._restore_valid_scroll_position()
         self.ensureCursorVisible()
         self.horizontalScrollBar().setValue(0)
         self.viewport().update()

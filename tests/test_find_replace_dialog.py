@@ -211,12 +211,17 @@ def test_regex_input_height_is_capped_for_many_lines(app: QApplication) -> None:
     dialog.find_text_edit.setText("\n".join(f"line {index}" for index in range(10)))
     QApplication.processEvents()
 
-    expected_height = (
-        dialog.find_text_edit.fontMetrics().lineSpacing()
-        * dialog.find_text_edit.MAXIMUM_VISIBLE_LINES
-        + 12
+    edit = dialog.find_text_edit
+    metrics = edit.fontMetrics()
+    line_height = max(metrics.height(), metrics.lineSpacing())
+    # The field must fit five lines and its real frame/document margins,
+    # while remaining shorter than an input that displays a sixth line.
+    minimum_height = (
+        line_height * edit.MAXIMUM_VISIBLE_LINES
+        + edit.document().documentMargin() * 2
+        + edit.frameWidth() * 2
     )
-    assert dialog.find_text_edit.height() == expected_height
+    assert minimum_height <= edit.height() < minimum_height + line_height
     assert dialog.find_text_edit.verticalScrollBar().maximum() > 0
 
 

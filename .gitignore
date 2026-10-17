@@ -20,6 +20,8 @@ pyrightconfig.json
 sample/
 autosave/
 _internal/
+diagnose_regex_input.py
+
 # Build outputs
 build/
 dist/
@@ -34,7 +36,7 @@ sample.txt
 *output.md
 回帰テスト用サンプル.md
 CODEX_regex-pad_linter_HTMLタグ閉じ忘れ診断_改修指示書.md
-
+README_README_Dialog_focus_error.md
 # Local settings
 settings.json
 config.json
