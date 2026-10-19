@@ -35,6 +35,7 @@
   "action.inline_color_purple": "紫文字 <span>",
   "action.inline_color_pink": "ピンク文字 <span>",
   "action.inline_color_gray": "グレー文字 <span>",
+  "action.inline_color_menu": "文字色",
   "action.html_transform": "HTMLエスケープ変換",
   "action.html_escape": "HTMLエスケープ",
   "action.html_unescape": "HTMLエスケープ解除",

@@ -31,9 +31,11 @@ from PySide6.QtGui import (  # pylint: disable=no-name-in-module
     QAction,
     QActionGroup,
     QCloseEvent,
+    QColor,
     QFont,
     QIcon,
     QKeySequence,
+    QPixmap,
     QTextCursor,
 )
 from PySide6.QtWidgets import (  # pylint: disable=no-name-in-module
@@ -194,6 +196,17 @@ CSS_PARAMETER_INSERT_ACTIONS: tuple[tuple[str, str, str, int], ...] = (
         "display: inline-block;",
         len("display: "),
     ),
+)
+BACKGROUND_COLOR_PRESETS: tuple[tuple[str, str], ...] = (
+    ("ローズ", "#FFE4E4"),
+    ("薄い黄色", "#FFFBDE"),
+    ("薄い黄緑色", "#F4FFDD"),
+    ("薄い緑色", "#E2FFDF"),
+    ("青寄り薄い緑", "#DCFFF2"),
+    ("水色", "#DBFFFE"),
+    ("薄い青色", "#D8E8FF"),
+    ("ラベンダー", "#E8DDFF"),
+    ("ピンク", "#FCDCFF"),
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -441,6 +454,7 @@ class MainWindow(QMainWindow):
         self.inline_color_actions: dict[str, QAction] = {}
         for color_name, color_value, _text_key, shortcuts in INLINE_COLOR_SPAN_ACTIONS:
             action = QAction(self)
+            action.setIcon(self._background_color_swatch_icon(color_value))
             action.setShortcuts([QKeySequence(shortcut) for shortcut in shortcuts])
             action.triggered.connect(
                 lambda checked=False, value=color_value: self.wrap_selection_with_inline_html(
@@ -482,6 +496,10 @@ class MainWindow(QMainWindow):
             action = QAction(self)
             if action_id == "style_attribute":
                 action.triggered.connect(self.insert_style_attribute_at_cursor)
+            elif action_id == "color":
+                action.triggered.connect(self.insert_text_color_at_cursor)
+            elif action_id == "background_color":
+                action.triggered.connect(self.insert_background_color_at_cursor)
             else:
                 action.triggered.connect(
                     lambda checked=False,
@@ -492,6 +510,8 @@ class MainWindow(QMainWindow):
                     ),
                 )
             self.css_parameter_actions[action_id] = action
+        self.background_color_preset_menu: QMenu | None = None
+        self.text_color_preset_menu: QMenu | None = None
 
         self.paragraph_split_spacer_action = QAction(self)
         self.paragraph_split_spacer_action.triggered.connect(
@@ -1274,6 +1294,13 @@ class MainWindow(QMainWindow):
         self._set_tag_menu_tooltips_visible(insert_tag_menu)
         self._populate_insert_tag_menu(insert_tag_menu)
         context_menu.addMenu(insert_tag_menu)
+        inline_color_menu = QMenu(
+            self.translator.text("action.inline_color_menu"),
+            context_menu,
+        )
+        for color_name, _color_value, _text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+            inline_color_menu.addAction(self.inline_color_actions[color_name])
+        context_menu.addMenu(inline_color_menu)
         css_insert_menu = QMenu(
             self.translator.text("action.css_insert"),
             context_menu,
@@ -2190,6 +2217,87 @@ class MainWindow(QMainWindow):
             return
 
         self.insert_text_at_cursor(declaration_text, cursor_offset)
+
+    def insert_background_color_at_cursor(self) -> None:
+        """Insert an editable background color declaration and show recommended colors."""
+        self.insert_css_declaration_at_cursor(
+            "background-color: ;",
+            len("background-color: "),
+        )
+        self._show_background_color_preset_menu()
+
+    def insert_text_color_at_cursor(self) -> None:
+        """Insert an editable text color declaration and show text color choices."""
+        self.insert_css_declaration_at_cursor("color: ;", len("color: "))
+        self._show_text_color_preset_menu()
+
+    def _show_background_color_preset_menu(self) -> None:
+        """Show recommended WordPress background colors below the current cursor."""
+        menu = QMenu(self.editor)
+        for color_name, color_value in BACKGROUND_COLOR_PRESETS:
+            action = QAction(f"{color_name}  {color_value}", menu)
+            action.setData(color_value)
+            action.setIcon(self._background_color_swatch_icon(color_value))
+            action.triggered.connect(
+                lambda checked=False, value=color_value: self._replace_background_color_value(
+                    value
+                )
+            )
+            menu.addAction(action)
+        self.background_color_preset_menu = menu
+        cursor_rect = self.editor.cursorRect()
+        menu.popup(self.editor.viewport().mapToGlobal(cursor_rect.bottomLeft()))
+
+    def _show_text_color_preset_menu(self) -> None:
+        """Show the same text colors used by the Ctrl+Alt inline shortcuts."""
+        menu = QMenu(self.editor)
+        for color_name, color_value, _text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+            action = QAction(
+                f"{self.inline_color_actions[color_name].text()}  {color_value}",
+                menu,
+            )
+            action.setData(color_value)
+            action.setIcon(self._background_color_swatch_icon(color_value))
+            action.triggered.connect(
+                lambda checked=False, value=color_value: self._replace_css_color_value(
+                    "color",
+                    value,
+                )
+            )
+            menu.addAction(action)
+        self.text_color_preset_menu = menu
+        cursor_rect = self.editor.cursorRect()
+        menu.popup(self.editor.viewport().mapToGlobal(cursor_rect.bottomLeft()))
+
+    @staticmethod
+    def _background_color_swatch_icon(color_value: str) -> QIcon:
+        """Create a small color swatch for a recommended background color."""
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(QColor(color_value))
+        return QIcon(pixmap)
+
+    def _replace_background_color_value(self, color_value: str) -> None:
+        """Replace the background-color value containing the editor cursor."""
+        self._replace_css_color_value("background-color", color_value)
+
+    def _replace_css_color_value(self, property_name: str, color_value: str) -> None:
+        """Replace the current CSS color property value without altering its semicolon."""
+        source_text = self.editor.toPlainText()
+        cursor = self.editor.textCursor()
+        cursor_position = cursor.position()
+        property_pattern = re.escape(property_name)
+        for match in re.finditer(rf"{property_pattern}\s*:\s*([^;\n]*)", source_text):
+            value_start, value_end = match.span(1)
+            if value_start <= cursor_position <= value_end:
+                cursor.beginEditBlock()
+                cursor.setPosition(value_start)
+                cursor.setPosition(value_end, QTextCursor.MoveMode.KeepAnchor)
+                cursor.insertText(color_value)
+                cursor.endEditBlock()
+                cursor.setPosition(value_start + len(color_value))
+                self.editor.setTextCursor(cursor)
+                self.editor.setFocus()
+                return
 
     def _insert_text_at_position(
         self,

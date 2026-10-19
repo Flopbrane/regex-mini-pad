@@ -32,6 +32,12 @@ The project focuses on practical regular expression search and replacement witho
 - Regex lint warnings.
 - Regex help with examples and replacement recipes.
 - Tag insertion assistance for HTML, Markdown, and WordPress HTML.
+- The editor context menu can insert `background-color: ;` and offer nine
+  recommended WordPress background colors with swatches; press `Esc` to close
+  the list and type a custom CSS color value.
+- `color: ;` offers the same seven colors as the inline text-color shortcuts.
+  The editor context menu also has a Text Color submenu, while `Ctrl+Alt+1`
+  through `Ctrl+Alt+7` remain direct color shortcuts for selected text.
 - Inline HTML wrap shortcuts for selected text, including `<strong>`, `<u>`,
   and seven colored `<span>` text variants.
 - WordPress-oriented paragraph splitting and snippet insertion helpers.

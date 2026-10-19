@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QKeyEvent, QTextCursor
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QMenu
 
 from dialogs.tag_insert_dialog import TagInsertDialog
@@ -280,6 +281,7 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
 
     action_texts = [action.text() for action in context_menu.actions()]
     insert_tag_menu: QMenu | None = None
+    inline_color_menu: QMenu | None = None
     css_insert_menu: QMenu | None = None
     child_menu_titles: list[str] = []
     for action in context_menu.actions():
@@ -288,18 +290,23 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
             child_menu_titles.append(child_menu.title())
             if child_menu.title() == window.translator.text("action.insert_tag"):
                 insert_tag_menu = child_menu
+            if child_menu.title() == window.translator.text("action.inline_color_menu"):
+                inline_color_menu = child_menu
             if child_menu.title() == window.translator.text("action.css_insert"):
                 css_insert_menu = child_menu
 
     assert window.translator.text("action.insert_tag_picker") in action_texts
     assert isinstance(insert_tag_menu, QMenu)
+    assert isinstance(inline_color_menu, QMenu)
     assert isinstance(css_insert_menu, QMenu)
-    assert child_menu_titles[-4:] == [
+    assert child_menu_titles[-5:] == [
         window.translator.text("paragraph_split.menu"),
         window.translator.text("action.insert_tag"),
+        window.translator.text("action.inline_color_menu"),
         window.translator.text("action.css_insert"),
         window.translator.text("action.html_transform"),
     ]
+    assert inline_color_menu.actions() == list(window.inline_color_actions.values())
     assert [action.text() for action in css_insert_menu.actions()] == [
         window.translator.text("action.css_insert_style_attribute"),
         window.translator.text("action.css_insert_color"),
@@ -359,6 +366,119 @@ def test_css_insert_context_menu_actions_insert_editable_text(
 
     assert window.editor.toPlainText() == "background-color: ;"
     assert window.editor.textCursor().position() == len("background-color: ")
+    assert isinstance(window.background_color_preset_menu, QMenu)
+    window.background_color_preset_menu.close()
+
+
+def test_background_color_preset_menu_replaces_only_the_value(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText('<div style="">本文</div>')
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len('<div style="'))
+    window.editor.setTextCursor(cursor)
+
+    window.css_parameter_actions["background_color"].trigger()
+
+    menu = window.background_color_preset_menu
+    assert isinstance(menu, QMenu)
+    assert [action.data() for action in menu.actions()] == [
+        "#FFE4E4",
+        "#FFFBDE",
+        "#F4FFDD",
+        "#E2FFDF",
+        "#DCFFF2",
+        "#DBFFFE",
+        "#D8E8FF",
+        "#E8DDFF",
+        "#FCDCFF",
+    ]
+    assert all(not action.icon().isNull() for action in menu.actions())
+
+    menu.actions()[0].trigger()
+    menu.close()
+
+    assert window.editor.toPlainText() == (
+        '<div style="background-color: #FFE4E4;">本文</div>'
+    )
+    assert window.editor.textCursor().position() == len(
+        '<div style="background-color: #FFE4E4'
+    )
+
+
+def test_background_color_preset_menu_escape_keeps_manual_input_position(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+
+    window.css_parameter_actions["background_color"].trigger()
+
+    menu = window.background_color_preset_menu
+    assert isinstance(menu, QMenu)
+    QTest.keyClick(menu, Qt.Key.Key_Escape)
+    QApplication.processEvents()
+
+    assert not menu.isVisible()
+    assert window.editor.toPlainText() == "background-color: ;"
+    assert window.editor.textCursor().position() == len("background-color: ")
+
+
+def test_text_color_preset_menu_reuses_inline_shortcut_colors(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.editor.setPlainText('<span style="">本文</span>')
+    cursor = window.editor.textCursor()
+    cursor.setPosition(len('<span style="'))
+    window.editor.setTextCursor(cursor)
+
+    window.css_parameter_actions["color"].trigger()
+
+    menu = window.text_color_preset_menu
+    assert isinstance(menu, QMenu)
+    assert [action.data() for action in menu.actions()] == [
+        "#d00000",
+        "#0057b8",
+        "#008a3d",
+        "#c85a00",
+        "#7a3db8",
+        "#c2185b",
+        "#555555",
+    ]
+    assert all(not action.icon().isNull() for action in menu.actions())
+
+    menu.actions()[1].trigger()
+    menu.close()
+
+    assert window.editor.toPlainText() == '<span style="color: #0057b8;">本文</span>'
+    assert window.editor.textCursor().position() == len(
+        '<span style="color: #0057b8'
+    )
+    assert [shortcut.toString() for shortcut in window.inline_color_actions["blue"].shortcuts()] == [
+        "Ctrl+Alt+2"
+    ]
+
+
+def test_text_color_preset_menu_escape_keeps_manual_input_position(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+
+    window.css_parameter_actions["color"].trigger()
+
+    menu = window.text_color_preset_menu
+    assert isinstance(menu, QMenu)
+    QTest.keyClick(menu, Qt.Key.Key_Escape)
+    QApplication.processEvents()
+
+    assert not menu.isVisible()
+    assert window.editor.toPlainText() == "color: ;"
+    assert window.editor.textCursor().position() == len("color: ")
 
 
 def test_css_insert_style_attribute_stays_inside_opening_tag_after_tag_cursor(

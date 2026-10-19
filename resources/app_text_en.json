@@ -35,6 +35,7 @@
   "action.inline_color_purple": "Purple Text <span>",
   "action.inline_color_pink": "Pink Text <span>",
   "action.inline_color_gray": "Gray Text <span>",
+  "action.inline_color_menu": "Text Color",
   "action.html_transform": "HTML Escape Transform",
   "action.html_escape": "HTML Escape",
   "action.html_unescape": "HTML Unescape",

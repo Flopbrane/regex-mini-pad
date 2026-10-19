@@ -3286,3 +3286,122 @@ Remaining:
   - Paragraph Split to `wp:html`.
   - Decorated Custom HTML frames.
   - `wp:preformatted` and `wp:group` warning guidance.
+
+## Step15-section11 Find Replace Input Drag Scroll Recovery
+
+Date: 2026-10-17
+
+Goal:
+
+- Investigate the report that the Find/Replace input text appears to disappear after a large mouse drag outside the compact input field.
+- Review the supplied `regex_input_scroll_fix.zip` without blindly overwriting existing files.
+
+Investigation:
+
+- The supplied ZIP contained `dialogs/regex_input_edit.py`, `tests/test_find_replace_dialog.py`, and `tests/test_regex_input_scroll.py`.
+- SHA-256 comparison confirmed that all three executable/test files exactly match the current files in `D:\PC\Python\regex_pad_project`.
+- The matching implementation was already committed as `a093d29` (`fix: Fixed Dialog focus error`) at 2026-10-17 13:29 JST, so the ZIP was not copied over the project again.
+- The ZIP `README.md` differs from the project README, but it is an explanatory document rather than a runtime file and was left unchanged.
+
+Implementation already present:
+
+- `dialogs/regex_input_edit.py`
+  - Replaced the old fixed `lineSpacing * visible_lines + 12` field-height calculation with a calculation based on the actual font height, document margins, frame width, and a small rounding allowance.
+  - Added `scrollContentsBy()` recovery that resets the vertical scrollbar only when `firstVisibleBlock()` has become invalid after selection autoscrolling.
+  - Reuses the same validity check during queued visible-text refreshes.
+  - Leaves normal multi-line scrolling intact when the first visible block is valid.
+- `tests/test_regex_input_scroll.py`
+  - Covers single-line input, large pointer movement outside the viewport, legacy tight-height recovery, and normal multi-line scrolling.
+- `tests/test_find_replace_dialog.py`
+  - Updates the height expectation to account for document margins and the real input frame.
+
+Validation performed on 2026-10-17:
+
+- `pytest tests\test_find_replace_dialog.py tests\test_regex_input_scroll.py tests\test_regex_input_display_flow.py tests\test_main_window_search.py`: 70 passed.
+- `ruff check dialogs/regex_input_edit.py tests/test_find_replace_dialog.py tests/test_regex_input_scroll.py tests/test_regex_input_display_flow.py tests/test_main_window_search.py`: All checks passed.
+- `pyright --pythonpath "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe"`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 389 passed.
+
+Remaining manual acceptance:
+
+- On Windows 11, enter short text, a long regular expression, and multi-line text in both the Find and Replace fields.
+- Drag each selection beyond all four edges of the field, then confirm the text remains visible and further typing still works.
+- Repeat after Replace All while regular-expression highlighting is enabled.
+
+## Step15-section12 Recommended WordPress Background Color Menu
+
+Date: 2026-10-20
+
+Goal:
+
+- Provide gentle background-color choices for WordPress article HTML, because colors copied directly from Paint can render much darker in the published page.
+- Keep ordinary CSS input available without forcing a preset selection.
+
+Implementation:
+
+- The editor context menu action `CSS挿入 > background-color: ;` now opens a color-swatch popup at the inserted value position.
+- The popup offers these recommended values:
+  - Rose: `#FFE4E4`
+  - Pale yellow: `#FFFBDE`
+  - Pale yellow-green: `#F4FFDD`
+  - Pale green: `#E2FFDF`
+  - Blue-leaning pale green: `#DCFFF2`
+  - Light cyan: `#DBFFFE`
+  - Pale blue: `#D8E8FF`
+  - Lavender: `#E8DDFF`
+  - Pink: `#FCDCFF`
+- Choosing a preset replaces only the empty `background-color` value and keeps its terminating semicolon.
+- Pressing `Esc` closes the popup without changing `background-color: ;`, leaving the cursor in the value position for manual CSS input.
+- Updated `README.md` and `README_jp.md` with this workflow.
+
+Validation:
+
+- Added tests for the nine color values and color-swatch icons, replacing a value inside an existing `style` attribute, and Esc closing the popup while retaining manual input position.
+- Focused `pytest tests/test_tag_insert.py`: 66 passed.
+- `ruff check .`: All checks passed.
+- `pyright --pythonpath "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe"`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 391 passed.
+
+Remaining manual acceptance:
+
+- In the Windows GUI, right-click the editor and choose `CSS挿入 > background-color: ;`.
+- Confirm the popup appears beneath the cursor, a selected color is inserted correctly, and Esc permits a custom value such as `rgb(240, 248, 255)`.
+
+## Step15-section13 Text Color Presets And Context Menu
+
+Date: 2026-10-20
+
+Goal:
+
+- Add the same color-selection workflow to `color: ;` and the existing inline text-color actions.
+- Preserve the fast `Ctrl+Alt+1` through `Ctrl+Alt+7` workflow for selected text.
+
+Implementation:
+
+- `CSS挿入 > color: ;` now opens a color-swatch popup with the seven colors already used by inline text-color shortcuts:
+  - Red: `#d00000`
+  - Blue: `#0057b8`
+  - Green: `#008a3d`
+  - Orange: `#c85a00`
+  - Purple: `#7a3db8`
+  - Pink: `#c2185b`
+  - Gray: `#555555`
+- A new right-click `文字色` / `Text Color` submenu exposes the same existing inline-color actions with color swatches.
+- The existing `Ctrl+Alt+1` through `Ctrl+Alt+7` shortcuts remain direct selection-wrap actions; no shortcut behavior was replaced.
+- Choosing a `color: ;` preset replaces only the CSS value and retains the ending semicolon.
+- Esc closes the `color: ;` popup while keeping the cursor ready for a custom CSS value.
+- Added the `action.inline_color_menu` translation key in both application-language JSON files and updated both READMEs.
+
+Validation:
+
+- Added tests for the Text Color context submenu, the seven color values/icons, CSS value replacement, Esc manual-input behavior, and retained `Ctrl+Alt+2` shortcut assignment.
+- `pytest tests/test_tag_insert.py tests/test_app_translation.py`: 72 passed.
+- Both translation JSON files passed `python -m json.tool` parsing.
+- `ruff check .`: All checks passed.
+- `pyright --pythonpath "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe"`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest`: 393 passed.
+
+Remaining manual acceptance:
+
+- In the Windows GUI, confirm `CSS挿入 > color: ;` shows the seven text colors, Esc leaves `color: ;` editable, and the right-click `文字色` submenu wraps selected text correctly.
+- Confirm the color-swatch popups remain readable with the editor's light, dark, and custom display themes.
