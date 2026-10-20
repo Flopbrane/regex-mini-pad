@@ -43,6 +43,7 @@
   "action.wordpress_complex_blocks": "Markdown表/リストをWordPressブロック化",
   "action.wordpress_table_transform": "表変換",
   "action.wordpress_list_transform": "リスト変換",
+  "action.wordpress_list_frame_transform": "リストを枠囲みに変換",
   "action.css_insert": "CSS挿入",
   "action.css_insert_style_attribute": "style=\"\"",
   "action.css_insert_color": "color: ;",

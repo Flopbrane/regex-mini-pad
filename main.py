@@ -90,6 +90,7 @@ from editor.text_editor import TextEditor
 from editor.wordpress_markdown_converter import (
     WordPressMarkdownConversionError,
     convert_complex_markdown_blocks_to_wordpress_html,
+    convert_list_to_wordpress_frame_html,
     convert_markdown_lists_to_wordpress_html,
     convert_markdown_tables_to_wordpress_html,
 )
@@ -109,6 +110,7 @@ from normalise import apply_normalise_operation
 from search.css_lint import CssLintIssue, lint_stylesheet
 from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
+from settings.color_presets import ColorPreset, load_color_preset_catalog
 from settings.settings_manager import EditorSettings, SettingsManager
 
 GrammarLintMessage = HtmlTypoLintMessage | CssLintIssue
@@ -138,6 +140,11 @@ FRAME_BLOCK_LABEL_KEYS = {
     "tag.wordpress.important_frame_block",
 }
 DEFAULT_FRAME_OUTER_SPACING = "1.5em 0 2em 0"
+DEFAULT_LIST_FRAME_STYLE = (
+    "display: inline-block; border: 2px solid #f0b84a; "
+    "background-color: #fffaf0; color: #333333; padding: 14px 16px; "
+    "border-radius: 8px;"
+)
 FRAME_ALIGNMENT_VALUES = {"left", "center", "right"}
 FRAME_DISPLAY_STYLES = {
     "block": "display: block; width: 100%; box-sizing: border-box;",
@@ -154,15 +161,6 @@ FRAME_STYLE_PREFIXES_REPLACED_BY_SETTINGS = (
     "text-align:",
     "background-color:",
     "color:",
-)
-INLINE_COLOR_SPAN_ACTIONS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
-    ("red", "#d00000", "action.inline_color_red", ("Ctrl+Alt+1", "Ctrl+Alt+R")),
-    ("blue", "#0057b8", "action.inline_color_blue", ("Ctrl+Alt+2",)),
-    ("green", "#008a3d", "action.inline_color_green", ("Ctrl+Alt+3",)),
-    ("orange", "#c85a00", "action.inline_color_orange", ("Ctrl+Alt+4",)),
-    ("purple", "#7a3db8", "action.inline_color_purple", ("Ctrl+Alt+5",)),
-    ("pink", "#c2185b", "action.inline_color_pink", ("Ctrl+Alt+6",)),
-    ("gray", "#555555", "action.inline_color_gray", ("Ctrl+Alt+7",)),
 )
 CSS_PARAMETER_INSERT_ACTIONS: tuple[tuple[str, str, str, int], ...] = (
     ("style_attribute", "action.css_insert_style_attribute", 'style=""', len('style="')),
@@ -196,17 +194,6 @@ CSS_PARAMETER_INSERT_ACTIONS: tuple[tuple[str, str, str, int], ...] = (
         "display: inline-block;",
         len("display: "),
     ),
-)
-BACKGROUND_COLOR_PRESETS: tuple[tuple[str, str], ...] = (
-    ("ローズ", "#FFE4E4"),
-    ("薄い黄色", "#FFFBDE"),
-    ("薄い黄緑色", "#F4FFDD"),
-    ("薄い緑色", "#E2FFDF"),
-    ("青寄り薄い緑", "#DCFFF2"),
-    ("水色", "#DBFFFE"),
-    ("薄い青色", "#D8E8FF"),
-    ("ラベンダー", "#E8DDFF"),
-    ("ピンク", "#FCDCFF"),
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -244,6 +231,7 @@ class MainWindow(QMainWindow):
         )
         settings: EditorSettings = self.settings_manager.load()
         self.translator = Translator(self.resources_path, settings.language_code)
+        self.color_presets = load_color_preset_catalog()
         self.file_manager = FileManager()
         self.file_backup_manager = FileBackupManager(
             self._file_backup_folder_for_folder(settings.backup_folder)
@@ -452,18 +440,23 @@ class MainWindow(QMainWindow):
         )
 
         self.inline_color_actions: dict[str, QAction] = {}
-        for color_name, color_value, _text_key, shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+        for preset in self.color_presets.text_colors:
             action = QAction(self)
-            action.setIcon(self._background_color_swatch_icon(color_value))
-            action.setShortcuts([QKeySequence(shortcut) for shortcut in shortcuts])
+            action.setIcon(self._background_color_swatch_icon(preset.value))
+            action.setShortcuts(
+                [QKeySequence(shortcut) for shortcut in preset.shortcuts]
+            )
             action.triggered.connect(
-                lambda checked=False, value=color_value: self.wrap_selection_with_inline_html(
+                lambda checked=False, value=preset.value: self.wrap_selection_with_inline_html(
                     f'<span style="color: {value}">',
                     "</span>",
                 )
             )
-            self.inline_color_actions[color_name] = action
-        self.inline_red_span_action = self.inline_color_actions["red"]
+            self.inline_color_actions[preset.identifier] = action
+        self.inline_red_span_action = self.inline_color_actions.get(
+            "red",
+            next(iter(self.inline_color_actions.values())),
+        )
 
         self.html_escape_action = QAction(self)
         self.html_escape_action.triggered.connect(self.escape_selected_html)
@@ -489,6 +482,11 @@ class MainWindow(QMainWindow):
         self.wordpress_list_transform_action = QAction(self)
         self.wordpress_list_transform_action.triggered.connect(
             self.convert_selected_markdown_lists_to_wordpress_lists
+        )
+
+        self.wordpress_list_frame_transform_action = QAction(self)
+        self.wordpress_list_frame_transform_action.triggered.connect(
+            self.convert_selected_list_to_wordpress_frame
         )
 
         self.css_parameter_actions: dict[str, QAction] = {}
@@ -607,8 +605,8 @@ class MainWindow(QMainWindow):
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.inline_strong_action)
         self.edit_menu.addAction(self.inline_underline_action)
-        for color_name, _color_value, _text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
-            self.edit_menu.addAction(self.inline_color_actions[color_name])
+        for preset in self.color_presets.text_colors:
+            self.edit_menu.addAction(self.inline_color_actions[preset.identifier])
         self.edit_menu.addSeparator()
         self.edit_menu.addAction(self.insert_tag_picker_action)
         self.edit_menu.addMenu(self.insert_tag_menu)
@@ -1121,8 +1119,10 @@ class MainWindow(QMainWindow):
         self.inline_underline_action.setText(
             self.translator.text("action.inline_underline")
         )
-        for color_name, _color_value, text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
-            self.inline_color_actions[color_name].setText(self.translator.text(text_key))
+        for preset in self.color_presets.text_colors:
+            self.inline_color_actions[preset.identifier].setText(
+                self._inline_color_action_text(preset)
+            )
         self.html_escape_action.setText(self.translator.text("action.html_escape"))
         self.html_unescape_action.setText(self.translator.text("action.html_unescape"))
         self.wordpress_code_block_action.setText(
@@ -1136,6 +1136,9 @@ class MainWindow(QMainWindow):
         )
         self.wordpress_list_transform_action.setText(
             self.translator.text("action.wordpress_list_transform")
+        )
+        self.wordpress_list_frame_transform_action.setText(
+            self.translator.text("action.wordpress_list_frame_transform")
         )
         for action_id, text_key, _insert_text, _cursor_offset in CSS_PARAMETER_INSERT_ACTIONS:
             self.css_parameter_actions[action_id].setText(self.translator.text(text_key))
@@ -1288,6 +1291,7 @@ class MainWindow(QMainWindow):
         paragraph_split_menu.addSeparator()
         paragraph_split_menu.addAction(self.wordpress_table_transform_action)
         paragraph_split_menu.addAction(self.wordpress_list_transform_action)
+        paragraph_split_menu.addAction(self.wordpress_list_frame_transform_action)
         paragraph_split_menu.addAction(self.wordpress_complex_blocks_action)
         context_menu.addMenu(paragraph_split_menu)
         insert_tag_menu = QMenu(self.translator.text("action.insert_tag"), context_menu)
@@ -1298,8 +1302,8 @@ class MainWindow(QMainWindow):
             self.translator.text("action.inline_color_menu"),
             context_menu,
         )
-        for color_name, _color_value, _text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
-            inline_color_menu.addAction(self.inline_color_actions[color_name])
+        for preset in self.color_presets.text_colors:
+            inline_color_menu.addAction(self.inline_color_actions[preset.identifier])
         context_menu.addMenu(inline_color_menu)
         css_insert_menu = QMenu(
             self.translator.text("action.css_insert"),
@@ -2234,12 +2238,15 @@ class MainWindow(QMainWindow):
     def _show_background_color_preset_menu(self) -> None:
         """Show recommended WordPress background colors below the current cursor."""
         menu = QMenu(self.editor)
-        for color_name, color_value in BACKGROUND_COLOR_PRESETS:
-            action = QAction(f"{color_name}  {color_value}", menu)
-            action.setData(color_value)
-            action.setIcon(self._background_color_swatch_icon(color_value))
+        for preset in self.color_presets.background_colors:
+            action = QAction(
+                f"{preset.display_name(self.translator.language_code)}  {preset.value}",
+                menu,
+            )
+            action.setData(preset.value)
+            action.setIcon(self._background_color_swatch_icon(preset.value))
             action.triggered.connect(
-                lambda checked=False, value=color_value: self._replace_background_color_value(
+                lambda checked=False, value=preset.value: self._replace_background_color_value(
                     value
                 )
             )
@@ -2251,15 +2258,15 @@ class MainWindow(QMainWindow):
     def _show_text_color_preset_menu(self) -> None:
         """Show the same text colors used by the Ctrl+Alt inline shortcuts."""
         menu = QMenu(self.editor)
-        for color_name, color_value, _text_key, _shortcuts in INLINE_COLOR_SPAN_ACTIONS:
+        for preset in self.color_presets.text_colors:
             action = QAction(
-                f"{self.inline_color_actions[color_name].text()}  {color_value}",
+                f"{preset.display_name(self.translator.language_code)}  {preset.value}",
                 menu,
             )
-            action.setData(color_value)
-            action.setIcon(self._background_color_swatch_icon(color_value))
+            action.setData(preset.value)
+            action.setIcon(self._background_color_swatch_icon(preset.value))
             action.triggered.connect(
-                lambda checked=False, value=color_value: self._replace_css_color_value(
+                lambda checked=False, value=preset.value: self._replace_css_color_value(
                     "color",
                     value,
                 )
@@ -2268,6 +2275,15 @@ class MainWindow(QMainWindow):
         self.text_color_preset_menu = menu
         cursor_rect = self.editor.cursorRect()
         menu.popup(self.editor.viewport().mapToGlobal(cursor_rect.bottomLeft()))
+
+    def _inline_color_action_text(self, preset: ColorPreset) -> str:
+        """Return a localized inline-color action label from the editable JSON."""
+        color_name = preset.display_name(self.translator.language_code)
+        return (
+            f"{color_name} Text <span>"
+            if self.translator.language_code == "en"
+            else f"{color_name}文字 <span>"
+        )
 
     @staticmethod
     def _background_color_swatch_icon(color_value: str) -> QIcon:
@@ -2424,6 +2440,17 @@ class MainWindow(QMainWindow):
         """Convert selected Markdown list blocks to WordPress list blocks."""
         self._convert_selected_markdown_to_wordpress(
             convert_markdown_lists_to_wordpress_html
+        )
+
+    def convert_selected_list_to_wordpress_frame(self) -> None:
+        """Convert selected Markdown or WordPress list content to one HTML frame."""
+        self._convert_selected_markdown_to_wordpress(
+            lambda source_text: convert_list_to_wordpress_frame_html(
+                source_text,
+                alignment=self._frame_alignment_value(),
+                outer_spacing=self._frame_outer_spacing_value(),
+                inner_style=self._frame_inner_style(DEFAULT_LIST_FRAME_STYLE),
+            )
         )
 
     def _convert_selected_markdown_to_wordpress(

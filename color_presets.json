@@ -1,0 +1,22 @@
+{
+  "text_colors": [
+    {"id": "red", "name": {"ja": "赤", "en": "Red"}, "value": "#d00000", "shortcuts": ["Ctrl+Alt+1", "Ctrl+Alt+R"]},
+    {"id": "blue", "name": {"ja": "青", "en": "Blue"}, "value": "#0057b8", "shortcuts": ["Ctrl+Alt+2"]},
+    {"id": "green", "name": {"ja": "緑", "en": "Green"}, "value": "#008a3d", "shortcuts": ["Ctrl+Alt+3"]},
+    {"id": "orange", "name": {"ja": "オレンジ", "en": "Orange"}, "value": "#c85a00", "shortcuts": ["Ctrl+Alt+4"]},
+    {"id": "purple", "name": {"ja": "紫", "en": "Purple"}, "value": "#7a3db8", "shortcuts": ["Ctrl+Alt+5"]},
+    {"id": "pink", "name": {"ja": "ピンク", "en": "Pink"}, "value": "#c2185b", "shortcuts": ["Ctrl+Alt+6"]},
+    {"id": "gray", "name": {"ja": "グレー", "en": "Gray"}, "value": "#555555", "shortcuts": ["Ctrl+Alt+7"]}
+  ],
+  "background_colors": [
+    {"id": "rose", "name": {"ja": "ローズ", "en": "Rose"}, "value": "#FFE4E4"},
+    {"id": "pale_yellow", "name": {"ja": "薄い黄色", "en": "Pale yellow"}, "value": "#FFFBDE"},
+    {"id": "pale_yellow_green", "name": {"ja": "薄い黄緑色", "en": "Pale yellow-green"}, "value": "#F4FFDD"},
+    {"id": "pale_green", "name": {"ja": "薄い緑色", "en": "Pale green"}, "value": "#E2FFDF"},
+    {"id": "blue_green", "name": {"ja": "青寄り薄い緑", "en": "Blue-leaning pale green"}, "value": "#DCFFF2"},
+    {"id": "light_cyan", "name": {"ja": "水色", "en": "Light cyan"}, "value": "#DBFFFE"},
+    {"id": "pale_blue", "name": {"ja": "薄い青色", "en": "Pale blue"}, "value": "#D8E8FF"},
+    {"id": "lavender", "name": {"ja": "ラベンダー", "en": "Lavender"}, "value": "#E8DDFF"},
+    {"id": "pink", "name": {"ja": "ピンク", "en": "Pink"}, "value": "#FCDCFF"}
+  ]
+}

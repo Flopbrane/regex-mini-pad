@@ -3405,3 +3405,50 @@ Remaining manual acceptance:
 
 - In the Windows GUI, confirm `CSS挿入 > color: ;` shows the seven text colors, Esc leaves `color: ;` editable, and the right-click `文字色` submenu wraps selected text correctly.
 - Confirm the color-swatch popups remain readable with the editor's light, dark, and custom display themes.
+
+## Step15-section14 Editable Color Presets And List Frame Conversion
+
+Date: 2026-10-20
+
+Goal:
+
+- Move text-color and background-color preset names and values out of `main.py` and into an editable JSON file.
+- Keep the same JSON editable beside the packaged EXE.
+- Add an alternative conversion for sites whose WordPress theme hides bullets or ordered-list markers.
+
+Implementation:
+
+- Added `color_presets.json` at the project root and a bundled default at `resources/color_presets.json`.
+- Added `settings/color_presets.py`:
+  - Loads text and background color names and CSS values from JSON.
+  - Loads text-color shortcut assignments from the same JSON.
+  - Copies the bundled default safely beside the application when the editable file is missing.
+  - Leaves malformed editable JSON untouched and falls back to the bundled default for that launch.
+- Updated `main.py` so `color: ;`, `background-color: ;`, the Text Color submenu, and `Ctrl+Alt` inline-color actions all use the loaded catalog.
+- Added `段落分割 > リストを枠囲みに変換` / `Paragraph Split > List to Framed Block`.
+- The new conversion accepts a selected Markdown list or existing WordPress list block and emits one `wp:html` frame.
+- Unordered and ordered markers are emitted as visible text (`・` or `1.`, `2.`, and so on), not as theme-dependent `ul` / `ol` markers.
+- The converted frame uses the current frame alignment, outer spacing, background color, and text color settings.
+- Kept the existing WordPress `wp:list` conversion action unchanged.
+- The PyInstaller spec's existing project-JSON collection includes both color-preset JSON files; packaging tests now assert both destinations explicitly.
+- Updated `README.md` and `README_jp.md` with the post-packaging edit workflow and list-frame behavior.
+
+Validation:
+
+- Focused tests cover JSON loading/copy/fallback/override, both list input forms, the main-window action, menu placement, translations, and PyInstaller data collection.
+- Focused `pytest`: 110 passed.
+- Focused Ruff checks: All checks passed.
+- `pyright --pythonpath "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe"`: 0 errors, 0 warnings, 0 informations.
+- Full `pytest` in `D:\PC\Python\regex_pad_project`: 401 passed.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1`: passed.
+- Packaged color-preset checks passed:
+  - `dist\regex-pad\_internal\resources\color_presets.json` is present.
+  - Starting `dist\regex-pad\regex-pad.exe` created editable `dist\regex-pad\color_presets.json`.
+  - The initial editable file matched the bundled default by SHA-256 and contained 7 text colors and 9 background colors.
+  - The packaged EXE remained running after 5 seconds and was stopped intentionally after the smoke check.
+
+Remaining manual acceptance:
+
+- In the Windows GUI, edit text/background names, CSS values, and a text shortcut in `color_presets.json`; restart and confirm all related menus use the new values.
+- In the packaged GUI, confirm both swatch popups and the Text Color submenu render the configured names and colors correctly.
+- Paste a converted unordered and ordered framed list into the workplace Gutenberg environment and confirm its markers remain visible after save/reload.

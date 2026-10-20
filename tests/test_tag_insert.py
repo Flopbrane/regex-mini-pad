@@ -337,6 +337,7 @@ def test_editor_context_menu_has_tag_insert_actions(app: QApplication) -> None:
         "",
         "表変換",
         "リスト変換",
+        "リストを枠囲みに変換",
         "Markdown表/リストをWordPressブロック化",
     ]
     assert [menu.title() for menu in child_menus(insert_tag_menu)] == [

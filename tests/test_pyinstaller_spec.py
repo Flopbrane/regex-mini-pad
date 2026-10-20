@@ -23,8 +23,10 @@ def test_pyinstaller_spec_json_datas_include_current_project_json() -> None:
     app_datas = namespace["app_datas"]
     assert isinstance(app_datas, list)
     assert ("resources/app_text_ja.json", "resources") in app_datas
+    assert ("resources/color_presets.json", "resources") in app_datas
     assert ("dictionaries/standards/standard_css.json", "dictionaries/standards") in app_datas
     assert ("config.json", ".") in app_datas
+    assert ("color_presets.json", ".") in app_datas
     assert all(not source.startswith("_internal/") for source, _target in app_datas)
 
 

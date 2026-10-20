@@ -98,12 +98,31 @@ before pasting or saving article HTML.
 - Common inline HTML wrappers are also available from shortcuts: `Ctrl+B` for
   `<strong>`, `Ctrl+U` for `<u>`, `Ctrl+Alt+1` through `Ctrl+Alt+7` for
   colored `<span>` text, and `Ctrl+Alt+R` as a red-text alias.
+- Text and background swatch names and CSS values are loaded from the editable
+  `color_presets.json` beside the application. Text-color shortcut assignments
+  are stored there too. Restart RegexPad after editing this file.
 - WordPress helpers are intentionally conservative and preserve article block
   boundaries.
 - The editor context menu's Paragraph Split submenu can convert selected
   Markdown tables and lists through
   the embedded `wp_conv_core` module, so no external converter path or
   environment variable is required.
+- `List to Framed Block` converts a selected Markdown list or existing
+  WordPress list block to one Custom HTML (`wp:html`) frame. It emits visible
+  `・` or numbered text instead of `ul` / `ol` markers, so the result remains
+  readable when a WordPress theme hides list markers.
+
+## Editable Color Presets
+
+- Development runs use the project-root `color_presets.json`.
+- A packaged EXE creates `color_presets.json` beside `regex-pad.exe` from the
+  bundled default when the editable file is missing.
+- Edit `text_colors` for `color: ;`, the Text Color submenu, and inline color
+  shortcuts. Edit `background_colors` for `background-color: ;`.
+- Each entry has a stable `id`, Japanese and English `name` values, and a CSS
+  `value`. Text-color entries may also define a `shortcuts` array.
+- Invalid editable JSON is left untouched; RegexPad falls back to the bundled
+  default for that launch.
 
 ## Planned Direction
 

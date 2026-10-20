@@ -5,6 +5,7 @@ import pytest
 from editor.wordpress_markdown_converter import (
     WordPressMarkdownConversionError,
     convert_complex_markdown_blocks_to_wordpress_html,
+    convert_list_to_wordpress_frame_html,
     convert_markdown_lists_to_wordpress_html,
     convert_markdown_tables_to_wordpress_html,
 )
@@ -137,3 +138,41 @@ def test_convert_markdown_tables_rejects_list_only_selection() -> None:
 def test_convert_markdown_lists_rejects_table_only_selection() -> None:
     with pytest.raises(WordPressMarkdownConversionError, match="Markdown list"):
         convert_markdown_lists_to_wordpress_html("| A | B |\n|---|---|\n| 1 | 2 |")
+
+
+def test_convert_markdown_list_to_marker_safe_frame() -> None:
+    result = convert_list_to_wordpress_frame_html(
+        "- **重要**な項目\n- `code` の項目",
+        alignment="center",
+        outer_spacing="2em 0",
+        inner_style="border: 1px solid #999; padding: 12px;",
+    )
+
+    assert result.count("<!-- wp:html -->") == 1
+    assert result.count("<!-- /wp:html -->") == 1
+    assert "wp:list" not in result
+    assert "<ul" not in result
+    assert "<li" not in result
+    assert 'text-align: center; margin: 2em 0;' in result
+    assert 'style="border: 1px solid #999; padding: 12px;"' in result
+    assert "・</span> <strong>重要</strong>な項目" in result
+    assert "・</span> <code>code</code> の項目" in result
+
+
+def test_convert_ordered_wordpress_list_block_to_numbered_frame_rows() -> None:
+    result = convert_list_to_wordpress_frame_html(
+        '<!-- wp:list {"ordered":true} -->\n'
+        '<ol class="wp-block-list">\n'
+        '<!-- wp:list-item --><li>準備</li><!-- /wp:list-item -->\n'
+        '<!-- wp:list-item --><li><strong>実行</strong></li><!-- /wp:list-item -->\n'
+        "</ol>\n<!-- /wp:list -->"
+    )
+
+    assert "wp:list" not in result
+    assert "1.</span> 準備" in result
+    assert "2.</span> <strong>実行</strong>" in result
+
+
+def test_convert_list_to_frame_rejects_non_list_selection() -> None:
+    with pytest.raises(WordPressMarkdownConversionError, match="Markdown list"):
+        convert_list_to_wordpress_frame_html("普通の文章です")

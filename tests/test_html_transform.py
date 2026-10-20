@@ -234,6 +234,35 @@ def test_wordpress_list_transform_converts_selected_markdown_list(
     assert "<li>Kling</li>" in editor_text
 
 
+def test_wordpress_list_frame_transform_uses_current_frame_settings(
+    app: QApplication,
+) -> None:
+    _ = app
+    window = MainWindow()
+    window.frame_alignment = "right"
+    window.frame_outer_spacing = "2em 0 3em 0"
+    window.frame_background_color = "#FFFBDE"
+    window.frame_text_color = "#222222"
+    source_text = "before\n- **Runway**\n- Kling\nafter"
+    selected_text = "- **Runway**\n- Kling"
+    window.editor.setPlainText(source_text)
+    start = len("before\n")
+    select_text(window, start, start + len(selected_text))
+
+    window.wordpress_list_frame_transform_action.trigger()
+
+    editor_text = window.editor.toPlainText()
+    assert editor_text.count("<!-- wp:html -->") == 1
+    assert "wp:list" not in editor_text
+    assert "<ul" not in editor_text
+    assert "<li" not in editor_text
+    assert "<strong>Runway</strong>" in editor_text
+    assert "・</span> <strong>Runway</strong>" in editor_text
+    assert "text-align: right; margin: 2em 0 3em 0;" in editor_text
+    assert "background-color: #FFFBDE" in editor_text
+    assert "color: #222222" in editor_text
+
+
 def test_wordpress_complex_blocks_failure_keeps_selection_text(
     app: QApplication,
     monkeypatch: pytest.MonkeyPatch,
@@ -305,10 +334,11 @@ def test_html_transform_context_menu_is_available(app: QApplication) -> None:
     ]
     assert paragraph_split_menu is not None
     paragraph_action_texts = [action.text() for action in paragraph_split_menu.actions()]
-    assert paragraph_action_texts[-4:] == [
+    assert paragraph_action_texts[-5:] == [
         "",
         "表変換",
         "リスト変換",
+        "リストを枠囲みに変換",
         "Markdown表/リストをWordPressブロック化",
     ]
 
