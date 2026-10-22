@@ -355,6 +355,8 @@
   "tag.hint.wordpress.float_right_image_block": "Inserts a custom HTML block with a right-floated image and flowing text.",
   "tag.hint.wordpress.video_block": "Inserts a WordPress video block. The src position is selected, and selected text is used as the caption.",
   "tag.hint.wordpress.audio_block": "Inserts a WordPress audio block. The src position is selected, and selected text is used as the caption.",
+  "find.exclusion_text": "Exclude",
+  "find.exclusion_hint": "Skip search matches that overlap this text. Uses the same regex and case options. In regex mode, separate alternatives with | (example: <br><br>\\n|>\\n). Empty disables exclusion. Exclusions are evaluated inside the selected/visible search scope; zero-width exclusions protect no characters.",
   "find.title": "Find / Replace",
   "find.find_text": "Find text",
   "find.replace_text": "Replace text",

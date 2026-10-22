@@ -232,6 +232,36 @@ Before making changes:
 Do not rewrite unrelated working code.
 
 
+## Worktree changes must reach the canonical project
+
+The canonical project used by the user is:
+
+`D:\PC\Python\regex_pad_project`
+
+When working in a Codex worktree, completing an implementation includes all of
+the following unless the user explicitly requests worktree-only or isolated work:
+
+1. Validate the intended changes in the worktree with the specified interpreter.
+2. Inspect the canonical checkout and compare the destination files with the
+   worktree base before transferring changes. Preserve unrelated local changes;
+   merge the intended changes where necessary instead of overwriting them.
+3. Propagate the intended source files, resources, tests, documentation, and
+   applicable project instructions to the canonical project. Do not copy the
+   entire worktree, `.git`, local settings, backups, or build output.
+4. Run appropriate pytest, Ruff, and Pyright checks in the canonical project.
+5. Verify transferred content, using SHA-256 equality for files that should match
+   exactly, and record canonical validation in `SCRIPT_STEP.md`.
+6. Report the canonical path and validation results. Worktree-only implementation
+   is not completion and must not be presented as available in the user's normal
+   application.
+
+The user has authorized this propagation as the default workflow; do not ask for
+the same authorization again for each change. If a real conflict cannot be
+resolved safely, preserve both versions and explain the specific conflict.
+Keep packaged EXE rebuilding and physical GUI acceptance distinct from source
+propagation; do not claim either without performing it.
+
+
 ## Validation
 
 After changes, run appropriate checks.

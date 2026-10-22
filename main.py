@@ -15,6 +15,7 @@ import sys
 import tempfile
 import uuid
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
 from html import escape, unescape
@@ -3182,7 +3183,7 @@ class MainWindow(QMainWindow):
             current_selection_matches = self.search_engine.find_all(
                 selected_match.text,
                 search_text,
-                options,
+                replace(options, exclusion_text=""),
             )
             if (
                 not cursor.hasSelection()
@@ -3193,12 +3194,26 @@ class MainWindow(QMainWindow):
                 self.find_next(search_text, options)
                 return
 
+            replacement_options = options
+            if options.exclusion_text:
+                allowed_matches = self.search_engine.find_all(
+                    scope_text if scope_text is not None else source_text,
+                    search_text, options,
+                )
+                if not any(
+                    match.start + scope_offset == selected_match.start
+                    and match.end + scope_offset == selected_match.end
+                    for match in allowed_matches
+                ):
+                    self._set_search_error(self.translator.text("search.no_current_match"))
+                    return
+                replacement_options = replace(options, exclusion_text="")
             result = self.search_engine.replace_match(
                 source_text,
                 selected_match,
                 replace_text,
                 search_text,
-                options,
+                replacement_options,
             )
         except RegexError as error:
             self._set_search_error(self.translator.text("search.invalid_regex", error=error))
@@ -3361,6 +3376,21 @@ class MainWindow(QMainWindow):
         result_text = self.editor.toPlainText()
         replacement_count = 0
         try:
+            original_text = result_text
+            allowed_ranges = None
+            if options.exclusion_text:
+                scope_text, scope_offset = self._search_scope_text(options)
+                if options.selected_only and scope_text is None:
+                    self._set_search_error(self.translator.text("search.select_before_replace"))
+                    return
+                allowed_ranges = {
+                    (match.start + scope_offset, match.end + scope_offset)
+                    for match in self.search_engine.find_all(
+                        scope_text if scope_text is not None else original_text,
+                        search_text, options,
+                    )
+                }
+            preview_options = replace(options, exclusion_text="")
             for match in sorted(
                 self.editor.search_matches,
                 key=lambda search_match: search_match.start,
@@ -3368,12 +3398,14 @@ class MainWindow(QMainWindow):
             ):
                 if match.start < 0 or match.end > len(result_text):
                     continue
+                if allowed_ranges is not None and (match.start, match.end) not in allowed_ranges:
+                    continue
                 target_text = result_text[match.start : match.end]
                 preview_result = self.search_engine.preview_replacement(
                     target_text,
                     search_text,
                     replace_text,
-                    options,
+                    preview_options,
                 )
                 if preview_result.count == 0:
                     continue
@@ -3731,6 +3763,7 @@ class MainWindow(QMainWindow):
     ) -> list[tuple[int, str, str]]:
         """Generate a preview of the replacement results for the given matches within the specified search scope."""
         rows: list[tuple[int, str, str]] = []
+        preview_options = replace(options, exclusion_text="")
         for match in matches[:200]:
             absolute_start = scope_offset + match.start
             line_number = self.editor.toPlainText().count("\n", 0, absolute_start) + 1
@@ -3739,7 +3772,7 @@ class MainWindow(QMainWindow):
                 match.text,
                 search_text,
                 replace_text,
-                options,
+                preview_options,
             )
             replacement_context_text = self._line_replacement_context(
                 source_text,
@@ -3747,6 +3780,7 @@ class MainWindow(QMainWindow):
                 search_text,
                 replace_text,
                 options,
+                matches,
             )
             after_text = (
                 self._visible_preview_text(replacement_context_text)
@@ -3769,12 +3803,26 @@ class MainWindow(QMainWindow):
         search_text: str,
         replace_text: str,
         options: SearchOptions,
+        allowed_matches: list[SearchMatch],
     ) -> str:
         line_start = source_text.rfind("\n", 0, match.start) + 1
         line_end = source_text.find("\n", match.end)
         if line_end == -1:
             line_end = len(source_text)
         line_text = source_text[line_start:line_end]
+        if options.exclusion_text:
+            # Test exclusions against the original scope, before slicing a line.
+            preview_options = replace(options, exclusion_text="")
+            for line_match in reversed(allowed_matches):
+                if line_match.start < line_start or line_match.end > line_end:
+                    continue
+                preview = self.search_engine.preview_replacement(
+                    line_match.text, search_text, replace_text, preview_options,
+                )
+                start = line_match.start - line_start
+                end = line_match.end - line_start
+                line_text = line_text[:start] + preview.text + line_text[end:]
+            return line_text
         result = self.search_engine.replace_all(
             line_text,
             search_text,

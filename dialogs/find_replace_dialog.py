@@ -48,8 +48,10 @@ class FindReplaceDialog(QDialog):
 
         self.find_text_edit = RegexInputEdit(self)
         self.replace_text_edit = RegexInputEdit(self)
+        self.exclusion_text_edit = RegexInputEdit(self)
         self.find_text_label = QLabel(self)
         self.replace_text_label = QLabel(self)
+        self.exclusion_text_label = QLabel(self)
 
         self.case_sensitive_check_box = QCheckBox("Case-sensitive", self)
         self.regular_expression_check_box = QCheckBox("Regular expression", self)
@@ -166,6 +168,8 @@ class FindReplaceDialog(QDialog):
         self.setWindowTitle(self.translator.text("find.title"))
         self.find_text_label.setText(self.translator.text("find.find_text"))
         self.replace_text_label.setText(self.translator.text("find.replace_text"))
+        self.exclusion_text_label.setText(self.translator.text("find.exclusion_text"))
+        self.exclusion_text_edit.setToolTip(self.translator.text("find.exclusion_hint"))
         self.case_sensitive_check_box.setText(self.translator.text("find.case_sensitive"))
         self.regular_expression_check_box.setText(self.translator.text("find.regex"))
         self.whole_word_check_box.setText(self.translator.text("find.whole_word"))
@@ -209,11 +213,13 @@ class FindReplaceDialog(QDialog):
         form_layout.addLayout(find_input_layout, 0, 1)
         form_layout.addWidget(self.replace_text_label, 1, 0)
         form_layout.addWidget(self.replace_text_edit, 1, 1)
-        form_layout.addWidget(self.case_sensitive_check_box, 2, 1)
-        form_layout.addWidget(self.regular_expression_check_box, 3, 1)
-        form_layout.addWidget(self.whole_word_check_box, 4, 1)
-        form_layout.addWidget(self.selected_only_check_box, 5, 1)
-        form_layout.addWidget(self.visible_only_check_box, 6, 1)
+        form_layout.addWidget(self.exclusion_text_label, 2, 0)
+        form_layout.addWidget(self.exclusion_text_edit, 2, 1)
+        form_layout.addWidget(self.case_sensitive_check_box, 3, 1)
+        form_layout.addWidget(self.regular_expression_check_box, 4, 1)
+        form_layout.addWidget(self.whole_word_check_box, 5, 1)
+        form_layout.addWidget(self.selected_only_check_box, 6, 1)
+        form_layout.addWidget(self.visible_only_check_box, 7, 1)
         form_layout.setRowStretch(0, 1)
         form_layout.setRowStretch(1, 1)
 
@@ -365,6 +371,10 @@ class FindReplaceDialog(QDialog):
             self.replace_text_edit.insert(text)
             self.replace_text_edit.setFocus()
             return
+        if focused_widget is self.exclusion_text_edit:
+            self.exclusion_text_edit.insert(text)
+            self.exclusion_text_edit.setFocus()
+            return
         self.find_text_edit.insert(text)
         self.find_text_edit.setFocus()
 
@@ -384,6 +394,9 @@ class FindReplaceDialog(QDialog):
         self.find_text_edit.textChanged.connect(self._update_regex_lint)
         self.find_text_edit.textChanged.connect(self._emit_search_parameters_changed)
         self.replace_text_edit.textChanged.connect(self._update_regex_lint)
+        self.exclusion_text_edit.textChanged.connect(self._update_regex_lint)
+        self.exclusion_text_edit.textChanged.connect(self._emit_search_parameters_changed)
+        self.exclusion_text_edit.returnPressed.connect(self._emit_find_requested)
         self.regular_expression_check_box.toggled.connect(
             self._handle_search_option_changed
         )
@@ -402,6 +415,7 @@ class FindReplaceDialog(QDialog):
             whole_word=self.whole_word_check_box.isChecked(),
             selected_only=self.selected_only_check_box.isChecked(),
             visible_only=self.visible_only_check_box.isChecked(),
+            exclusion_text=self.exclusion_text_edit.text(),
         )
 
     def _update_regex_lint(self) -> None:
@@ -419,6 +433,18 @@ class FindReplaceDialog(QDialog):
             self.replace_text_edit.text(),
             check_replacement=True,
         )
+        exclusion_text = self.exclusion_text_edit.text()
+        if exclusion_text:
+            exclusion_messages = self.regex_lint.lint(exclusion_text)
+            exclusion_errors = [
+                message for message in exclusion_messages if message.severity == "error"
+            ]
+            if exclusion_errors:
+                self.warning_label.setText(
+                    self.translator.text("find.exclusion_text") + ": "
+                    + self._lint_message_text(exclusion_errors[0])
+                )
+                return
         errors = [message for message in messages if message.severity == "error"]
         warnings = [
             message for message in messages if message.severity == "warning"
@@ -435,6 +461,7 @@ class FindReplaceDialog(QDialog):
         regex_enabled = self.regular_expression_check_box.isChecked()
         self.find_text_edit.set_regex_highlighting_enabled(regex_enabled)
         self.replace_text_edit.set_regex_highlighting_enabled(regex_enabled)
+        self.exclusion_text_edit.set_regex_highlighting_enabled(regex_enabled)
 
     def _lint_message_text(self, message: RegexLintMessage) -> str:
         """Get the translated text for a regex lint message."""

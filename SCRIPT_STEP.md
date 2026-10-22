@@ -3511,3 +3511,37 @@ Scope and remaining acceptance:
 - HTML content-model rules and WP parent/allowed-child rules are limited to those listed above. Paragraph consistency covers selected typography/color styles and declared preset classes; arbitrary classes, theme CSS, spacing/borders and all plugin-specific serialization are not inferred.
 - A full schema-driven dual-tree/phase refactor remains a separate follow-up. It must preserve the regression cases added here.
 - Windows GUI interaction, actual workplace Gutenberg paste/save/reload, and a rebuilt packaged EXE have not been tested in this change.
+
+## Step15-section16 Search Exclusion Field
+
+Date: 2026-10-23
+
+- Added an Exclude / 除外条件 input to Find / Replace. An empty input preserves existing behavior.
+- Exclusion matches protect their character ranges; any overlapping search match is skipped.
+- Exclusions use the search regex and case settings. Whole-word matching applies only to the search pattern. Zero-width exclusion matches protect no characters.
+- Regex alternatives use `|`: search `\n` with exclusion `<br><br>\n|>\n` to preserve tag-ending newlines. A leading `-` is literal text, not an exclusion operator.
+- Applied exclusions to forward/backward navigation, highlighting, current/all/marked replacement and previews, inside the existing selected/visible scope.
+- Current and marked replacement validate exclusions against the original scope. Preview line rendering reuses the filtered original matches, preserving exclusions that span multiple lines.
+- Invalid exclusion regexes receive a labeled lint error and prevent replacement. Replacement group numbers and escape handling are preserved.
+- Added regression coverage and updated both translation files and READMEs. Inputs follow the existing dialog lifetime and are not persisted across restarts.
+
+Validation in worktree `f79c`:
+
+- Full pytest: 526 passed, using the specified Python 3.12 interpreter and Qt offscreen platform.
+- Ruff: All checks passed.
+- Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations.
+- Both translation JSON files parsed successfully; translation key parity and `git diff --check` passed.
+- Rendered and inspected the Japanese dialog offscreen with Meiryo: the new field fits the layout. This is automated rendering, not a manual Windows GUI interaction check.
+
+Remaining acceptance:
+
+- Physical keyboard/mouse operation in the running Windows application and a rebuilt packaged EXE have not been checked.
+
+Canonical propagation follow-up (2026-10-23):
+
+- The user established canonical propagation as the default completion rule. Added it to `AGENTS.md` in both checkouts and recorded a persistent preference note.
+- Confirmed both checkouts started at `3ce12fbd3cec27e78142085e568e5e3c7087d76f`; the canonical checkout was clean and all 12 destination files matched the worktree base after newline normalization.
+- Propagation includes the 11 exclusion-feature files and `AGENTS.md`; no settings, Git metadata, backups, or build output are included.
+- Transferred the 12 files using verified temporary writes and atomic replacement; all 12 source/destination SHA-256 values matched.
+- Canonical full pytest: 526 passed. Canonical Ruff: All checks passed. Canonical Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. Canonical `git diff --check`: passed.
+- Source propagation is complete. Restart an already-running source application to load the added exclusion field. EXE rebuilding and physical Windows GUI acceptance remain unperformed.

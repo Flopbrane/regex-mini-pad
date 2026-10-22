@@ -144,6 +144,53 @@ def test_dialog_returns_visible_only_search_option(app: QApplication) -> None:
     assert dialog.current_search_options().visible_only
 
 
+def test_exclusion_edit_updates_options_and_clears_preview(app: QApplication) -> None:
+    dialog = FindReplaceDialog(Translator(Path("resources"), "ja"))
+    dialog.set_preview_rows([(1, "before", "after")], "preview")
+    received = []
+    dialog.search_parameters_changed.connect(lambda text, options: received.append(options))
+
+    dialog.exclusion_text_edit.setText(r"<br><br>\n|>\n")
+
+    assert dialog.current_search_options().exclusion_text == r"<br><br>\n|>\n"
+    assert received[-1].exclusion_text == r"<br><br>\n|>\n"
+    assert dialog.preview_table.rowCount() == 0
+    assert dialog.exclusion_text_label.text() == "除外条件"
+    assert dialog.exclusion_text_edit.toolTip()
+
+
+def test_invalid_exclusion_has_its_own_lint_label(app: QApplication) -> None:
+    dialog = FindReplaceDialog(Translator(Path("resources"), "en"))
+    dialog.find_text_edit.setText("valid")
+    dialog.regular_expression_check_box.setChecked(True)
+    dialog.exclusion_text_edit.setText("[")
+
+    assert dialog.warning_label.text().startswith("Exclude: ")
+    dialog.exclusion_text_edit.clear()
+    assert dialog.warning_label.text() == ""
+
+
+@pytest.mark.parametrize("button_name", [
+    "find_button", "find_previous_button", "replace_button", "replace_all_button",
+    "replace_marked_button", "preview_button",
+])
+def test_exclusion_is_passed_to_every_search_action(app: QApplication, button_name: str) -> None:
+    dialog = FindReplaceDialog(Translator(Path("resources"), "en"))
+    dialog.find_text_edit.setText("target")
+    dialog.exclusion_text_edit.setText("skip target")
+    received = []
+    for signal in [
+        dialog.find_requested, dialog.find_previous_requested, dialog.replace_requested,
+        dialog.replace_all_requested, dialog.replace_marked_requested, dialog.preview_requested,
+    ]:
+        signal.connect(lambda *args: received.append(args[-1]))
+
+    getattr(dialog, button_name).click()
+
+    assert len(received) == 1
+    assert received[0].exclusion_text == "skip target"
+
+
 def test_regex_inputs_resize_for_multiline_patterns(app: QApplication) -> None:
     _ = app
     translator = Translator(Path("resources"), "en")

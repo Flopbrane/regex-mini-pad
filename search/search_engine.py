@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from bisect import bisect_right
+from dataclasses import dataclass, replace
 from re import Match, Pattern
 
 
@@ -12,6 +13,7 @@ class SearchOptions:
     whole_word: bool = False
     selected_only: bool = False
     visible_only: bool = False
+    exclusion_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -39,10 +41,12 @@ class SearchEngine:
         if not search_text:
             return []
 
-        pattern = self._compile_pattern(search_text, options or SearchOptions())
+        search_options = options or SearchOptions()
+        pattern = self._compile_pattern(search_text, search_options)
+        excluded_ranges = self._excluded_ranges(source_text, search_options)
         matches: list[SearchMatch] = []
         for match in pattern.finditer(source_text):
-            if match.start() == match.end():
+            if match.start() == match.end() or self._is_excluded(match, excluded_ranges):
                 continue
             matches.append(SearchMatch(match.start(), match.end(), match.group(0)))
             if max_matches is not None and len(matches) >= max_matches:
@@ -59,15 +63,18 @@ class SearchEngine:
         if not search_text:
             return None
 
-        pattern = self._compile_pattern(search_text, options or SearchOptions())
+        search_options = options or SearchOptions()
+        pattern = self._compile_pattern(search_text, search_options)
+        excluded_ranges = self._excluded_ranges(source_text, search_options)
         bounded_start_position = min(max(start_position, 0), len(source_text))
         match = self._first_non_empty_match(
             pattern,
             source_text,
             bounded_start_position,
+            excluded_ranges,
         )
         if match is None and bounded_start_position > 0:
-            match = self._first_non_empty_match(pattern, source_text, 0)
+            match = self._first_non_empty_match(pattern, source_text, 0, excluded_ranges)
 
         if match is None:
             return None
@@ -83,13 +90,16 @@ class SearchEngine:
         if not search_text:
             return None
 
-        pattern = self._compile_pattern(search_text, options or SearchOptions())
+        search_options = options or SearchOptions()
+        pattern = self._compile_pattern(search_text, search_options)
+        excluded_ranges = self._excluded_ranges(source_text, search_options)
         bounded_start_position = min(max(start_position, 0), len(source_text))
         match = self._last_non_empty_match(
             pattern,
             source_text,
             0,
             bounded_start_position,
+            excluded_ranges,
         )
         if match is None and bounded_start_position < len(source_text):
             match = self._last_non_empty_match(
@@ -97,6 +107,7 @@ class SearchEngine:
                 source_text,
                 bounded_start_position,
                 len(source_text),
+                excluded_ranges,
             )
 
         if match is None:
@@ -116,6 +127,20 @@ class SearchEngine:
         search_options = options or SearchOptions()
         pattern = self._compile_pattern(search_text, search_options)
         replacement_text = self._replacement_text_for_options(replace_text, search_options)
+        excluded_ranges = self._excluded_ranges(source_text, search_options)
+        if search_options.exclusion_text:
+            # Validate the replacement even if every occurrence is excluded.
+            pattern.sub(replacement_text, "")
+            replacement_count = 0
+
+            def replace_allowed_match(match: Match[str]) -> str:
+                nonlocal replacement_count
+                if self._is_excluded(match, excluded_ranges):
+                    return match.group(0)
+                replacement_count += 1
+                return match.expand(replacement_text)
+
+            return ReplaceResult(pattern.sub(replace_allowed_match, source_text), replacement_count)
         replaced_text, count = pattern.subn(replacement_text, source_text)
         return ReplaceResult(replaced_text, count)
 
@@ -130,6 +155,9 @@ class SearchEngine:
         search_options = options or SearchOptions()
         pattern = self._compile_pattern(search_text, search_options)
         replacement_text = self._replacement_text_for_options(replace_text, search_options)
+        excluded_ranges = self._excluded_ranges(source_text, search_options)
+        if self._range_is_excluded(match.start, match.end, excluded_ranges):
+            return ReplaceResult(source_text, 0)
         target_text = source_text[match.start : match.end]
         replaced_text, count = pattern.subn(replacement_text, target_text, count=1)
         if count == 0:
@@ -153,6 +181,9 @@ class SearchEngine:
         search_options = options or SearchOptions()
         pattern = self._compile_pattern(search_text, search_options)
         replacement_text = self._replacement_text_for_options(replace_text, search_options)
+        excluded_ranges = self._excluded_ranges(match_text, search_options)
+        if self._range_is_excluded(0, len(match_text), excluded_ranges):
+            return ReplaceResult(match_text, 0)
         replaced_text, count = pattern.subn(replacement_text, match_text, count=1)
         return ReplaceResult(replaced_text, count)
 
@@ -184,9 +215,10 @@ class SearchEngine:
         pattern: Pattern[str],
         source_text: str,
         start_position: int,
+        excluded_ranges: list[tuple[int, int]],
     ) -> Match[str] | None:
         for match in pattern.finditer(source_text, start_position):
-            if match.start() != match.end():
+            if match.start() != match.end() and not self._is_excluded(match, excluded_ranges):
                 return match
         return None
 
@@ -196,12 +228,42 @@ class SearchEngine:
         source_text: str,
         start_position: int,
         end_position: int,
+        excluded_ranges: list[tuple[int, int]],
     ) -> Match[str] | None:
         last_match: Match[str] | None = None
         for match in pattern.finditer(source_text, start_position, end_position):
-            if match.start() != match.end():
+            if match.start() != match.end() and not self._is_excluded(match, excluded_ranges):
                 last_match = match
         return last_match
+
+    def _excluded_ranges(
+        self, source_text: str, options: SearchOptions,
+    ) -> list[tuple[int, int]]:
+        """Protect nonempty exclusion matches in the original search scope."""
+        if not options.exclusion_text:
+            return []
+        try:
+            pattern = self._compile_pattern(
+                options.exclusion_text, replace(options, whole_word=False),
+            )
+        except re.error as error:
+            raise re.error(f"exclude: {error}") from error
+        return [
+            match.span() for match in pattern.finditer(source_text)
+            if match.start() != match.end()
+        ]
+
+    def _is_excluded(
+        self, match: Match[str], excluded_ranges: list[tuple[int, int]],
+    ) -> bool:
+        return self._range_is_excluded(match.start(), match.end(), excluded_ranges)
+
+    @staticmethod
+    def _range_is_excluded(
+        start: int, end: int, excluded_ranges: list[tuple[int, int]],
+    ) -> bool:
+        index = bisect_right(excluded_ranges, start, key=lambda span: span[1])
+        return index < len(excluded_ranges) and excluded_ranges[index][0] < end
 
 
 def convert_dollar_replacement_references(replace_text: str) -> str:

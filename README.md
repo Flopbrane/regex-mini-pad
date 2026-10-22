@@ -4,6 +4,22 @@ Mini Editor is a lightweight portable text editor for Windows 11.
 
 The project focuses on practical regular expression search and replacement without requiring an installer, administrator privileges, registry changes, or online services.
 
+## Search exclusions
+
+The Find / Replace dialog has an **Exclude** field. Search results that overlap
+an exclusion match are skipped by Find, Previous, highlights, previews, Replace,
+Replace All, and Replace Marked. Leave it empty to disable exclusions.
+
+With regular expressions enabled, search for `\n` and set Exclude to
+`<br><br>\n|>\n` to skip newlines immediately after those tags. Use `|` for
+alternatives; a leading `-` has no special meaning. For CRLF text, use `\r?\n`
+in both patterns. Without regex mode, Exclude is one literal string. Regex and
+case sensitivity follow the search checkboxes; whole-word matching applies only
+to the search pattern. Exclusions protect matching characters, rather than entire
+lines; zero-width exclusion matches protect no characters. For selected/visible
+searches, exclusion patterns are evaluated inside that search scope. Inputs stay
+in the dialog for the current session and are not saved across restarts.
+
 ## Goals
 
 - Portable folder-based execution.

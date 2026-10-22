@@ -833,6 +833,124 @@ def test_scheduled_search_clears_stale_highlights_immediately(app: QApplication)
     window.schedule_search_highlights("nomatch", SearchOptions())
 
     assert window.editor.search_matches == []
+
+
+def test_dialog_exclusion_is_shared_by_find_highlight_preview_and_replace(
+    app: QApplication, tmp_path: Path,
+) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    source = "<br><br>\nplain\n<p>\ncomma、\n"
+    window.editor.setPlainText(source)
+    window.show_find_replace_dialog()
+    dialog = window.find_replace_dialog
+    assert dialog is not None
+    dialog.find_text_edit.setText(r"\n")
+    dialog.replace_text_edit.setText(" / ")
+    dialog.regular_expression_check_box.setChecked(True)
+    dialog.exclusion_text_edit.setText(r"<br><br>\n|>\n")
+    options = dialog.current_search_options()
+
+    window.update_search_highlights(r"\n", options)
+    assert [match.start for match in window.editor.search_matches] == [source.index("plain") + 5, len(source) - 1]
+    dialog.find_button.click()
+    assert window.editor.textCursor().selectionStart() == source.index("plain") + 5
+    dialog.preview_button.click()
+    assert dialog.preview_table.rowCount() == 2
+    assert window.editor.toPlainText() == source
+    dialog.replace_all_button.click()
+    assert window.editor.toPlainText() == "<br><br>\nplain / <p>\ncomma、 / "
+
+
+def test_preview_keeps_exclusions_that_span_lines(app: QApplication, tmp_path: Path) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("BEGIN\nkeep target\nEND\nchange target")
+    window.show_find_replace_dialog()
+    dialog = window.find_replace_dialog
+    assert dialog is not None
+    options = SearchOptions(regular_expression=True, exclusion_text=r"BEGIN[\s\S]*?END")
+    window.preview_matches("target", "done", options)
+    assert dialog.preview_table.rowCount() == 1
+    item = dialog.preview_table.item(0, 2)
+    assert item is not None and item.text() == "change done"
+    window.replace_all("target", "done", options)
+    assert window.editor.toPlainText() == "BEGIN\nkeep target\nEND\nchange done"
+
+
+def test_marked_replace_rechecks_changed_exclusion(app: QApplication, tmp_path: Path) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("[target] target")
+    window.update_search_highlights("target", SearchOptions())
+    window.replace_marked_matches("target", "done", SearchOptions(exclusion_text="[target]"))
+    assert window.editor.toPlainText() == "[target] done"
+
+
+@pytest.mark.parametrize("visible_only", [False, True])
+def test_exclusion_inside_search_scope(
+    app: QApplication, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, visible_only: bool,
+) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("outside target\n[target] target\noutside target")
+    bounds = (len("outside target\n"), len("outside target\n[target] target\n"))
+    window.search_scope = bounds
+    monkeypatch.setattr(window, "_visible_search_bounds", lambda length: bounds)
+    options = SearchOptions(
+        selected_only=not visible_only, visible_only=visible_only, exclusion_text="[target]",
+    )
+    window.replace_all("target", "done", options)
+    assert window.editor.toPlainText() == "outside target\n[target] done\noutside target"
+
+
+def test_invalid_exclusion_never_modifies_document(app: QApplication, tmp_path: Path) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("target")
+    window.show_find_replace_dialog()
+    options = SearchOptions(regular_expression=True, exclusion_text="[")
+    window.replace_all("target", "done", options)
+    assert window.editor.toPlainText() == "target"
+    assert window.find_replace_dialog is not None
+    assert window.find_replace_dialog.error_label.text()
+
+
+def test_current_replace_refuses_manually_selected_excluded_newline(
+    app: QApplication, tmp_path: Path,
+) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("<p>\nplain\n")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(3)
+    cursor.setPosition(4, QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+    window.replace_current(r"\n", "X", SearchOptions(regular_expression=True, exclusion_text=r">\n"))
+    assert window.editor.toPlainText() == "<p>\nplain\n"
+
+
+def test_current_replace_evaluates_exclusion_inside_selected_scope(
+    app: QApplication, tmp_path: Path,
+) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("KEEP target")
+    cursor = window.editor.textCursor()
+    cursor.setPosition(5)
+    cursor.setPosition(11, QTextCursor.MoveMode.KeepAnchor)
+    window.editor.setTextCursor(cursor)
+    window.search_scope = (5, 11)
+    window.replace_current("target", "done", SearchOptions(
+        selected_only=True, exclusion_text="KEEP target",
+    ))
+    assert window.editor.toPlainText() == "KEEP done"
+
+
+def test_preview_same_line_preserves_excluded_result(app: QApplication, tmp_path: Path) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    window.editor.setPlainText("[target] target target")
+    window.show_find_replace_dialog()
+    dialog = window.find_replace_dialog
+    assert dialog is not None
+    window.preview_matches("target", "done", SearchOptions(exclusion_text="[target]"))
+    assert dialog.preview_table.rowCount() == 2
+    for row in range(2):
+        item = dialog.preview_table.item(row, 2)
+        assert item is not None and item.text() == "[target] done done"
     assert window.editor.extraSelections() == []
 
 
