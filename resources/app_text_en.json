@@ -1,4 +1,10 @@
 {
+  "html_typo_lint.unexpected_inline_closing_tag": "Unexpected `</{tag}>`: no matching `<{tag}>` opening tag was found.",
+  "html_typo_lint.invalid_html_child": "`<{tag}>` cannot be placed inside `<{parent}>`. Check the paragraph boundary before this tag.",
+  "html_typo_lint.invalid_html_parent": "`<{tag}>` requires a direct parent of `{parent}`.",
+  "html_typo_lint.invalid_wordpress_parent": "`wp:{block}` requires a direct parent of `wp:{parent}`.",
+  "html_typo_lint.invalid_wordpress_child": "`wp:{block}` cannot be a child block of `wp:{parent}`.",
+  "html_typo_lint.wordpress_block_html_shape": "`wp:{block}` must contain one root `<{tag}>` element. Check for extra elements or text outside it.",
   "app.title": "Regex-Pad",
   "document.untitled": "Untitled",
   "menu.file": "&File",

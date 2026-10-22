@@ -76,6 +76,22 @@ before pasting or saving article HTML.
   repeated non-nestable blocks such as `wp:list-item`.
 - Checks whether HTML tags are complete inside each WordPress block.
 - Checks pure HTML files as a whole when no WordPress block comments are used.
+- Also checks HTML outside WordPress blocks in mixed documents.
+- Reports extra inline closing tags, mismatched `h1` through `h6` pairs,
+  nested paragraphs/links, block elements inside paragraphs, and list items
+  without a direct `ul`, `ol`, or `menu` parent.
+- Accepts self-closing WordPress comments such as `<!-- wp:latest-posts /-->`.
+  They do not open a block or affect subsequent pair counts.
+- Checks direct `list-item` / `list` and `column` / `columns` relationships,
+  allowed children of lists/columns, and child blocks inside paragraphs.
+- Requires one root `p` in a paragraph block and one root heading in a heading
+  block; comments and escaped tag examples do not count as elements.
+- Compares selected paragraph typography/color styles and declared color/size
+  preset classes with block-comment attributes. Inline child formatting is
+  checked separately. Theme CSS, arbitrary custom classes, spacing/borders,
+  and the complete Gutenberg save output are outside this consistency check.
+- Reuses the HTML tag inventory for whole-document and block-boundary checks,
+  and displays identical findings on the same line once.
 - Detects common structural problems such as missing `</div>`, reversed closing
   order, and unclosed inline tags before `</p>`.
 - Suppresses likely cascade noise after known representative errors such as

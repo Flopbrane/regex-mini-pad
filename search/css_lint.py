@@ -71,6 +71,23 @@ def lint_inline_style(
     return sorted(messages, key=lambda issue: issue.line_number)
 
 
+def parse_inline_style_values(style_text: str) -> dict[str, str] | None:
+    """Read declarations using the same comment/quote/parenthesis rules as lint."""
+    masked_text, comment_issues = _mask_css_comments(style_text)
+    declarations, syntax_issues = _split_declarations(masked_text, 1)
+    if comment_issues or syntax_issues:
+        return None
+    values: dict[str, str] = {}
+    for declaration, _ in declarations:
+        if not declaration.strip():
+            continue
+        property_name, separator, value = declaration.partition(":")
+        if not separator or not PROPERTY_NAME_PATTERN.fullmatch(property_name.strip()):
+            return None
+        values[property_name.strip().lower()] = value.strip()
+    return values
+
+
 def lint_stylesheet(css_text: str) -> list[CssLintIssue]:
     """Lint declaration blocks in a standalone stylesheet."""
     try:

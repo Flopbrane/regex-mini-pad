@@ -1,9 +1,262 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
+from localization.translator import Translator
 from search.html_typo_lint import lint_html_typos
+
+
+@pytest.mark.parametrize("tag", ["strong", "span", "mark", "em", "a", "b", "i", "small", "code"])
+@pytest.mark.parametrize("prefix", ["", "<em>"])
+def test_lint_reports_unmatched_inline_close(tag: str, prefix: str) -> None:
+    if prefix == "<em>" and tag == "em":
+        prefix = "<strong>"
+    messages = lint_html_typos(f"<p>{prefix}Body\n</{tag}></p>")
+    assert any(
+        message.message_key == "html_typo_lint.unexpected_inline_closing_tag"
+        and message.line_number == 2
+        and message.values == {"tag": tag}
+        for message in messages
+    )
+
+
+@pytest.mark.parametrize("level", range(1, 7))
+@pytest.mark.parametrize("wordpress", [False, True])
+def test_lint_checks_heading_pairs(level: int, wordpress: bool) -> None:
+    html = f"<h{level}>Heading</h{level % 6 + 1}>"
+    if wordpress:
+        html = f"<!-- wp:heading -->{html}<!-- /wp:heading -->"
+    assert any(
+        message.message_key == "html_typo_lint.unexpected_html_closing_tag"
+        for message in lint_html_typos(html)
+    )
+
+
+@pytest.mark.parametrize(
+    ("html", "key"),
+    [
+        ("<p>outer<p>inner</p></p>", "nested_html_tag"),
+        ('<a href="#a"><span><a href="#b">Link</a></span></a>', "nested_html_tag"),
+        ("<p><span><div>Body</div></span></p>", "invalid_html_child"),
+        ("<li>Body</li>", "invalid_html_parent"),
+        ("<ul><div><li>Body</li></div></ul>", "invalid_html_parent"),
+        ("<!-- wp:list-item --><li>Body</li><!-- /wp:list-item -->", "invalid_wordpress_parent"),
+        ("<!-- wp:column --><div></div><!-- /wp:column -->", "invalid_wordpress_parent"),
+        (
+            (
+                "<!-- wp:paragraph --><p>Body</p><!-- wp:image -->"
+                '<figure><img src="x.jpg" alt=""></figure><!-- /wp:image --><!-- /wp:paragraph -->'
+            ),
+            "invalid_wordpress_child",
+        ),
+        (
+            "<!-- wp:paragraph --><p>One</p><p>Two</p><!-- /wp:paragraph -->",
+            "wordpress_block_html_shape",
+        ),
+        ("<!-- wp:heading --><p>Body</p><!-- /wp:heading -->", "wordpress_block_html_shape"),
+        (
+            '<!-- wp:paragraph --><p style="font-weight:bold">Body</p><!-- /wp:paragraph -->',
+            "wordpress_block_attribute_html_mismatch",
+        ),
+    ],
+)
+def test_reported_lint_gaps(html: str, key: str) -> None:
+    assert any(message.message_key == f"html_typo_lint.{key}" for message in lint_html_typos(html))
+
+
+@pytest.mark.parametrize(
+    "comment",
+    [
+        "<!-- wp:latest-posts /-->",
+        '<!-- wp:latest-posts {"postsToShow":4} /-->',
+        '<!-- wp:my-plugin/widget {"url":"https://example.com/"} /-->',
+        "<!-- wp:core/latest-posts/-->",
+    ],
+)
+def test_lint_accepts_wordpress_self_closing_comments(comment: str) -> None:
+    assert lint_html_typos(comment) == []
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        '<a href="#"><div><p>Block link</p></div></a>',
+        "<ul><li>Outer<ol><li>Inner</li></ol></li></ul>",
+        "<menu><li>Item</li></menu>",
+        "<p>&lt;p&gt;&lt;p&gt;Displayed code&lt;/p&gt;&lt;/p&gt;</p>",
+        (
+            '<!-- wp:paragraph {"style":{"typography":{"fontWeight":"700"}}} -->'
+            '<p style="font-weight:700">Body</p><!-- /wp:paragraph -->'
+        ),
+        (
+            '<!-- wp:paragraph --><p><span style="font-weight:bold">Inline</span></p>'
+            '<!-- /wp:paragraph -->'
+        ),
+    ],
+)
+def test_lint_preserves_valid_html_around_reported_gaps(html: str) -> None:
+    assert lint_html_typos(html) == []
+
+
+@pytest.mark.parametrize(
+    ("attributes", "html", "mismatch"),
+    [
+        ({"style": {"typography": {"fontWeight": "700"}}}, '<p style="font-weight:400">Text</p>', True),
+        ({"style": {"typography": {"fontWeight": "700"}}}, "<p>Text</p>", True),
+        ({}, '<p style="font-weight:700">Text</p>', True),
+        ({}, '<p style="font-style:italic">Text</p>', True),
+        ({}, '<p style="color:#ff0000">Text</p>', True),
+        ({"style": {"color": {"text": "#ff0000"}}}, '<p style="color:#ff0000">Text</p>', False),
+        ({"style": {"typography": {"lineHeight": 1.5}}}, '<p style="line-height:1.5">Text</p>', False),
+        (
+            {"style": {"typography": {"fontSize": "var:preset|font-size|large"}}},
+            '<p style="font-size:var(--wp--preset--font-size--large)">Text</p>',
+            False,
+        ),
+        ({"textColor": "primary"}, '<p class="has-primary-color has-text-color">Text</p>', False),
+        ({"textColor": "primary"}, '<p class="has-secondary-color has-text-color">Text</p>', True),
+        ({"backgroundColor": "base"}, '<p class="has-base-background-color has-background">Text</p>', False),
+        ({"fontSize": "large"}, '<p class="has-large-font-size">Text</p>', False),
+        ({"fontSize": "large"}, '<p class="has-small-font-size">Text</p>', True),
+        ({}, '<p style="--note: \'font-weight:bold\';">Text</p>', False),
+        ({}, '<p style="/* font-weight:bold; */ margin:0">Text</p>', False),
+        ({}, '<p><span style="color:red">Inline</span></p>', False),
+        # CSS owns syntax errors; do not add speculative consistency warnings.
+        ({}, '<p style="font-weight:">Text</p>', False),
+    ],
+)
+def test_paragraph_style_and_preset_consistency(
+    attributes: dict[str, object], html: str, mismatch: bool,
+) -> None:
+    text = f"<!-- wp:paragraph {json.dumps(attributes)} -->{html}<!-- /wp:paragraph -->"
+    messages = lint_html_typos(text)
+    assert any(
+        message.message_key == "html_typo_lint.wordpress_block_attribute_html_mismatch"
+        for message in messages
+    ) is mismatch
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        (
+            "<!-- wp:list --><ul><!-- wp:list-item --><li>Outer"
+            "<!-- wp:list --><ol><!-- wp:list-item --><li>Inner</li>"
+            "<!-- /wp:list-item --></ol><!-- /wp:list --></li>"
+            "<!-- /wp:list-item --></ul><!-- /wp:list -->"
+        ),
+        (
+            "<!-- wp:columns --><div><!-- wp:column --><div>"
+            "<!-- wp:paragraph --><p>Column text</p><!-- /wp:paragraph -->"
+            "</div><!-- /wp:column --></div><!-- /wp:columns -->"
+        ),
+        (
+            "<!-- wp:group --><div><!-- wp:latest-posts /-->"
+            "<!-- wp:paragraph --><p>Following text</p><!-- /wp:paragraph -->"
+            "</div><!-- /wp:group -->"
+        ),
+    ],
+)
+def test_valid_wordpress_containers_keep_both_stacks_balanced(html: str) -> None:
+    assert lint_html_typos(html) == []
+
+
+def test_invalid_json_in_self_closing_block_does_not_open_a_block() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:latest-posts {"postsToShow":} /-->\n'
+        '<!-- wp:paragraph --><p>Following text</p><!-- /wp:paragraph -->'
+    )
+    assert [message.message_key for message in messages] == [
+        "html_typo_lint.invalid_wordpress_block_attributes",
+    ]
+
+
+def test_self_closing_paragraph_does_not_affect_pair_counts() -> None:
+    assert lint_html_typos("<!-- wp:paragraph /-->") == []
+
+
+def test_html_outside_wordpress_blocks_is_still_checked() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:paragraph --><p>Body</p><!-- /wp:paragraph -->\n<div>'
+    )
+    assert any(
+        message.message_key == "html_typo_lint.missing_html_closing_tag"
+        and message.line_number == 2
+        for message in messages
+    )
+
+
+def test_nested_containers_do_not_duplicate_the_same_html_diagnostic() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:group --><section><!-- wp:html -->\n<div>Body\n'
+        '<!-- /wp:html --></section><!-- /wp:group -->'
+    )
+    assert sum(
+        message.message_key == "html_typo_lint.missing_html_closing_tag"
+        and message.values == {"tag": "div"}
+        for message in messages
+    ) == 1
+
+
+@pytest.mark.parametrize("block,tag", [("paragraph", "p"), ("heading", "h2")])
+def test_html_in_comments_cannot_fake_a_wordpress_root(block: str, tag: str) -> None:
+    messages = lint_html_typos(f"<!-- wp:{block} --><!-- <{tag}>Fake</{tag}> --><!-- /wp:{block} -->")
+    assert any(
+        message.message_key == "html_typo_lint.wordpress_block_html_shape"
+        for message in messages
+    )
+
+
+def test_heading_consistency_ignores_tags_in_comments() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:heading {"level":3} --><!-- <h3>fake</h3> -->'
+        '<h2>Real</h2><!-- /wp:heading -->'
+    )
+    assert any(
+        message.message_key == "html_typo_lint.wordpress_block_attribute_html_mismatch"
+        for message in messages
+    )
+
+
+def test_repeated_nested_code_reports_each_inner_opening() -> None:
+    messages = lint_html_typos("<code><code>One</code><code>Two</code></code>")
+    # Identical diagnostics on the same line are intentionally displayed once.
+    assert any(message.message_key == "html_typo_lint.nested_html_tag" for message in messages)
+    messages = lint_html_typos("<code>\n<code>One</code>\n<code>Two</code>\n</code>")
+    assert [message.line_number for message in messages if message.message_key == "html_typo_lint.nested_html_tag"] == [2, 3]
+
+
+def test_wrong_wordpress_closing_comment_does_not_destroy_ignored_body_range() -> None:
+    messages = lint_html_typos(
+        '<!-- wp:html --><div>&lt;code&gt;/code&gt;</div>\n'
+        '<!-- /wp:paragraph -->\n<!-- /wp:html -->'
+    )
+    assert any(message.message_key == "html_typo_lint.mismatched_wordpress_block" for message in messages)
+    assert not any(message.message_key == "html_typo_lint.escaped_code_close_fragment" for message in messages)
+
+
+@pytest.mark.parametrize("language", ["ja", "en"])
+def test_new_lint_messages_have_formattable_translations(language: str) -> None:
+    translator = Translator(Path("resources"), language)
+    sources = [
+        '<p>Body</strong></p>',
+        '<p><div>Body</div></p>',
+        '<li>Item</li>',
+        '<!-- wp:column --><div></div><!-- /wp:column -->',
+        '<!-- wp:paragraph --><p>Body</p><!-- wp:image /--><!-- /wp:paragraph -->',
+        '<!-- wp:heading --><p>Body</p><!-- /wp:heading -->',
+    ]
+    for source in sources:
+        for message in lint_html_typos(source):
+            text = translator.text(message.message_key, **(message.values or {}))
+            assert text != message.message_key
+            assert "{tag}" not in text
+            assert "{block}" not in text
+            assert "{parent}" not in text
 
 
 def test_lint_reports_html_tag_and_attribute_typos() -> None:

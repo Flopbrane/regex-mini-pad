@@ -1,4 +1,10 @@
 {
+  "html_typo_lint.unexpected_inline_closing_tag": "予期しない `</{tag}>` があります。対応する開始タグ `<{tag}>` が見つかりません。",
+  "html_typo_lint.invalid_html_child": "`<{parent}>` の中に `<{tag}>` は置けません。このタグの前で段落を閉じる必要がないか確認してください。",
+  "html_typo_lint.invalid_html_parent": "`<{tag}>` の直接の親要素は `{parent}` である必要があります。",
+  "html_typo_lint.invalid_wordpress_parent": "`wp:{block}` の直接の親ブロックは `wp:{parent}` である必要があります。",
+  "html_typo_lint.invalid_wordpress_child": "`wp:{parent}` の子ブロックとして `wp:{block}` は置けません。",
+  "html_typo_lint.wordpress_block_html_shape": "`wp:{block}` のHTMLは、ルートの `<{tag}>` 要素1個で構成する必要があります。余分な要素や、その外にある本文を確認してください。",
   "app.title": "Regex-Pad",
   "document.untitled": "無題",
   "menu.file": "ファイル(&F)",

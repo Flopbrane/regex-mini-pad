@@ -3452,3 +3452,62 @@ Remaining manual acceptance:
 - In the Windows GUI, edit text/background names, CSS values, and a text shortcut in `color_presets.json`; restart and confirm all related menus use the new values.
 - In the packaged GUI, confirm both swatch popups and the Text Color submenu render the configured names and colors correctly.
 - Paste a converted unordered and ordered framed list into the workplace Gutenberg environment and confirm its markers remain visible after save/reload.
+
+## Step15-section15 HTML / WordPress Linter Gap Repair And Algorithm Audit
+
+Date: 2026-10-22
+
+Goal:
+
+- Reproduce the supplied false negatives and the self-closing block false positive before changing the implementation.
+- Repair the reported P0 cases incrementally, audit stack handling, and propagate the verified changes from worktree `b960` to `D:\PC\Python\regex_pad_project`.
+
+Implementation:
+
+- `search/html_typo_lint.py`:
+  - Reports unmatched inline closing tags, including the editor's `u` formatting tag, and checks `h1` through `h6` pairs.
+  - Checks nested paragraphs/anchors, block elements inside paragraphs, and the direct list parent of `li`.
+  - Recognizes self-closing WP comments separately from opening/closing comments. Their JSON is still checked, but they never enter the open-block stack or pair counts.
+  - Checks direct `list-item` / `list` and `column` / `columns` relationships, allowed children of lists/columns, and disallowed child blocks of paragraphs.
+  - Requires one real paragraph/heading root in the respective blocks, with no sibling root elements or outside body text. Comments and escaped code cannot satisfy this check.
+  - Checks selected paragraph typography/color properties against block-comment `style`, and checks the expected classes for declared text/background colors and font-size presets.
+  - Keeps inline-child formatting separate from paragraph-root formatting and skips consistency guesses when CSS syntax is broken.
+- `search/css_lint.py`: exposes declaration values through the existing comment/quote/parenthesis tokenizer, avoiding a second naive CSS splitter.
+- Added six matching JA/EN message keys and updated both READMEs.
+- Added 82 regression cases covering the reported failures, valid controls, malformed JSON recovery, source lines, and translation formatting.
+
+Algorithm audit:
+
+1. Counts are only supporting diagnostics. Actual tag/block stacks detect ordering errors even when opening and closing counts match.
+2. The HTML tag inventory is collected once for document-wide pairing/content checks. Block-boundary checks slice the same inventory by original source position; paragraph/heading roots are parsed separately once per closed block and shared by shape/attribute checks.
+3. Document-wide HTML pairing now runs even when WP comments are present, so HTML outside blocks is not omitted. Block-local checks still catch tags that cross WP boundaries.
+4. A wrong WP closing comment is looked up before the stack is modified. This recovery now also applies to ignored/suppressed body-range collection.
+5. Inline entries retain their enclosing boundary depth. Closing a paragraph no longer consumes an anchor that validly surrounds the whole paragraph.
+6. Nested `code` openings retain their stack entries after reporting, so later nested siblings remain detectable.
+7. Identical severity/key/line/value findings from document and nested-block checks are displayed once. Results remain ordered by original line, with enclosing WP diagnostics retained first on the same line.
+8. The checks read the source without rewriting it. A strict five-phase UI or complete HTML/WP tree/schema validator is not implemented by this repair; the independent checks share source positions and apply syntax guards before consistency checks.
+
+Validation in worktree `b960`:
+
+- Reproduction before implementation: 45 failing cases in the first test batch, including the valid block-link false positive; existing focused baseline: 71 passed.
+- Focused HTML/CSS/translation pytest: 167 passed.
+- Full pytest: 483 passed.
+- Ruff: All checks passed.
+- Pyright with the specified Python interpreter: 0 errors, 0 warnings, 0 informations.
+- Both translation JSON files passed `python -m json.tool`; `git diff --check` passed.
+
+Canonical checkout propagation and validation:
+
+- Confirmed both checkouts were at `eedb7a9`, their AGENTS instructions matched after newline normalization, and all eight destination files still matched their committed versions before copying.
+- Propagated exactly the eight changed source/test/resource/documentation files using verified temporary writes and atomic replacement. No settings or other files were copied.
+- Full pytest in `D:\PC\Python\regex_pad_project`: 483 passed.
+- Canonical Ruff: All checks passed. Canonical Pyright: 0 errors, 0 warnings, 0 informations.
+- Canonical translation JSON parsing and `git diff --check`: passed.
+- Verified source/destination SHA-256 equality for all eight files after propagation.
+
+Scope and remaining acceptance:
+
+- This is targeted paste-safety validation, not browser DOM recovery or regeneration of Gutenberg's complete save output.
+- HTML content-model rules and WP parent/allowed-child rules are limited to those listed above. Paragraph consistency covers selected typography/color styles and declared preset classes; arbitrary classes, theme CSS, spacing/borders and all plugin-specific serialization are not inferred.
+- A full schema-driven dual-tree/phase refactor remains a separate follow-up. It must preserve the regression cases added here.
+- Windows GUI interaction, actual workplace Gutenberg paste/save/reload, and a rebuilt packaged EXE have not been tested in this change.
