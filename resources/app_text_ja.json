@@ -355,7 +355,7 @@
   "tag.hint.wordpress.float_right_image_block": "右に回り込み画像、左側に本文を流し込むカスタムHTMLブロックを挿入します。",
   "tag.hint.wordpress.video_block": "WordPress 動画ブロックを挿入します。src に動画URL、キャプションに選択文字を入れます。",
   "tag.hint.wordpress.audio_block": "WordPress 音声ブロックを挿入します。src に音声URL、キャプションに選択文字を入れます。",
-  "find.exclusion_text": "除外条件",
+  "find.exclusion_text": "検索時、除外条件",
   "find.exclusion_hint": "この条件に一致する部分と重なる検索結果を除外します。正規表現・大文字小文字の設定は検索欄と共通です。正規表現で複数指定するときは | で区切ります（例: <br><br>\\n|>\\n）。空欄で解除。選択・表示範囲内で判定し、文字幅のない一致は除外範囲にしません。",
   "find.title": "検索 / 置換",
   "find.find_text": "検索する文字列",

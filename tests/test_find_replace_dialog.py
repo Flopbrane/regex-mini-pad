@@ -155,7 +155,7 @@ def test_exclusion_edit_updates_options_and_clears_preview(app: QApplication) ->
     assert dialog.current_search_options().exclusion_text == r"<br><br>\n|>\n"
     assert received[-1].exclusion_text == r"<br><br>\n|>\n"
     assert dialog.preview_table.rowCount() == 0
-    assert dialog.exclusion_text_label.text() == "除外条件"
+    assert dialog.exclusion_text_label.text() == "検索時、除外条件"
     assert dialog.exclusion_text_edit.toolTip()
 
 

@@ -47,8 +47,8 @@ class FindReplaceDialog(QDialog):
         self.reduced_error_check_enabled = False
 
         self.find_text_edit = RegexInputEdit(self)
-        self.replace_text_edit = RegexInputEdit(self)
         self.exclusion_text_edit = RegexInputEdit(self)
+        self.replace_text_edit = RegexInputEdit(self)
         self.find_text_label = QLabel(self)
         self.replace_text_label = QLabel(self)
         self.exclusion_text_label = QLabel(self)
@@ -211,17 +211,17 @@ class FindReplaceDialog(QDialog):
 
         form_layout.addWidget(self.find_text_label, 0, 0)
         form_layout.addLayout(find_input_layout, 0, 1)
-        form_layout.addWidget(self.replace_text_label, 1, 0)
-        form_layout.addWidget(self.replace_text_edit, 1, 1)
-        form_layout.addWidget(self.exclusion_text_label, 2, 0)
-        form_layout.addWidget(self.exclusion_text_edit, 2, 1)
+        form_layout.addWidget(self.exclusion_text_label, 1, 0)
+        form_layout.addWidget(self.exclusion_text_edit, 1, 1)
+        form_layout.addWidget(self.replace_text_label, 2, 0)
+        form_layout.addWidget(self.replace_text_edit, 2, 1)
         form_layout.addWidget(self.case_sensitive_check_box, 3, 1)
         form_layout.addWidget(self.regular_expression_check_box, 4, 1)
         form_layout.addWidget(self.whole_word_check_box, 5, 1)
         form_layout.addWidget(self.selected_only_check_box, 6, 1)
         form_layout.addWidget(self.visible_only_check_box, 7, 1)
         form_layout.setRowStretch(0, 1)
-        form_layout.setRowStretch(1, 1)
+        form_layout.setRowStretch(2, 1)
 
         button_layout = QGridLayout()
         button_layout.addWidget(self.find_button, 0, 0)

@@ -9,6 +9,7 @@ The project focuses on practical regular expression search and replacement witho
 The Find / Replace dialog has an **Exclude** field. Search results that overlap
 an exclusion match are skipped by Find, Previous, highlights, previews, Replace,
 Replace All, and Replace Marked. Leave it empty to disable exclusions.
+The inputs appear in this order: Find text, Exclude, Replace with.
 
 With regular expressions enabled, search for `\n` and set Exclude to
 `<br><br>\n|>\n` to skip newlines immediately after those tags. Use `|` for

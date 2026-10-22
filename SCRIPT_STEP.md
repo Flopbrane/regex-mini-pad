@@ -3545,3 +3545,10 @@ Canonical propagation follow-up (2026-10-23):
 - Transferred the 12 files using verified temporary writes and atomic replacement; all 12 source/destination SHA-256 values matched.
 - Canonical full pytest: 526 passed. Canonical Ruff: All checks passed. Canonical Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. Canonical `git diff --check`: passed.
 - Source propagation is complete. Restart an already-running source application to load the added exclusion field. EXE rebuilding and physical Windows GUI acceptance remain unperformed.
+
+Input order follow-up (2026-10-23):
+
+- Reordered Find / Replace inputs to Find text, Exclude, Replace with, and aligned input creation order for keyboard focus navigation.
+- Changed the Japanese exclusion label to `検索時、除外条件` and updated the existing label assertion and both READMEs.
+- Validated in both worktree and canonical checkout: related pytest 85 passed; Ruff passed; Pyright reported 0 errors, 0 warnings, 0 informations.
+- Verified input positions and focus-chain order automatically, and inspected an offscreen Japanese dialog rendering. Propagated all six changed files to the canonical project with SHA-256 equality. Physical Windows interaction and an EXE rebuild remain unperformed.
