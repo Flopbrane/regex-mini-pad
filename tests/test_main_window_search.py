@@ -426,6 +426,36 @@ def test_grammar_check_highlights_issue_lines(
     assert window.editor.grammar_issue_lines == [2, 3]
 
 
+@pytest.mark.parametrize("sample_name, expected_count", [("broken.wp_html", 11), ("fixed.wp_html", 0)])
+def test_grammar_check_detects_qualification_article_malformed_openers(
+    app: QApplication, tmp_path: Path, sample_name: str, expected_count: int,
+) -> None:
+    window = MainWindow(settings_path=tmp_path / "settings.json")
+    case_folder = Path(__file__).parent / "fixtures" / "linter_cases" / "qualification_article_20261023"
+    source = (case_folder / sample_name).read_text(encoding="utf-8-sig")
+    window.editor.setPlainText(source)
+    window.run_grammar_check()
+
+    assert window.grammar_check_dialog is not None
+    family_texts = [
+        window.translator.text(f"html_typo_lint.{key}", tag="div", attribute="style")
+        for key in (
+            "html_attribute_outside_opening_tag", "malformed_html_attribute_continuation",
+            "unexpected_html_tag_close_delimiter",
+        )
+    ]
+    findings = [
+        window.grammar_check_dialog.message_list.item(row).text()
+        for row in range(window.grammar_check_dialog.message_list.count())
+    ]
+    assert sum(any(text in finding for text in family_texts) for finding in findings) == expected_count
+    assert window.editor.toPlainText() == source
+    if expected_count:
+        assert {22, 82, 109, 127, 151, 211, 288, 361, 430, 496, 523}.issubset(
+            window.editor.grammar_issue_lines,
+        )
+
+
 def test_grammar_check_clears_issue_highlights_when_no_issues(
     app: QApplication,
 ) -> None:

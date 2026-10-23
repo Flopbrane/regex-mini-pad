@@ -9,6 +9,171 @@ import pytest
 from localization.translator import Translator
 from search.html_typo_lint import lint_html_typos
 
+MALFORMED_OPENING_KEYS = {
+    "html_typo_lint.html_attribute_outside_opening_tag",
+    "html_typo_lint.unexpected_html_tag_close_delimiter",
+    "html_typo_lint.malformed_html_attribute_continuation",
+}
+QUALIFICATION_ARTICLE_CASE = (
+    Path(__file__).parent / "fixtures" / "linter_cases" / "qualification_article_20261023"
+)
+
+
+@pytest.mark.parametrize("attribute", [
+    "style", "class", "id", "title", "role", "href", "src", "alt", "width", "height",
+    "aria-hidden", "aria-describedby", "data-note", "lang",
+])
+@pytest.mark.parametrize("value", ['"example"', "'example'", "example"])
+def test_lint_reports_attribute_outside_completed_opener(attribute: str, value: str) -> None:
+    source = f'<!-- wp:html -->\n<div>\n  {attribute}={value}\n>\nBody\n</div>\n<!-- /wp:html -->'
+    findings = [message for message in lint_html_typos(source) if message.message_key in MALFORMED_OPENING_KEYS]
+    assert [(message.message_key, message.line_number, message.values) for message in findings] == [
+        ("html_typo_lint.html_attribute_outside_opening_tag", 3, {"tag": "div", "attribute": attribute}),
+    ]
+
+
+@pytest.mark.parametrize("tag", ["div", "span", "p", "a", "img", "section"])
+def test_lint_checks_orphan_attributes_in_plain_html(tag: str) -> None:
+    source = f'<{tag}>\nstyle="color:red"\n>\nBody'
+    assert any(
+        message.message_key == "html_typo_lint.html_attribute_outside_opening_tag"
+        and message.line_number == 2
+        and message.values == {"tag": tag, "attribute": "style"}
+        for message in lint_html_typos(source)
+    )
+
+
+def test_lint_reports_attribute_only_continuation_without_extra_delimiter() -> None:
+    source = '<div>\nstyle="color:red"\n</div>'
+    assert any(
+        message.message_key == "html_typo_lint.html_attribute_outside_opening_tag"
+        and message.line_number == 2 for message in lint_html_typos(source)
+    )
+
+
+def test_lint_consolidates_br_attribute_continuation_at_first_attribute() -> None:
+    source = '<!-- wp:html -->\n<div>\nstyle="color:red"<br><br>\naria-hidden="true"<br><br>\n></div>\n<!-- /wp:html -->'
+    findings = [message for message in lint_html_typos(source) if message.message_key in MALFORMED_OPENING_KEYS]
+    assert [(message.message_key, message.line_number, message.values) for message in findings] == [
+        ("html_typo_lint.malformed_html_attribute_continuation", 3, {"tag": "div", "attribute": "style"}),
+    ]
+
+
+@pytest.mark.parametrize("break_tag", ["<br>", "<br/>", "<BR />"])
+def test_lint_recognizes_live_break_tokens_in_attribute_continuation(break_tag: str) -> None:
+    source = f'<div>\nstyle="color:red"{break_tag}\n>\nBody</div>'
+    assert any(
+        message.message_key == "html_typo_lint.malformed_html_attribute_continuation"
+        for message in lint_html_typos(source)
+    )
+
+
+def test_lint_reports_contextual_stray_tag_delimiter() -> None:
+    source = '<!-- wp:html -->\n<div>\n>\nBody\n</div>\n<!-- /wp:html -->'
+    findings = [message for message in lint_html_typos(source) if message.message_key in MALFORMED_OPENING_KEYS]
+    assert [(message.message_key, message.line_number) for message in findings] == [
+        ("html_typo_lint.unexpected_html_tag_close_delimiter", 3),
+    ]
+
+
+@pytest.mark.parametrize("source", [
+    '<div style="color:red">text</div>',
+    '<div\n style="color:red"\n aria-hidden="true"\n>\ntext\n</div>',
+    '<div\n title="a > b and <br>"\n style="color:red"\n>\ntext\n</div>',
+    '<div style="color:red">\nline 1<br><br>\nline 2\n</div>',
+    '<div>line 1<br><br>\nline 2\n</div>',
+    '<p>Use style="color:red" in a tag.</p>',
+    '<p>style="color:red"</p>',
+    '<div>\nAn example follows:\nstyle="color:red"\n>\n</div>',
+    '<p>The comparison is 3 > 2.</p>',
+    '<div>\n> comparison text\n</div>',
+    '<div>\nunknown-setting="value"\n>\nBody</div>',
+    '<code>&lt;div&gt;\nstyle="color:red"\n&gt;&lt;/div&gt;</code>',
+    '<pre><code>&lt;div style="color:red"&gt;</code></pre>',
+    '<!-- <div>\nstyle="color:red"\n>\n</div> -->',
+    '<div><!-- example -->\nstyle="color:red"\n>\n</div>',
+    '<div>\nstyle="color:red"\n<br>normal body text</div>',
+    '<div/>\nstyle="color:red"\n>',
+    '<div\n style="color:red"\n',
+    '<div>\nstyle="color:red"\n&lt;br&gt;\n&gt;\n</div>',
+    '<!-- wp:heading {"level":2} --><h2 class="wp-block-heading">Title</h2><!-- /wp:heading -->',
+    '<!-- wp:heading {"level":4} --><h4 class="wp-block-heading">Title</h4><!-- /wp:heading -->',
+])
+def test_lint_preserves_valid_markup_and_attribute_prose(source: str) -> None:
+    assert not any(message.message_key in MALFORMED_OPENING_KEYS for message in lint_html_typos(source))
+
+
+@pytest.mark.parametrize("wrapper", ["code", "pre", "textarea", "script", "style"])
+def test_orphan_attribute_rules_ignore_display_and_raw_text_regions(wrapper: str) -> None:
+    source = f'<{wrapper}><div>\nstyle="color:red"<br>\n>\n</div></{wrapper}>'
+    assert not any(message.message_key in MALFORMED_OPENING_KEYS for message in lint_html_typos(source))
+
+
+def test_orphan_attribute_state_resumes_after_code_region() -> None:
+    source = '<code>&lt;div&gt;</code>\n<div>\nstyle="color:red"\n>\n</div>'
+    assert [
+        message.line_number for message in lint_html_typos(source)
+        if message.message_key in MALFORMED_OPENING_KEYS
+    ] == [3]
+
+
+def test_orphan_attribute_quoted_values_do_not_end_at_embedded_delimiters() -> None:
+    source = '<div>\ntitle="a > b"\nstyle="color:red"\n>\nBody</div>'
+    findings = [message for message in lint_html_typos(source) if message.message_key in MALFORMED_OPENING_KEYS]
+    assert len(findings) == 1 and findings[0].line_number == 2
+    assert findings[0].values == {"tag": "div", "attribute": "title"}
+
+
+def test_orphan_attribute_detection_does_not_stop_after_first_broken_element() -> None:
+    source = '<div>\nstyle="color:red"\n>\nA</div>\n<section>\ndata-note="x"\n>\nB</section>'
+    assert [
+        message.line_number for message in lint_html_typos(source)
+        if message.message_key in MALFORMED_OPENING_KEYS
+    ] == [2, 6]
+
+
+def test_separator_code_cascade_does_not_suppress_following_orphan_attribute() -> None:
+    source = (
+        '<!-- wp:separator -->\n<hr class="wp-block-separator"><code><code>\n'
+        '<!-- /wp:separator -->\n<!-- wp:html -->\n<div>\nstyle="color:red"\n>\nBody</div>\n<!-- /wp:html -->'
+    )
+    assert [
+        message.line_number for message in lint_html_typos(source)
+        if message.message_key in MALFORMED_OPENING_KEYS
+    ] == [6]
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_orphan_attribute_source_lines_and_read_only_behavior(newline: str) -> None:
+    source = newline.join(['<!-- wp:html -->', '<div>', '  STYLE="color:red"', '>', '</div>', '<!-- /wp:html -->'])
+    original = source
+    findings = [message for message in lint_html_typos(source) if message.message_key in MALFORMED_OPENING_KEYS]
+    assert len(findings) == 1 and findings[0].line_number == 3
+    assert findings[0].values == {"tag": "div", "attribute": "style"}
+    assert source == original
+
+
+def test_qualification_article_broken_sample_reports_all_11_malformed_openers() -> None:
+    source = (QUALIFICATION_ARTICLE_CASE / "broken.wp_html").read_text(encoding="utf-8-sig")
+    findings = [message for message in lint_html_typos(source) if message.message_key in MALFORMED_OPENING_KEYS]
+    assert [message.line_number for message in findings] == [22, 82, 109, 127, 151, 211, 288, 361, 430, 496, 523]
+    assert sum(message.message_key.endswith("malformed_html_attribute_continuation") for message in findings) == 3
+
+
+def test_qualification_article_fixed_sample_has_no_malformed_opening_findings() -> None:
+    source = (QUALIFICATION_ARTICLE_CASE / "fixed.wp_html").read_text(encoding="utf-8-sig")
+    assert not any(message.message_key in MALFORMED_OPENING_KEYS for message in lint_html_typos(source))
+
+
+@pytest.mark.parametrize("language", ["ja", "en"])
+@pytest.mark.parametrize("key", sorted(MALFORMED_OPENING_KEYS))
+def test_malformed_opening_messages_have_formattable_translations(language: str, key: str) -> None:
+    translator = Translator(Path("resources"), language)
+    message = translator.text(key, tag="div", attribute="style")
+    assert message != key
+    assert "<div>" in message
+    assert "{tag}" not in message and "{attribute}" not in message
+
 
 @pytest.mark.parametrize("tag", ["strong", "span", "mark", "em", "a", "b", "i", "small", "code"])
 @pytest.mark.parametrize("prefix", ["", "<em>"])

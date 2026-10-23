@@ -3552,3 +3552,51 @@ Input order follow-up (2026-10-23):
 - Changed the Japanese exclusion label to `検索時、除外条件` and updated the existing label assertion and both READMEs.
 - Validated in both worktree and canonical checkout: related pytest 85 passed; Ruff passed; Pyright reported 0 errors, 0 warnings, 0 informations.
 - Verified input positions and focus-chain order automatically, and inspected an offscreen Japanese dialog rendering. Propagated all six changed files to the canonical project with SHA-256 equality. Physical Windows interaction and an EXE rebuild remain unperformed.
+
+## Step15-section17 Orphan HTML Attribute Continuations
+
+Date: 2026-10-23
+
+Goal and evidence:
+
+- Follow the user-supplied `FIX_LINTER_STEPS.md` using the qualification article's original and official repaired source as a structural regression pair.
+- Before implementation, direct lint returned zero findings for both articles. The original contains 11 completed `<div>` openers followed by orphan `style` text; three also contain live `<br>` tokens in the attempted attribute continuation.
+- Preserve editorial wording, heading choices, CSS spacing, final body breaks and other design differences. No source rewriting or Gutenberg regeneration was added.
+
+Implementation:
+
+- Extended the existing `HtmlTypoLintParser`, reusing its source positions, suppression ranges and cached HTML attribute dictionary/prefix recognition.
+- Track only the immediate body prefix following a parser-confirmed complete opening tag. The parser consumes valid multiline opening tags and their quoted `>` values before this check runs.
+- Warn on a known attribute assignment followed by an extra raw `>`, or an attribute-only continuation on following lines. A lone inline attribute example or ordinary prose is not sufficient.
+- Report `html_attribute_outside_opening_tag` for orphan attributes, `unexpected_html_tag_close_delimiter` for a contextual standalone `>` without an unfinished start tag, and `malformed_html_attribute_continuation` when live `<br>` tokens interrupt the attempted attribute list.
+- Emit one root-cause warning per malformed prefix, on the first attribute line. Do not duplicate warnings for every attribute, break or extra delimiter.
+- Comments, code/preformatted/raw-text regions and the existing contaminated-separator suppression remain boundaries. Suppressed separator `<code>` tokens do not poison continuation state in subsequent blocks.
+- Added aligned JA/EN repair messages, updated both READMEs, and retained exact copies of both supplied files under `tests/fixtures/linter_cases/qualification_article_20261023/` with a provenance/expectation note.
+- Added focused positive/negative controls and automated MainWindow Grammar Check integration checks for both whole articles, including source preservation and highlighted lines.
+
+Measured article results after implementation:
+
+- Original: 11 warnings, consisting of eight `html_attribute_outside_opening_tag` and three `malformed_html_attribute_continuation` findings.
+- Warning lines: 22, 82, 109, 127, 151, 211, 288, 361, 430, 496, 523. Continuation-with-break warnings are on lines 109, 127 and 523.
+- Official repaired article: zero findings for the new family; the direct run also currently has zero total findings. Regression expectations target the new family rather than unrelated future rules.
+
+Validation:
+
+- Test-first reproduction: 58 expected failures and 176 passing HTML lint cases. A later focused case separately reproduced and fixed separator-suppression state leaking into the next block.
+- Focused HTML/CSS/translation/MainWindow pytest: 316 passed.
+- Full worktree pytest after the separator-state repair: 622 passed. Both translation files passed `python -m json.tool`; translation-key parity and `git diff --check` passed.
+- Ruff: All checks passed after fixing test import spacing and a set-literal lint finding. Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations.
+
+Acceptance boundary:
+
+- The original files and `FIX_LINTER_STEPS.md` are read-only inputs; the user's `.gitignore` edit and unrelated changes are preserved.
+- Actual WordPress paste/save/reload, physical Windows GUI interaction and a rebuilt packaged EXE have not been exercised. The repaired source is user-supplied; automated lint is not evidence of live WordPress acceptance.
+
+Canonical propagation and validation:
+
+- Before transfer, all eight existing destination files matched the inspected canonical snapshot; the three new fixture paths were absent. Copied exactly these 11 files using verified temporary writes and atomic replacement.
+- Canonical `pytest tests/test_html_typo_lint.py`: 243 passed. Canonical full pytest: 622 passed.
+- Canonical Ruff: All checks passed. Canonical Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations.
+- Both canonical translation JSON files passed `python -m json.tool`; `git diff --check` passed in both checkouts.
+- Direct canonical runs on the actual supplied articles reproduced the measured 11 / 0 results. Both originals still match their regression copies byte-for-byte.
+- Final source/destination SHA-256 equality was verified for all 11 files, including this completed implementation record. Source propagation is complete; restart a running source application before using F7.

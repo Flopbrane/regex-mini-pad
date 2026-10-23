@@ -27,6 +27,10 @@ HTML_TAG_TOKEN_PATTERN = re.compile(
     r"<\s*(/)?\s*([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*)?(/)?\s*>",
     re.IGNORECASE,
 )
+HTML_ATTRIBUTE_ASSIGNMENT_PATTERN = re.compile(
+    r'''([A-Za-z_:][A-Za-z0-9_:.-]*)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+)''',
+)
+ATTRIBUTE_EXAMPLE_TAGS = {"code", "pre", "textarea", "script", "style", "title", "xmp"}
 
 DEFAULT_WORDPRESS_CORE_BLOCKS = {
     "accordion",
@@ -1880,6 +1884,66 @@ def _is_wordpress_accordion_toggle_button(tag: str, attrs: dict[str, str]) -> bo
     return "wp-block-accordion-heading__toggle" in class_names
 
 
+def _lint_html_attribute_continuation(
+    load_data: str,
+    tag: str,
+    start: int,
+    end: int,
+    break_ranges: dict[int, int],
+    line_starts: list[int],
+) -> HtmlTypoLintMessage | None:
+    """Inspect only the body prefix after a parser-confirmed complete start tag."""
+    position = start
+    first_attribute: tuple[str, int] | None = None
+    while position < end:
+        if load_data[position].isspace():
+            position += 1
+            continue
+        if position in break_ranges and first_attribute is not None:
+            position = break_ranges[position]
+            continue
+        if load_data[position] == ">":
+            if first_attribute is not None:
+                break
+            # An isolated delimiter immediately after a completed opener is
+            # suspicious. Comparisons, prose and delimiters inside real tags
+            # never enter this case.
+            prefix = load_data[start:position]
+            line_suffix = load_data[position + 1:end].split("\n", 1)[0]
+            if "\n" in prefix and not prefix.strip() and not line_suffix.strip():
+                return HtmlTypoLintMessage(
+                    "warning", "html_typo_lint.unexpected_html_tag_close_delimiter",
+                    _line_number_at(position, line_starts), {"tag": tag},
+                )
+            return None
+        attribute_match = HTML_ATTRIBUTE_ASSIGNMENT_PATTERN.match(load_data, position, end)
+        if attribute_match is None:
+            return None
+        attribute = attribute_match.group(1).lower()
+        if not (_is_known_html_attribute(attribute) or _is_global_html_attribute(attribute)):
+            return None
+        if first_attribute is None:
+            first_attribute = (attribute, position)
+        position = attribute_match.end()
+
+    if first_attribute is None:
+        return None
+    attribute, attribute_position = first_attribute
+    if position == end and "\n" not in load_data[start:attribute_position]:
+        # A lone inline attribute example is ordinary body text. A complete
+        # attribute-only continuation on following lines is a stronger signal.
+        return None
+    contains_break = any(attribute_position <= item < position for item in break_ranges)
+    key = (
+        "html_typo_lint.malformed_html_attribute_continuation" if contains_break
+        else "html_typo_lint.html_attribute_outside_opening_tag"
+    )
+    return HtmlTypoLintMessage(
+        "warning", key, _line_number_at(attribute_position, line_starts),
+        {"tag": tag, "attribute": attribute},
+    )
+
+
 class HtmlTypoLintParser(HTMLParser):
     def __init__(
         self,
@@ -1893,6 +1957,53 @@ class HtmlTypoLintParser(HTMLParser):
         self.line_starts = _line_start_positions(load_data)
         self.suppressed_ranges = suppressed_ranges or []
         self.reported_unknown_html_tags: set[tuple[int, str]] = set()
+        self.load_data = load_data
+        self.attribute_opening: tuple[str, int] | None = None
+        self.attribute_break_ranges: dict[int, int] = {}
+        self.attribute_example_tags: list[str] = []
+
+    def _parser_position(self) -> int:
+        line_number, column_number = self.getpos()
+        return _position_from_parser_pos(self.line_starts, line_number, column_number)
+
+    def _flush_attribute_continuation(self, end: int | None = None) -> None:
+        opening = self.attribute_opening
+        self.attribute_opening = None
+        break_ranges = self.attribute_break_ranges
+        self.attribute_break_ranges = {}
+        if opening is None:
+            return
+        tag, start = opening
+        message = _lint_html_attribute_continuation(
+            self.load_data, tag, start, self._parser_position() if end is None else end,
+            break_ranges, self.line_starts,
+        )
+        if message is not None:
+            self.messages.append(message)
+
+    def _track_attribute_start(self, tag: str, *, self_closing: bool = False) -> None:
+        position = self._parser_position()
+        start_tag_text = self.get_starttag_text() or ""
+        if tag == "br" and self.attribute_opening is not None:
+            self.attribute_break_ranges[position] = position + len(start_tag_text)
+            return
+        self._flush_attribute_continuation(position)
+        if self._is_suppressed_inline_position():
+            return
+        if not self_closing and tag in ATTRIBUTE_EXAMPLE_TAGS:
+            self.attribute_example_tags.append(tag)
+        if self_closing or self.attribute_example_tags:
+            return
+        self.attribute_opening = (tag, position + len(start_tag_text))
+
+    def handle_comment(self, data: str) -> None:
+        self._flush_attribute_continuation()
+
+    def handle_decl(self, decl: str) -> None:
+        self._flush_attribute_continuation()
+
+    def handle_pi(self, data: str) -> None:
+        self._flush_attribute_continuation()
 
     def _is_suppressed_inline_position(self) -> bool:
         line_number, column_number = self.getpos()
@@ -1902,6 +2013,7 @@ class HtmlTypoLintParser(HTMLParser):
         )
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._track_attribute_start(tag)
         self._lint_tag_and_attrs(tag, attrs)
         if self._is_suppressed_inline_position():
             return
@@ -1914,9 +2026,14 @@ class HtmlTypoLintParser(HTMLParser):
             self.inline_stack.append((clean_tag, self.getpos()[0], len(self.inline_boundaries)))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._track_attribute_start(tag, self_closing=True)
         self._lint_tag_and_attrs(tag, attrs)
 
     def handle_endtag(self, tag: str) -> None:
+        self._flush_attribute_continuation()
+        if not self._is_suppressed_inline_position() and tag in self.attribute_example_tags:
+            index = len(self.attribute_example_tags) - 1 - self.attribute_example_tags[::-1].index(tag)
+            del self.attribute_example_tags[index:]
         clean_tag = tag.lower()
         line_number = self.getpos()[0]
         self._lint_unknown_html_tag(clean_tag, line_number)
@@ -1925,6 +2042,7 @@ class HtmlTypoLintParser(HTMLParser):
 
     def close(self) -> None:
         super().close()
+        self._flush_attribute_continuation(len(self.load_data))
         self._lint_unclosed_inline_tags_at_document_end()
 
     def _lint_tag_and_attrs(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:

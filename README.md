@@ -74,6 +74,13 @@ WordPress parser, but it is designed to catch common document-breaking mistakes
 before pasting or saving article HTML.
 
 - Detects unknown HTML tags and suspicious HTML attribute typos.
+- Detects known attributes accidentally written as body text after a completed
+  opening tag, such as `<div>` followed by `style="..."` and another `>`.
+  Attribute-like multiline continuations and a standalone `>` immediately after
+  an opener are checked using parser context. Live `<br>` tokens inside an
+  attribute continuation produce one repair-oriented warning instead of a cascade.
+  Valid multiline opening tags, ordinary body breaks, comments, display-code
+  regions and ordinary prose are preserved; Grammar Check never rewrites the source.
 - Uses the same CSS dictionary to check HTML `style` attributes, `<style>`
   elements, and standalone `.css` documents.
 - Detects missing or extra braces, unclosed comments, quotes and parentheses,

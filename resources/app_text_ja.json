@@ -1,4 +1,7 @@
 {
+  "html_typo_lint.html_attribute_outside_opening_tag": "属性 `{attribute}` が、すでに閉じた `<{tag}>` の開始タグの外にあります。`<{tag} {attribute}=\"...\">` のように、開始タグの `>` より前へ移動してください。",
+  "html_typo_lint.unexpected_html_tag_close_delimiter": "すでに閉じた `<{tag}>` の直後に、対応する未完了の開始タグがない単独の `>` があります。余分な `>` や、開始タグの外へ出た属性がないか確認してください。",
+  "html_typo_lint.malformed_html_attribute_continuation": "`<{tag}>` の開始タグが、`{attribute}` などの属性を書く前に閉じられ、属性の続きに `<br>` が混入しています。属性を `<{tag} ...>` の中へ移動し、その属性記述中の `<br>` を取り除いてください。",
   "html_typo_lint.unexpected_inline_closing_tag": "予期しない `</{tag}>` があります。対応する開始タグ `<{tag}>` が見つかりません。",
   "html_typo_lint.invalid_html_child": "`<{parent}>` の中に `<{tag}>` は置けません。このタグの前で段落を閉じる必要がないか確認してください。",
   "html_typo_lint.invalid_html_parent": "`<{tag}>` の直接の親要素は `{parent}` である必要があります。",
