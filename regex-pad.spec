@@ -27,7 +27,7 @@ def _ensure_default_config() -> None:
 
 def _project_json_datas():
     _ensure_default_config()
-    ignored_parts = {"build", "dist", "_internal", ".git", ".vscode"}
+    ignored_parts = {"build", "dist", "_internal", ".git", ".vscode", "runtime"}
     ignored_names = {"pyrightconfig.json"}
     datas = []
     for json_path in PROJECT_ROOT.rglob("*.json"):

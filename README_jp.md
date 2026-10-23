@@ -1,5 +1,35 @@
 # ミニエディター
 
+## WordPressプレビュー（normal）
+
+- 「表示 > WordPressプレビュー（normal）」または **Ctrl+Alt+P** で、保存前の編集中原稿を
+  WordPress本体と標準テーマで処理し、既定ブラウザーへ表示します。編集後はもう一度実行して
+  更新します。原稿ファイルとエディター本文は書き換えません。
+- 初回は `runtime/wordpress-preview/` に追加環境を準備します。WordPress本体、公式の
+  WordPress Playground（3.1.60）とPHP 8.3の実行部品を取得します。
+  WordPress・PHPサーバー・MySQLの事前導入は不要です。対応するNode.js（24.18以上）があれば
+  利用し、WindowsでNode/npmがなければポータブル版Node LTSを自動取得して公式SHA-256で検証します。
+  管理者権限やグローバルインストールは使いません。
+- 初回準備にはインターネット接続が必要です。準備後の標準表示はローカルで動きますが、原稿中の
+  外部URL画像には接続が必要です。今回の確認環境では追加データが約126MB、Nodeを別途用意する場合は
+  検証したWindows版の取得ZIPと展開先でさらに約138MBです。これらは通常のソース管理・EXE同梱対象に含めません。
+- サーバーは `127.0.0.1` のみで待ち受け、HTTP経由の書き込みは受け付けません。
+  本文更新はエディターからの専用プロセス入力で行います。投稿とSQLiteデータベースはプロセス内の
+  仮想ファイルシステムだけに存在し、実サイトには公開しません。テーマ・プラグイン・投稿データは
+  実サイトのコピーではなく、標準WordPressを基準とします。
+  外部API・oEmbedなど、PHP側からのネット接続が必要な処理は初版の対象外です。
+- 文法チェック画面には「WordPress本体の描画結果」を別欄に表示します。本体の描画成功と
+  HTMLの正しさは別です。今回の実例では問題原稿・正式改修版ともHTTP 200で実行警告なしですが、
+  構造Linterは問題原稿の11件を検出します。既存の診断を残して併用します。
+  Gutenberg編集画面の `save()` によるブロック検証は、このプレビューの対象ではありません。
+- 「表示 > WordPressプレビューを停止」またはエディター終了で、自分のプレビュープロセスを停止します。
+  停止後に残ったブラウザータブは再読み込みできません。初回準備・起動はバックグラウンドで行います。
+- 実物のWordPressを使う開発者用検証：指定Pythonで `-m preview.verify_wordpress_preview` を実行します。
+  初回は環境を準備することがあります。通常のpytestではWordPressをダウンロードしません。
+
+公式資料：[WordPress Playground](https://developer.wordpress.org/playground/developers/local-development/)、
+[WordPressの本文処理](https://developer.wordpress.org/reference/functions/do_blocks/)。
+
 ## 開始タグの属性記述チェック
 
 文法チェックで、`<div>` を閉じた後に `style="..."` などの属性を書いてしまった形を検出します。

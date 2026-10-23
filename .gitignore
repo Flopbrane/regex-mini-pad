@@ -26,6 +26,7 @@ diagnose_regex_input.py
 build/
 dist/
 *.egg-info/
+runtime/wordpress-preview/
 
 # Local sample files
 sample*.txt

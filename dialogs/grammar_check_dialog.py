@@ -34,6 +34,9 @@ class GrammarCheckDialog(QDialog):
 
         self.summary_label = QLabel(self)
         self.summary_label.setWordWrap(True)
+        self.runtime_feedback_label = QLabel(self)
+        self.runtime_feedback_label.setWordWrap(True)
+        self.runtime_feedback_label.hide()
         self.message_list = QListWidget(self)
         self.copy_button = QPushButton(self)
         self.refresh_button = QPushButton(self)
@@ -51,6 +54,7 @@ class GrammarCheckDialog(QDialog):
 
         layout = QVBoxLayout()
         layout.addWidget(self.summary_label)
+        layout.addWidget(self.runtime_feedback_label)
         layout.addWidget(self.message_list, 1)
         layout.addWidget(self.button_box)
         self.setLayout(layout)
@@ -83,6 +87,7 @@ class GrammarCheckDialog(QDialog):
         summary: str,
         rows: list[tuple[int, str]],
     ) -> None:
+        self.set_runtime_feedback("")
         self.summary_label.setText(summary)
         self.message_list.clear()
         row_texts: list[str] = []
@@ -99,10 +104,17 @@ class GrammarCheckDialog(QDialog):
         self._copy_text = "\n".join(row_texts)
         self.copy_button.setEnabled(bool(row_texts))
 
+    def set_runtime_feedback(self, text: str) -> None:
+        """Show engine feedback separately: it has no article source-line mapping."""
+        self.runtime_feedback_label.setText(text)
+        self.runtime_feedback_label.setVisible(bool(text))
+        self.copy_button.setEnabled(bool(text or self._copy_text))
+
     def copy_results_to_clipboard(self) -> None:
-        if not self._copy_text:
+        if not self._copy_text and not self.runtime_feedback_label.text():
             return
-        QApplication.clipboard().setText(self._copy_text)
+        text = "\n\n".join(part for part in (self._copy_text, self.runtime_feedback_label.text()) if part)
+        QApplication.clipboard().setText(text)
 
     def _emit_line_selected(self, item: QListWidgetItem) -> None:
         line_number = item.data(Qt.ItemDataRole.UserRole)

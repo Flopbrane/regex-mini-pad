@@ -108,6 +108,7 @@ from fileio.unsaved_backup_manager import (
 )
 from localization.translator import Translator
 from normalise import apply_normalise_operation
+from preview.wordpress_preview import WordPressPreview
 from search.css_lint import CssLintIssue, lint_stylesheet
 from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
@@ -256,6 +257,8 @@ class MainWindow(QMainWindow):
         self.user_help_dialog: UserHelpDialog | None = None
         self.schema_reference_dialog: SchemaReferenceDialog | None = None
         self.options_dialog: OptionsDialog | None = None
+        self.wordpress_preview: WordPressPreview | None = None
+        self.wordpress_preview_snapshot: tuple[TextEditor, str] | None = None
         self.search_scope: tuple[int, int] | None = None
         self.wordpress_mode_label_key = settings.wordpress_mode_label_key
         self.hover_hints_enabled = settings.hover_hints_enabled
@@ -348,6 +351,7 @@ class MainWindow(QMainWindow):
                 return
         self._save_settings()
         self._clear_grammar_lint_results_on_window_close()
+        self.stop_wordpress_preview()
         event.accept()
 
     def _create_actions(self) -> None:
@@ -540,6 +544,13 @@ class MainWindow(QMainWindow):
         self.grammar_check_action.setShortcut("F7")
         self.grammar_check_action.triggered.connect(self.run_grammar_check)
 
+        self.wordpress_preview_action = QAction(self)
+        self.wordpress_preview_action.setShortcut("Ctrl+Alt+P")
+        self.wordpress_preview_action.triggered.connect(self.show_wordpress_preview)
+        self.stop_wordpress_preview_action = QAction(self)
+        self.stop_wordpress_preview_action.setEnabled(False)
+        self.stop_wordpress_preview_action.triggered.connect(self.stop_wordpress_preview)
+
         self.word_wrap_action = QAction(self)
         self.word_wrap_action.setCheckable(True)
         self.word_wrap_action.toggled.connect(self._set_current_word_wrap_enabled)
@@ -622,6 +633,9 @@ class MainWindow(QMainWindow):
         self.view_menu.addAction(self.line_numbers_action)
         self.view_menu.addAction(self.word_wrap_action)
         self.view_menu.addAction(self.ruler_action)
+        self.view_menu.addSeparator()
+        self.view_menu.addAction(self.wordpress_preview_action)
+        self.view_menu.addAction(self.stop_wordpress_preview_action)
         menu_bar.addMenu(self.view_menu)
 
         self.options_menu = QMenu(self)
@@ -1158,6 +1172,8 @@ class MainWindow(QMainWindow):
         self._rebuild_insert_tag_menu()
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.grammar_check_action.setText(self.translator.text("action.grammar_check"))
+        self.wordpress_preview_action.setText(self.translator.text("action.wordpress_preview"))
+        self.stop_wordpress_preview_action.setText(self.translator.text("action.stop_wordpress_preview"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
         self.ruler_action.setText(self.translator.text("options.item.ruler"))
@@ -1594,6 +1610,60 @@ class MainWindow(QMainWindow):
             self.find_replace_dialog.set_reduced_error_check_enabled(
                 self.reduced_error_check_enabled
             )
+
+    def show_wordpress_preview(self) -> None:
+        """Send an unchanged snapshot to an isolated, standard local WordPress."""
+        if self.wordpress_preview is None:
+            preview = WordPressPreview(
+                app_base_dir() / "runtime" / "wordpress-preview",
+                bundled_base_dir() / "resources" / "wordpress_preview" / "bridge.mjs",
+                self,
+            )
+            preview.progress.connect(self._wordpress_preview_progress)
+            preview.failed.connect(self._wordpress_preview_failed)
+            preview.feedback.connect(self._wordpress_preview_feedback)
+            preview.rendered.connect(self._wordpress_preview_rendered)
+            self.wordpress_preview = preview
+        source_text = self.editor.toPlainText()
+        self.wordpress_preview_snapshot = (self.editor, self._source_hash(source_text))
+        title = (
+            self.current_save_file_path.stem if self.current_save_file_path
+            else self.translator.text("wordpress_preview.title")
+        )
+        self.stop_wordpress_preview_action.setEnabled(True)
+        self.wordpress_preview.show_preview(title, source_text)
+
+    def _wordpress_preview_progress(self, stage: str) -> None:
+        self.statusBar().showMessage(self.translator.text(f"wordpress_preview.stage.{stage}"))
+
+    def _wordpress_preview_failed(self, message: str) -> None:
+        self.statusBar().showMessage(self.translator.text("wordpress_preview.failed"))
+        QMessageBox.warning(self, self.translator.text("wordpress_preview.title"), message)
+
+    def _wordpress_preview_rendered(self, version: str, _url: str) -> None:
+        self.statusBar().showMessage(self.translator.text("wordpress_preview.rendered", version=version))
+
+    def _wordpress_preview_feedback(self, _request_id: int, status: int, warnings: str) -> None:
+        snapshot = self.wordpress_preview_snapshot
+        if snapshot is None or snapshot[0] is not self.editor:
+            return
+        if snapshot[1] != self._source_hash(self.editor.toPlainText()):
+            return
+        # Runtime messages refer to PHP internals, not source article lines.
+        # Keep them separate from the existing line-aware structural diagnostics.
+        self.run_grammar_check()
+        assert self.grammar_check_dialog is not None
+        text = self.translator.text(
+            "wordpress_preview.feedback", status=status,
+            details=warnings.strip() or self.translator.text("wordpress_preview.no_runtime_warnings"),
+        )
+        self.grammar_check_dialog.set_runtime_feedback(text)
+
+    def stop_wordpress_preview(self) -> None:
+        if self.wordpress_preview is not None:
+            self.wordpress_preview.stop()
+        self.wordpress_preview_snapshot = None
+        self.stop_wordpress_preview_action.setEnabled(False)
 
     def run_grammar_check(self) -> None:
         """Run the CSS or HTML / WordPress grammar check for the current document."""

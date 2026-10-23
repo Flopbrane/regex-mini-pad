@@ -28,6 +28,7 @@ def test_pyinstaller_spec_json_datas_include_current_project_json() -> None:
     assert ("config.json", ".") in app_datas
     assert ("color_presets.json", ".") in app_datas
     assert all(not source.startswith("_internal/") for source, _target in app_datas)
+    assert all(not source.startswith("runtime/") for source, _target in app_datas)
 
 
 def test_pyinstaller_spec_builds_gui_app_without_upx() -> None:

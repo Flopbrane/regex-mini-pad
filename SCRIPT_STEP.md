@@ -3600,3 +3600,47 @@ Canonical propagation and validation:
 - Both canonical translation JSON files passed `python -m json.tool`; `git diff --check` passed in both checkouts.
 - Direct canonical runs on the actual supplied articles reproduced the measured 11 / 0 results. Both originals still match their regression copies byte-for-byte.
 - Final source/destination SHA-256 equality was verified for all 11 files, including this completed implementation record. Source propagation is complete; restart a running source application before using F7.
+
+## Step15-section18 Standard WordPress Preview And Runtime Feedback
+
+Date: 2026-10-23
+
+User decisions:
+
+- Use actual WordPress core and its standard theme as the `normal` baseline, without copying a restricted production site's theme/CSS/plugins.
+- Use the default browser for display. The user explicitly selected first-use preparation of an optional WordPress environment; existing local WordPress/PHP/MySQL are not prerequisites.
+- Incorporate WordPress execution feedback into checking, while preserving structural lint that the rendering engine does not report.
+
+Implementation:
+
+- Added View > WordPress Preview (normal), Ctrl+Alt+P, and a Stop action. Send an unchanged unsaved editor snapshot to a dedicated child process; show the resulting local URL through QDesktopServices.
+- Added `preview/wordpress_runtime.py`: optional first-use preparation under `runtime/wordpress-preview`, official Playground 3.1.60 packages, PHP 8.3 only, official WordPress core ZIP, and SQLite integration. No global Python/npm install or administrator rights.
+- Reuse compatible Node (24.18+). If unavailable on Windows, prepare portable Node LTS and check its ZIP against the official SHA-256 list. npm packages use local prefix/cache and ignore install scripts.
+- Added `resources/wordpress_preview/bridge.mjs`, using official `bootWordPressAndRequestHandler` and PHP.wasm. WordPress code runs in its virtual filesystem. Create/update one in-memory local preview post; use the real front-end template, content filters, dynamic blocks and standard theme styles. Source text is passed as Base64-encoded JSON data, never evaluated as PHP.
+- Bind HTTP only to 127.0.0.1, reject foreign Host headers and HTTP writes; editor updates use private stdin. Serialize engine access, reject foreign browser URLs and stale replies, and stop owned processes on Stop/editor close.
+- First preparation runs in a cancellable QThread; the bridge runs in QProcess. Failed setup, runtime failures and browser-open failures are reported without crashing the editor.
+- Display WordPress HTTP/PHP execution feedback separately in Grammar Check, with no fabricated article-line mapping. Retain the existing line-aware diagnostics; clear feedback when the document/result changes and support copying it even with zero static findings.
+- Exclude optional runtime JSON from the PyInstaller data collector and ignore the runtime folder in Git. Standard app packaging does not include WordPress/npm/Node data.
+- Updated JA/EN messages, both READMEs, and added `python -m preview.verify_wordpress_preview` for opt-in real-engine integration checks. Normal pytest never downloads or boots WordPress.
+
+Evidence and validation in the worktree:
+
+- Real engine: WordPress 7.1.3, Twenty Twenty-Five, PHP 8.3. The dynamic core/latest-posts block was rendered, not merely copied as static source.
+- Original qualification article: HTTP 200, no runtime warnings, 11 static lint findings. Repaired article: HTTP 200, no runtime warnings, zero static findings. This demonstrates why runtime feedback cannot replace the structural linter.
+- Actual MainWindow action -> setup thread -> QProcess -> real WordPress -> 11 static findings plus HTTP feedback passed offscreen, with the browser-open call captured rather than physically opening the default browser. Editor source stayed unchanged and the owned process stopped cleanly.
+- Portable Node LTS 24.22.1 was downloaded, SHA-256 verified, extracted and executed successfully; the real-engine verification also passed under it.
+- Focused preview/packaging/translation pytest: 21 passed. Full worktree pytest: 635 passed. Ruff passed; Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations.
+- Measured optional runtime: about 126 MB with an existing compatible Node; the tested portable Node ZIP plus extraction add about 138 MB. The discarded design using the complete Playground CLI would include all PHP versions; it is not the implementation shipped by this feature.
+
+Scope and acceptance boundary:
+
+- Normal means standard core/theme content rendering, with standard demo data. It does not reproduce production plugins/data, Gutenberg editor save-markup validation, or PHP-side external API/oEmbed networking. WordPress cron/automatic updates and outbound HTTP are disabled for the offline preview baseline. Remote article images still require browser network access.
+- Existing settings, unrelated worktree edits and the canonical .gitignore additions must remain intact. Transfer only this feature's manifest; prepare optional runtime locally, rather than copying developer build output.
+- Physical Windows default-browser interaction and a rebuilt packaged EXE remain unperformed acceptance steps. Cached operation and real HTTP rendering are tested separately from that manual acceptance.
+
+Canonical propagation and validation:
+
+- Preflight confirmed the nine existing destination files matched the captured canonical SHA-256 values and the six new paths were absent. Transferred only these 15 feature files using verified temporary writes and atomic replacement; merged one runtime ignore rule while preserving every existing canonical `.gitignore` byte.
+- Canonical full pytest completed successfully: 635 passed. Ruff: All checks passed. Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. Translation JSON parsing, JavaScript syntax and `git diff --check` passed.
+- Prepared the optional environment directly under canonical `runtime/wordpress-preview`, without copying worktree build output. Real-engine verification passed with WordPress 7.1.3 and Twenty Twenty-Five: dynamic latest-posts rendered, HTTP writes/foreign hosts rejected, original article 11 static findings versus repaired article zero, both HTTP 200 with no runtime warnings. Shutdown made the local URL inaccessible.
+- Final source/canonical SHA-256 equality was verified for all 15 feature files, including this completed record. The canonical `.gitignore` differs only by its intended added rule from its captured version. Source propagation is complete; restart a running source application to load the new View menu actions. EXE rebuilding and physical default-browser acceptance remain unperformed.

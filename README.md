@@ -21,6 +21,47 @@ lines; zero-width exclusion matches protect no characters. For selected/visible
 searches, exclusion patterns are evaluated inside that search scope. Inputs stay
 in the dialog for the current session and are not saved across restarts.
 
+## WordPress Preview (normal)
+
+- Choose **View > WordPress Preview (normal)** or press **Ctrl+Alt+P**. The current
+  unsaved editor contents are rendered by real WordPress and its standard theme,
+  then opened in the default browser. Run the action again after editing to update
+  the preview. Source files and editor text are not rewritten.
+- First use prepares an optional environment under `runtime/wordpress-preview/`.
+  It downloads official WordPress core and WordPress Playground PHP.wasm packages
+  (Playground 3.1.60 / PHP 8.3). A preinstalled WordPress, PHP server or MySQL is
+  unnecessary. Compatible Node.js (24.18+) is reused; on Windows, when Node/npm is
+  unavailable, a portable Node LTS distribution is downloaded and verified against
+  the official SHA-256 list. No global install or administrator rights are used.
+- Initial preparation needs internet access. Cached standard rendering works
+  locally afterwards; externally hosted article images still need access to their
+  URLs. This machine's optional environment occupies about 126 MB with existing
+  Node.js; a portable Node download and extraction add about 138 MB in the tested
+  Windows configuration. These optional runtime files are excluded from normal
+  Git tracking and PyInstaller JSON collection.
+- The local server binds only to `127.0.0.1` and rejects HTTP writes. Article
+  updates reach it through the editor's private process input. The preview post
+  and SQLite database exist only in the process's virtual filesystem; nothing is
+  published to a real site. The preview uses standard WordPress demo data, not a
+  production site's theme, plugins or database.
+  External API/oEmbed processing on the PHP side is outside this first offline
+  baseline; browser-loaded remote images need connectivity.
+- WordPress front-end execution feedback appears separately in Grammar Check.
+  A successful render is not HTML validation: the qualification-article regression
+  renders with HTTP 200 and no PHP warnings on both sides, while the existing
+  structural linter still correctly identifies 11 problems on the broken side.
+  This does not run Gutenberg editor `save()` validation.
+- **View > Stop WordPress Preview** stops the local environment. Closing the editor
+  also stops its own preview process. A browser tab left open after stopping will
+  no longer refresh. Startup/preparation runs in the background.
+- Optional real-engine verification (may prepare the runtime):
+  `D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe -m preview.verify_wordpress_preview`.
+  This checks dynamic block rendering, real-article feedback, loopback restrictions
+  and shutdown; ordinary pytest does not download WordPress.
+
+Official references: [WordPress Playground](https://developer.wordpress.org/playground/developers/local-development/),
+[WordPress rendering](https://developer.wordpress.org/reference/functions/do_blocks/).
+
 ## Goals
 
 - Portable folder-based execution.
