@@ -12,6 +12,7 @@ from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from main import MainWindow
+from search.html_typo_lint import HtmlTypoLintMessage
 from search.search_engine import SearchOptions
 
 
@@ -20,6 +21,32 @@ def _process_delayed_ui_events(delay_ms: int = 75) -> None:
     QTimer.singleShot(delay_ms, loop.quit)
     loop.exec()
     QApplication.processEvents()
+
+
+@pytest.mark.parametrize("severity,confirmations", [("info", 0), ("warning", 1), ("error", 1)])
+def test_save_lint_confirmation_respects_severity(
+    app: QApplication, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    severity: str, confirmations: int,
+) -> None:
+    _ = app
+    window = MainWindow(settings_path=tmp_path / "settings.json", unsaved_backup_path=tmp_path / "backup.json")
+    window.html_typo_lint_enabled = True
+    original = "KEEP THIS TEXT"
+    window.editor.setPlainText(original)
+    message = HtmlTypoLintMessage(severity, "html_typo_lint.missing_html_closing_tag", 1, {"tag": "p"})
+    monkeypatch.setattr(window, "_lint_document", lambda text: [message])
+    requests = []
+
+    def confirm(*args, **kwargs):
+        requests.append(args)
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(QMessageBox, "question", confirm)
+    assert window._confirm_save_after_grammar_check(original) is (severity == "info")
+    assert len(requests) == confirmations
+    assert window.editor.toPlainText() == original
+    window.editor.document().setModified(False)
+    window.close()
 
 
 @pytest.fixture(scope="session")
@@ -394,7 +421,9 @@ def test_grammar_check_reports_html_and_wordpress_typos(
     window.grammar_check_dialog.copy_results_to_clipboard()
     assert QApplication.clipboard().text() == result_text
     assert "修正してください" in result_text
-    assert window.editor.textCursor().blockNumber() == 1
+    # Missing block boundaries are now Error and take priority over the earlier typos.
+    assert window.translator.text("grammar_check.severity.error") in result_text
+    assert window.editor.textCursor().blockNumber() == 2
     line_three_item = next(
         window.grammar_check_dialog.message_list.item(row)
         for row in range(window.grammar_check_dialog.message_list.count())

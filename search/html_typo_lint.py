@@ -21,7 +21,7 @@ from search.css_lint import (
 LINT_REFERENCE_PATH = Path(__file__).resolve().parent.parent / "dictionaries" / "lint_reference.json"
 BLOCK_COMMENT_PATTERN = re.compile(
     r"<!--\s*(/)?\s*wp:([a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)?)"
-    r"(?:\s+([^\r\n]*?))?\s*(/)?\s*-->",
+    r"(?:\s+((?:(?!-->)[\s\S])*?))?\s*(/)?\s*-->",
 )
 HTML_TAG_TOKEN_PATTERN = re.compile(
     r"<\s*(/)?\s*([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*)?(/)?\s*>",
@@ -290,7 +290,6 @@ ESCAPED_FRAGMENT_IGNORED_WORDPRESS_BLOCKS = {"code", "html"}
 NON_NESTABLE_WORDPRESS_BLOCKS = {
     "code",
     "heading",
-    "html",
     "list-item",
     "paragraph",
     "separator",
@@ -333,6 +332,13 @@ PARAGRAPH_BREAKING_TAGS = (
 ) | {"address", "details", "dialog", "dl", "fieldset", "form", "hr", "menu"}
 WORDPRESS_REQUIRED_PARENTS = {"list-item": "list", "column": "columns"}
 WORDPRESS_ALLOWED_CHILDREN = {"list": {"list-item"}, "columns": {"column"}}
+WORDPRESS_NON_CONTAINER_BLOCKS = {"paragraph", "heading", "separator", "spacer", "image"}
+WORDPRESS_HTML_SHAPES = {
+    "paragraph": {"p"},
+    "heading": {f"h{level}" for level in range(1, 7)},
+    "list": {"ul", "ol"},
+    "list-item": {"li"},
+}
 COMMON_WORDPRESS_BLOCK_ATTRIBUTES = {
     "align",
     "anchor",
@@ -427,7 +433,26 @@ class _LintToken:
     token_type: str
 
 
-_WordPressBlockStackItem = tuple[str, int, int, dict[str, Any], bool]
+@dataclass
+class _WordPressBlockStackItem:
+    name: str
+    body_start: int
+    open_line: int
+    attributes: dict[str, Any]
+    attributes_valid: bool
+    pair_id: int
+    parent_pair_id: int | None
+    depth: int
+    open_position: int
+    body_end: int | None = None
+    close_line: int | None = None
+    close_end: int | None = None
+    self_closing: bool = False
+    boundary_valid: bool = True
+    has_children: bool = False
+    affected_start: int | None = None
+
+
 _ParsedWordPressBlockAttributes = tuple[dict[str, Any], bool, int | None]
 
 
@@ -459,7 +484,24 @@ def lint_html_typos(load_data: str) -> list[HtmlTypoLintMessage]:
             tuple(sorted((message.values or {}).items())),
         )
         unique_messages.setdefault(signature, message)
-    return sorted(unique_messages.values(), key=lambda message: message.line_number)
+    boundary_keys = {
+        "html_typo_lint.missing_wordpress_closing_block",
+        "html_typo_lint.missing_wordpress_html_closing_block",
+        "html_typo_lint.mismatched_wordpress_block",
+        "html_typo_lint.unexpected_wordpress_closing_block",
+    }
+    crossing_tags = {
+        (message.line_number, (message.values or {}).get("tag"))
+        for message in messages
+        if message.message_key == "html_typo_lint.html_crosses_wordpress_boundary"
+    }
+    return sorted(
+        (message for message in unique_messages.values()
+         if not (message.message_key == "html_typo_lint.missing_html_closing_tag"
+                 and (message.line_number, (message.values or {}).get("tag")) in crossing_tags)),
+        key=lambda message: (message.line_number, message.message_key not in boundary_keys,
+                             message.severity != "error"),
+    )
 
 
 def _lint_token_inventories(
@@ -1023,24 +1065,24 @@ ALLOWED_HTML_ATTRIBUTE_PREFIXES = LINT_REFERENCE_CACHE.allowed_attribute_prefixe
 
 def _lint_wordpress_block_typos(load_data: str) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
-    for line_number, line in enumerate(load_data.splitlines(), start=1):
-        for block_match in BLOCK_COMMENT_PATTERN.finditer(line):
-            block_name = _normalize_block_name(block_match.group(2))
-            if "/" in block_name or block_name in KNOWN_WORDPRESS_CORE_BLOCKS:
-                continue
+    line_starts = _line_start_positions(load_data)
+    for block_match in BLOCK_COMMENT_PATTERN.finditer(load_data):
+        block_name = _normalize_block_name(block_match.group(2))
+        if "/" in block_name or block_name in KNOWN_WORDPRESS_CORE_BLOCKS:
+            continue
 
-            suggestion = _find_closest_word(block_name, KNOWN_WORDPRESS_CORE_BLOCKS)
-            values = {"block": block_name}
-            if suggestion:
-                values["suggestion"] = suggestion
-            messages.append(
-                HtmlTypoLintMessage(
-                    "warning",
-                    "html_typo_lint.unknown_wordpress_block",
-                    line_number,
-                    values,
-                )
+        suggestion = _find_closest_word(block_name, KNOWN_WORDPRESS_CORE_BLOCKS)
+        values = {"block": block_name}
+        if suggestion:
+            values["suggestion"] = suggestion
+        messages.append(
+            HtmlTypoLintMessage(
+                "warning",
+                "html_typo_lint.unknown_wordpress_block",
+                _line_number_at(block_match.start(), line_starts),
+                values,
             )
+        )
     return messages
 
 
@@ -1051,6 +1093,8 @@ def _lint_wordpress_block_structure(
     messages: list[HtmlTypoLintMessage] = []
     line_starts = _line_start_positions(load_data)
     block_stack: list[_WordPressBlockStackItem] = []
+    block_spans: list[_WordPressBlockStackItem] = []
+    children_by_parent: dict[int, list[_WordPressBlockStackItem]] = {}
     paragraph_prefix_lines: dict[str, int] = {}
     html_positions = [token.position for token in html_tokens]
 
@@ -1060,21 +1104,23 @@ def _lint_wordpress_block_structure(
         line_number = _line_number_at(block_match.start(), line_starts)
 
         if not is_closing:
+            if block_stack:
+                block_stack[-1].has_children = True
+                if block_stack[-1].affected_start is None:
+                    block_stack[-1].affected_start = line_number
+            messages.extend(_lint_wordpress_parent_child(block_name, block_stack, line_number))
             if (
                 not block_match.group(4)
                 and block_stack
-                and block_stack[-1][0] == block_name
+                and block_stack[-1].name == block_name
                 and block_name in NON_NESTABLE_WORDPRESS_BLOCKS
             ):
-                messages.append(
-                    HtmlTypoLintMessage(
-                        "warning",
-                        "html_typo_lint.missing_wordpress_closing_block",
-                        line_number,
-                        {"block": block_name},
-                    )
-                )
-                block_stack.pop()
+                unclosed = block_stack.pop()
+                unclosed.boundary_valid = False
+                unclosed.body_end = block_match.start()
+                messages.append(_missing_wordpress_block_message(
+                    unclosed, line_starts, len(load_data), repair_line=line_number,
+                ))
             (
                 block_attributes,
                 block_attributes_valid,
@@ -1094,21 +1140,22 @@ def _lint_wordpress_block_structure(
                         {"block": block_name},
                     )
                 )
-            messages.extend(
-                _lint_unknown_wordpress_block_attributes(
-                    block_name,
-                    block_attributes,
-                    line_number,
+            if block_attributes_valid:
+                messages.extend(
+                    _lint_unknown_wordpress_block_attributes(
+                        block_name,
+                        block_attributes,
+                        line_number,
+                    )
                 )
-            )
-            messages.extend(
-                _lint_wordpress_block_attribute_semantics(
-                    block_name,
-                    block_attributes,
-                    line_number,
+                messages.extend(
+                    _lint_wordpress_block_attribute_semantics(
+                        block_name,
+                        block_attributes,
+                        line_number,
+                    )
                 )
-            )
-            if block_stack and block_stack[-1][0] == "html":
+            if block_stack and block_stack[-1].name == "html":
                 messages.append(
                     HtmlTypoLintMessage(
                         "warning",
@@ -1116,50 +1163,47 @@ def _lint_wordpress_block_structure(
                         line_number,
                     )
                 )
-            if block_stack and block_stack[-1][0] == "paragraph" and block_name == "html":
-                messages.append(
-                    HtmlTypoLintMessage(
-                        "warning",
-                        "html_typo_lint.wordpress_paragraph_contains_html_block",
-                        line_number,
-                    )
-                )
-            messages.extend(_lint_wordpress_parent_child(block_name, block_stack, line_number))
-            if block_match.group(4):
-                continue
-            block_stack.append(
-                (
-                    block_name,
-                    block_match.end(),
-                    line_number,
-                    block_attributes,
-                    block_attributes_valid,
-                )
+            span = _WordPressBlockStackItem(
+                name=block_name, body_start=block_match.end(), open_line=line_number,
+                attributes=block_attributes, attributes_valid=block_attributes_valid,
+                pair_id=len(block_spans),
+                parent_pair_id=block_stack[-1].pair_id if block_stack else None,
+                depth=len(block_stack), open_position=block_match.start(),
+                self_closing=bool(block_match.group(4)),
             )
+            block_spans.append(span)
+            if span.parent_pair_id is not None:
+                children_by_parent.setdefault(span.parent_pair_id, []).append(span)
+            if block_match.group(4):
+                span.body_end = block_match.end()
+                span.close_line = line_number
+                span.close_end = block_match.end()
+                continue
+            block_stack.append(span)
             continue
 
         if not block_stack:
             messages.append(
                 HtmlTypoLintMessage(
-                    "warning",
+                    "error",
                     "html_typo_lint.unexpected_wordpress_closing_block",
                     line_number,
-                    {"block": block_name},
+                    {"block": block_name, "affected_start": str(line_number),
+                     "affected_end": str(_line_number_at(len(load_data), line_starts))},
                 )
             )
             continue
 
-        (
-            open_block_name,
-            open_end,
-            open_line_number,
-            block_attributes,
-            block_attributes_valid,
-        ) = block_stack[-1]
+        open_block = block_stack[-1]
+        open_block_name = open_block.name
+        open_end = open_block.body_start
+        open_line_number = open_block.open_line
+        block_attributes = open_block.attributes
+        block_attributes_valid = open_block.attributes_valid
         if open_block_name != block_name:
             messages.append(
                 HtmlTypoLintMessage(
-                    "warning",
+                    "error",
                     "html_typo_lint.mismatched_wordpress_block",
                     line_number,
                     {"open_block": open_block_name, "close_block": block_name},
@@ -1167,37 +1211,66 @@ def _lint_wordpress_block_structure(
             )
             matching_index = _last_open_wordpress_block_index(block_stack, block_name)
             if matching_index is None:
+                open_block.boundary_valid = False
                 continue
             for unclosed_block in reversed(block_stack[matching_index + 1 :]):
-                messages.append(_missing_wordpress_block_message(unclosed_block))
+                unclosed_block.boundary_valid = False
+                unclosed_block.body_end = block_match.start()
+                messages.append(_missing_wordpress_block_message(
+                    unclosed_block, line_starts, block_match.start(),
+                ))
+            block_stack[matching_index].boundary_valid = False
+            block_stack[matching_index].body_end = block_match.start()
+            block_stack[matching_index].close_line = line_number
+            block_stack[matching_index].close_end = block_match.end()
             del block_stack[matching_index:]
             continue
 
         block_stack.pop()
+        open_block.body_end = block_match.start()
+        open_block.close_line = line_number
+        open_block.close_end = block_match.end()
         block_body = load_data[open_end : block_match.start()]
         body_tokens = html_tokens[
             bisect_left(html_positions, open_end):
             bisect_left(html_positions, block_match.start())
         ]
         root_collector = None
-        if block_name in {"paragraph", "heading"}:
+        # Check only this block's own HTML. A child's HTML must not create a
+        # parent shape/attribute cascade, while independent parent errors remain.
+        child_ranges = [
+            (child.open_position, child.close_end or block_match.start())
+            for child in children_by_parent.get(open_block.pair_id, [])
+        ]
+        own_body = _mask_ranges(block_body, [
+            (start - open_end, end - open_end) for start, end in child_ranges
+        ])
+        own_tokens = (
+            [token for token in body_tokens if not _position_in_ranges(token.position, child_ranges)]
+            if block_name == "paragraph" else body_tokens
+        )
+        suppress_body = not open_block.boundary_valid
+        if block_name in WORDPRESS_HTML_SHAPES and not suppress_body:
             root_collector = _BlockRootCollector()
-            root_collector.feed(block_body)
+            root_collector.feed(own_body)
             root_collector.close()
             messages.extend(_lint_wordpress_block_html_shape(
                 block_name, root_collector, open_line_number,
+                _line_number_at(open_end, line_starts) - 1,
             ))
-        if block_name == "paragraph":
+        if block_name == "paragraph" and not suppress_body:
             messages.extend(
                 _lint_wordpress_paragraph_body(
-                    block_body,
+                    own_body,
                     open_end,
                     line_starts,
                     open_line_number,
-                    body_tokens,
+                    own_tokens,
+                    suppress_missing_p=bool(root_collector and root_collector.root_tags
+                                            and not any(tag == "p" for tag, _ in root_collector.root_tags)),
                 )
             )
-            paragraph_key = _paragraph_duplicate_key(block_body)
+            paragraph_key = _paragraph_duplicate_key(own_body)
             if paragraph_key:
                 previous_line = paragraph_prefix_lines.get(paragraph_key)
                 if previous_line is not None:
@@ -1214,7 +1287,7 @@ def _lint_wordpress_block_structure(
         if block_name == "separator":
             messages.extend(
                 _lint_wordpress_separator_body(
-                    block_body,
+                    own_body,
                     open_end,
                     line_starts,
                     open_line_number,
@@ -1224,7 +1297,7 @@ def _lint_wordpress_block_structure(
             messages.extend(
                 _lint_decorated_wordpress_block_should_use_html(
                     block_name,
-                    block_body,
+                    own_body,
                     open_end,
                     line_starts,
                     open_line_number,
@@ -1238,19 +1311,22 @@ def _lint_wordpress_block_structure(
                     STRUCTURAL_HTML_TAGS,
                 )
             )
-        if block_attributes_valid:
+        if block_attributes_valid and not suppress_body:
             messages.extend(
                 _lint_wordpress_block_attribute_html_consistency(
                     block_name,
                     block_attributes,
-                    block_body,
+                    own_body,
                     open_line_number,
                     root_collector,
                 )
             )
 
     for block in block_stack:
-        messages.append(_missing_wordpress_block_message(block))
+        block.boundary_valid = False
+        block.body_end = len(load_data)
+        messages.append(_missing_wordpress_block_message(block, line_starts, len(load_data)))
+    messages.extend(_lint_html_wordpress_boundaries(block_spans, html_tokens))
     return messages
 
 
@@ -1260,20 +1336,32 @@ def _lint_wordpress_parent_child(
     line_number: int,
 ) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
-    parent = block_stack[-1][0] if block_stack else ""
+    parent = block_stack[-1].name if block_stack else ""
     required_parent = WORDPRESS_REQUIRED_PARENTS.get(block_name)
-    if required_parent and parent != required_parent:
+    # A repeated non-nestable opener is already diagnosed as a missing close;
+    # check its repaired sibling context rather than cascading a parent error.
+    required_parent_context = (
+        block_stack[-2].name if parent == block_name
+        and block_name in NON_NESTABLE_WORDPRESS_BLOCKS and len(block_stack) > 1 else parent
+    )
+    if required_parent and required_parent_context != required_parent:
         messages.append(HtmlTypoLintMessage(
-            "warning", "html_typo_lint.invalid_wordpress_parent", line_number,
+            "error", "html_typo_lint.invalid_wordpress_parent", line_number,
             {"block": block_name, "parent": required_parent},
         ))
-    if parent == "paragraph" or (
+    if parent in WORDPRESS_NON_CONTAINER_BLOCKS or (
         parent in WORDPRESS_ALLOWED_CHILDREN
         and block_name not in WORDPRESS_ALLOWED_CHILDREN[parent]
     ):
+        message_key = (
+            "html_typo_lint.wordpress_paragraph_contains_html_block"
+            if parent == "paragraph" and block_name == "html"
+            else "html_typo_lint.invalid_wordpress_child"
+        )
         messages.append(HtmlTypoLintMessage(
-            "warning", "html_typo_lint.invalid_wordpress_child", line_number,
-            {"block": block_name, "parent": parent},
+            "error" if block_name in KNOWN_WORDPRESS_CORE_BLOCKS else "warning",
+            message_key, line_number,
+            {"block": block_name, "parent": parent} if block_name != "html" or parent != "paragraph" else None,
         ))
     return messages
 
@@ -1283,24 +1371,71 @@ def _last_open_wordpress_block_index(
     block_name: str,
 ) -> int | None:
     for index in range(len(block_stack) - 1, -1, -1):
-        if block_stack[index][0] == block_name:
+        if block_stack[index].name == block_name:
             return index
     return None
 
 
 def _missing_wordpress_block_message(
     block: _WordPressBlockStackItem,
+    line_starts: list[int],
+    range_end: int,
+    *,
+    repair_line: int | None = None,
 ) -> HtmlTypoLintMessage:
-    block_name, _open_end, open_line_number, _block_attributes, _attributes_valid = block
+    block_name = block.name
     message_key = "html_typo_lint.missing_wordpress_closing_block"
     if block_name == "html":
         message_key = "html_typo_lint.missing_wordpress_html_closing_block"
     return HtmlTypoLintMessage(
-        "warning",
+        "error",
         message_key,
-        open_line_number,
-        {"block": block_name},
+        repair_line or block.open_line,
+        {"block": block_name,
+         "affected_start": str(block.affected_start or block.open_line),
+         "affected_end": str(_line_number_at(range_end, line_starts))},
     )
+
+
+def _lint_html_wordpress_boundaries(
+    spans: list[_WordPressBlockStackItem], tokens: list[_LintToken],
+) -> list[HtmlTypoLintMessage]:
+    """Find HTML opened inside a block but still open at its explicit boundary.
+
+    A container's surrounding HTML is outside its child's body, so remains valid.
+    Invalid WP boundaries are handled by the primary block-stack diagnostics.
+    """
+    boundaries = sorted(
+        (span for span in spans if span.boundary_valid and not span.self_closing
+         and span.body_end is not None),
+        key=lambda span: span.body_end if span.body_end is not None else -1,
+    )
+    open_tags: list[_LintToken] = []
+    reported: set[int] = set()
+    messages: list[HtmlTypoLintMessage] = []
+    token_index = 0
+    for span in boundaries:
+        assert span.body_end is not None
+        while token_index < len(tokens) and tokens[token_index].position < span.body_end:
+            token = tokens[token_index]
+            token_index += 1
+            if token.token_type == "open" and token.name not in VOID_TAGS:
+                open_tags.append(token)
+            elif token.token_type == "close":
+                match_index = next((i for i in range(len(open_tags) - 1, -1, -1)
+                                    if open_tags[i].name == token.name), None)
+                if match_index is not None:
+                    del open_tags[match_index:]
+        for token in open_tags:
+            if token.position < span.body_start or token.position in reported:
+                continue
+            reported.add(token.position)
+            messages.append(HtmlTypoLintMessage(
+                "error", "html_typo_lint.html_crosses_wordpress_boundary", token.line_number,
+                {"tag": token.name, "block": span.name,
+                 "boundary_line": str(span.close_line)},
+            ))
+    return messages
 
 
 def _parse_wordpress_block_attributes(
@@ -1487,8 +1622,9 @@ def _lint_wordpress_block_attribute_html_consistency(
 
 def _lint_wordpress_block_html_shape(
     block_name: str, collector: _BlockRootCollector, line_number: int,
+    body_line_offset: int = 0,
 ) -> list[HtmlTypoLintMessage]:
-    expected_tags = {"p"} if block_name == "paragraph" else {f"h{level}" for level in range(1, 7)}
+    expected_tags = WORDPRESS_HTML_SHAPES[block_name]
     if (
         len(collector.root_tags) == 1
         and collector.root_tags[0][0] in expected_tags
@@ -1496,8 +1632,9 @@ def _lint_wordpress_block_html_shape(
     ):
         return []
     return [HtmlTypoLintMessage(
-        "warning", "html_typo_lint.wordpress_block_html_shape", line_number,
-        {"block": block_name, "tag": "p" if block_name == "paragraph" else "h1 - h6"},
+        "error", "html_typo_lint.wordpress_block_html_shape",
+        body_line_offset + collector.first_content_line if collector.first_content_line else line_number,
+        {"block": block_name, "tag": " / ".join(sorted(expected_tags))},
     )]
 
 
@@ -1695,15 +1832,17 @@ def _lint_wordpress_paragraph_body(
     line_starts: list[int],
     line_number: int,
     tokens: list[_LintToken],
+    *,
+    suppress_missing_p: bool = False,
 ) -> list[HtmlTypoLintMessage]:
     messages: list[HtmlTypoLintMessage] = []
     p_open = next((token for token in tokens if token.name == "p" and token.token_type == "open"), None)
     p_close = next((token for token in tokens if token.name == "p" and token.token_type == "close"), None)
     div_open = next((token for token in tokens if token.name == "div" and token.token_type == "open"), None)
-    if p_open is None:
+    if p_open is None and not suppress_missing_p:
         messages.append(
             HtmlTypoLintMessage(
-                "warning",
+                "error",
                 "html_typo_lint.wordpress_paragraph_missing_p_open",
                 _first_body_content_line_number(
                     block_body,
@@ -1713,12 +1852,14 @@ def _lint_wordpress_paragraph_body(
                 ),
             )
         )
-    if p_close is None:
+    if p_close is None and not suppress_missing_p:
         messages.append(
             HtmlTypoLintMessage(
-                "warning",
+                "error",
                 "html_typo_lint.wordpress_paragraph_missing_p_close",
-                p_open.line_number if p_open else line_number,
+                p_open.line_number if p_open else _first_body_content_line_number(
+                    block_body, body_start_position, line_starts, line_number,
+                ),
             )
         )
     if div_open is not None:
@@ -1743,7 +1884,7 @@ def _lint_wordpress_separator_body(
         return []
     return [
         HtmlTypoLintMessage(
-            "warning",
+            "error",
             "html_typo_lint.wordpress_separator_contains_code",
             _match_line_number(code_match, body_start_position, line_starts, line_number),
         )
@@ -2252,6 +2393,7 @@ class _BlockRootCollector(HTMLParser):
         self.root_tags: list[tuple[str, dict[str, str]]] = []
         self.open_tags: list[str] = []
         self.has_root_text = False
+        self.first_content_line: int | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self._record_root(tag, attrs)
@@ -2263,6 +2405,8 @@ class _BlockRootCollector(HTMLParser):
 
     def _record_root(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if not self.open_tags:
+            if self.first_content_line is None:
+                self.first_content_line = self.getpos()[0]
             self.root_tags.append((tag, {name: value or "" for name, value in attrs}))
 
     def handle_endtag(self, tag: str) -> None:
@@ -2274,6 +2418,8 @@ class _BlockRootCollector(HTMLParser):
     def handle_data(self, data: str) -> None:
         if not self.open_tags and data.strip():
             self.has_root_text = True
+            if self.first_content_line is None:
+                self.first_content_line = self.getpos()[0] + data[:len(data) - len(data.lstrip())].count("\n")
 
 
 class _HtmlTagTokenCollector(HTMLParser):

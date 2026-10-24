@@ -162,6 +162,18 @@ before pasting or saving article HTML.
 - Checks WordPress block start / end mismatches, missing closing comments, and
   repeated non-nestable blocks such as `wp:list-item`.
 - Checks whether HTML tags are complete inside each WordPress block.
+- Reports damaged WordPress boundaries, invalid core parent/child structures,
+  and paragraph/heading/list/list-item root-shape problems as Error. Missing
+  closers include a conservative affected-line range and recovery/save risk.
+- Detects HTML tags crossing a WordPress closing boundary while allowing a
+  container wrapper around valid child blocks. Non-container blocks such as
+  paragraph, heading, separator, spacer and image cannot contain core children.
+- Nested Custom HTML block comments are a portability Warning, not a claim
+  that WordPress always rejects them. Source newlines and `<br>` spelling
+  variants alone are not errors; Info-only results do not prompt before save.
+- Uses text-preserving broken/fixed/control regression cases from the local
+  Gutenberg analysis. Recovery output is observation data, not a correct-text
+  reference. See `LINTER_MODIFICATION_REPORT.md` for scope and validation.
 - Checks pure HTML files as a whole when no WordPress block comments are used.
 - Also checks HTML outside WordPress blocks in mixed documents.
 - Reports extra inline closing tags, mismatched `h1` through `h6` pairs,

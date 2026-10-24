@@ -1,0 +1,11 @@
+{
+  "search/html_typo_lint.py": "9f508d9b8f148769ad9c4efb50201cf3031ed7e18905f0c329ebca2ecbae793d",
+  "tests/test_html_typo_lint.py": "b5a1bc77d953a5ce97f76d2452274c1333f19b008c0b287c1cb9e0746ccd0687",
+  "resources/app_text_ja.json": "8a0c1eb1975670e2f1690d550d6080372fe5c0b05f9bde47f3d5d7c59e492fd0",
+  "resources/app_text_en.json": "f8a569fa061b2a6fb6d17d8c21c9ba73c77100e9df0c5510551604e639977b04",
+  "README.md": "f7671bc97f903fad4296489f7aae283dfb74c24997ece3d0ddb2df23cba4a2d8",
+  "README_jp.md": "0d13a4985088ea4ed961cdb9fd283a0afa0bc474d2b215403d2e9f2b9c8594f0",
+  "SCRIPT_STEP.md": "eeec210da0c68002e75086c9eacb8d8a2f8c07a735f6bf4796642ee3af1467fe",
+  "main.py": "dbfdcb01070df88d1ace6e3e1d9610da03a054d6e35f359b0992bac7f460ee95",
+  "tests/test_main_window_search.py": "40e19f46d2651b2fafc2c89cf12bf0c5dacd3831f0a680e4f99fcae6834cefcd"
+}

@@ -23,6 +23,9 @@ _internal/
 diagnose_regex_input.py
 CODE_ANALYSIS_POLICY.md
 analysis_cases/
+tests/fixtures/
+LINTER_MODIFICATION_POLICY.md
+LINTER_MODIFICATION_REPORT.md
 # Build outputs
 build/
 dist/
@@ -39,6 +42,8 @@ sample.txt
 回帰テスト用サンプル.md
 CODEX_regex-pad_linter_HTMLタグ閉じ忘れ診断_改修指示書.md
 README_Dialog_focus_error.md
+LINTER_MODIFICATION_POLICY.md
+LINTER_MODIFICATION_REPORT.md
 # Local settings
 settings.json
 config.json

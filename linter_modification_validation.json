@@ -1,0 +1,196 @@
+{
+  "baseline": {
+    "pytest": 640,
+    "ruff": "passed",
+    "pyright_errors": 0,
+    "reference_json_files": 109
+  },
+  "targeted_pytest": 369,
+  "worktree": {
+    "pytest": 682,
+    "ruff": "passed",
+    "pyright": {
+      "errors": 0,
+      "warnings": 0,
+      "informations": 0
+    }
+  },
+  "canonical": {
+    "status": "targeted_passed_full_suite_failed",
+    "targeted_pytest_passed": 369,
+    "full_pytest_passed": 679,
+    "full_pytest_failed": 3,
+    "failed_tests": [
+      "test_insert_wordpress_custom_frame_block_has_editable_style_parameters",
+      "test_insert_wordpress_frame_block_without_selection_keeps_matching_tags",
+      "test_insert_wordpress_frame_presets_keep_distinct_border_styles"
+    ],
+    "ruff": "passed",
+    "pyright": {
+      "errors": 0,
+      "warnings": 0,
+      "informations": 0
+    },
+    "json_files_valid": 112
+  },
+  "cases": {
+    "gutenberg_cross_boundary": {
+      "broken": [
+        {
+          "severity": "error",
+          "message_key": "html_typo_lint.html_crosses_wordpress_boundary",
+          "line_number": 2,
+          "values": {
+            "tag": "div",
+            "block": "html",
+            "boundary_line": "3"
+          }
+        },
+        {
+          "severity": "warning",
+          "message_key": "html_typo_lint.unexpected_html_closing_tag",
+          "line_number": 5,
+          "values": {
+            "tag": "div"
+          }
+        }
+      ],
+      "fixed": [],
+      "control": []
+    },
+    "gutenberg_missing_close": {
+      "broken": [
+        {
+          "severity": "error",
+          "message_key": "html_typo_lint.missing_wordpress_closing_block",
+          "line_number": 3,
+          "values": {
+            "block": "paragraph",
+            "affected_start": "3",
+            "affected_end": "6"
+          }
+        },
+        {
+          "severity": "error",
+          "message_key": "html_typo_lint.invalid_wordpress_child",
+          "line_number": 3,
+          "values": {
+            "block": "paragraph",
+            "parent": "paragraph"
+          }
+        },
+        {
+          "severity": "warning",
+          "message_key": "html_typo_lint.count_mismatch_wordpress_paragraph",
+          "line_number": 3,
+          "values": {
+            "name": "paragraph",
+            "open_count": "2",
+            "close_count": "1"
+          }
+        }
+      ],
+      "fixed": [],
+      "control": []
+    },
+    "gutenberg_nested_html": {
+      "broken": [
+        {
+          "severity": "warning",
+          "message_key": "html_typo_lint.wordpress_html_contains_block_comment",
+          "line_number": 2,
+          "values": null
+        }
+      ],
+      "fixed": [],
+      "control": []
+    },
+    "gutenberg_non_container_child": {
+      "broken": [
+        {
+          "severity": "error",
+          "message_key": "html_typo_lint.invalid_wordpress_child",
+          "line_number": 3,
+          "values": {
+            "block": "heading",
+            "parent": "paragraph"
+          }
+        }
+      ],
+      "fixed": [],
+      "control": []
+    },
+    "gutenberg_orphan_close": {
+      "broken": [
+        {
+          "severity": "error",
+          "message_key": "html_typo_lint.unexpected_wordpress_closing_block",
+          "line_number": 1,
+          "values": {
+            "block": "paragraph",
+            "affected_start": "1",
+            "affected_end": "3"
+          }
+        },
+        {
+          "severity": "warning",
+          "message_key": "html_typo_lint.count_mismatch_wordpress_paragraph",
+          "line_number": 1,
+          "values": {
+            "name": "paragraph",
+            "open_count": "1",
+            "close_count": "2"
+          }
+        }
+      ],
+      "fixed": [],
+      "control": []
+    },
+    "gutenberg_richtext_whitespace": {
+      "broken": [],
+      "fixed": [],
+      "control": []
+    },
+    "gutenberg_wrong_heading": {
+      "broken": [
+        {
+          "severity": "error",
+          "message_key": "html_typo_lint.wordpress_block_html_shape",
+          "line_number": 2,
+          "values": {
+            "block": "heading",
+            "tag": "h1 / h2 / h3 / h4 / h5 / h6"
+          }
+        }
+      ],
+      "fixed": [],
+      "control": []
+    }
+  },
+  "runtime_integrity": {
+    "files": 2281,
+    "changed": [],
+    "unchanged": true
+  },
+  "analysis_evidence_checks": 79,
+  "canonical_gitignore_sha256": "1bd41bca31328c57838a7f1dda566497bfe49e287c02da32821ff0d01ddbf9d1",
+  "policy_sha256": "e2c60b4aec4e6634cfb2bb9feebc9269cdb7e5bcd823ccf7a952511c63850a42",
+  "unrelated_baseline": {
+    "reproduced_with": "HEAD main.py and HEAD search/html_typo_lint.py executed in memory with the existing canonical dictionary",
+    "failed_tests": [
+      "test_insert_wordpress_custom_frame_block_has_editable_style_parameters",
+      "test_insert_wordpress_frame_block_without_selection_keeps_matching_tags",
+      "test_insert_wordpress_frame_presets_keep_distinct_border_styles"
+    ],
+    "cause": "test border 2px versus canonical dictionary border 3px",
+    "test_tag_insert_sha256_preserved": "31e98fb8ba0ae3752e26f56ae46619cd835eae93aedae32a5becea9c59f72f54",
+    "dictionary_sha256_during_baseline_probe": "2b5e9c61c33a0a98ce4e9c6bb6a0351a13fd7c3c5d170c89f0711d12a86957cc",
+    "dictionary_sha256_at_final_observation": "cd1a6366f9c28e90d29b6913a45499810885520c613025ff76e2663078fd514f",
+    "dictionary_changed_after_validation": true,
+    "preservation": "Dictionary is outside the transfer manifest and was never overwritten; a later external update was retained."
+  },
+  "transfer": {
+    "files": 55,
+    "sha256_equal": true
+  }
+}

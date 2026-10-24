@@ -154,6 +154,10 @@ CRLF の文字列では、両方の条件の改行を `\r?\n` と指定してく
 - 一部のWordPressブロック属性について、`level` の文字列指定、booleanの文字列指定、paragraphのalign値typoなど、型・値の不自然さを警告します。
 - WordPressブロックの開始・終了の不一致、終了コメント抜け、`wp:list-item` などの閉じ忘れを検出します。
 - WordPressブロック内でHTMLタグが完結しているかを確認します。
+- WordPressのブロック境界破損、不正な親子関係、paragraph・heading・list・list-itemのルート形状不一致をErrorで示します。閉じ忘れには巻き込み範囲の候補と、復旧・保存前に直す理由を表示します。
+- HTMLタグがWordPress終了境界を越える場合を検出し、正常なコンテナーが子ブロックを囲むHTMLは許容します。paragraph・heading・separator・spacer・image内のコア子ブロックは本文消失などのリスクとして検査します。
+- Custom HTML内のブロックコメントは移植性のWarningとし、WordPressで必ずinvalidになるとは断定しません。通常のソース改行や`<br>`表記差だけをErrorにせず、INFOだけの場合は保存前確認で止めません。
+- Gutenberg解析に基づくbroken・本文を保持したfixed・正常controlで回帰確認します。復旧で文章が消えた出力を正解には使いません。範囲と検証結果は`LINTER_MODIFICATION_REPORT.md`を参照してください。
 - 通常のHTMLファイル全体に加え、WordPressブロックが混在する文書のブロック外HTMLも検査します。
 - 余分なインライン終了タグ、`h1`～`h6`の開閉不一致、段落・リンクの入れ子、段落内のブロック要素、直接の親が`ul`・`ol`・`menu`ではない`li`を検出します。
 - `<!-- wp:latest-posts /-->`などの自己完結コメントに対応し、後続ブロックの開閉数や入れ子に影響させません。

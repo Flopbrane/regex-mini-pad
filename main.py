@@ -1883,7 +1883,7 @@ class MainWindow(QMainWindow):
             return True
 
         messages = self._lint_document(save_data)
-        if not messages:
+        if not messages or all(message.severity == "info" for message in messages):
             self.editor.clear_grammar_issue_lines()
             return True
 

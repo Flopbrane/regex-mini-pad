@@ -1,9 +1,9 @@
-# pylint: disable=C0301
+# pylint: disable=C0301,no-name-in-module
 """Find and Replace Dialog"""
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -36,15 +36,15 @@ class FindReplaceDialog(QDialog):
     search_parameters_changed = Signal(str, SearchOptions)
     regex_help_requested = Signal()
     normalise_requested = Signal(str)
-    REGEX_INPUT_TEXT_COLOR = REGEX_TOKEN_COLOR
+    REGEX_INPUT_TEXT_COLOR: QColor = REGEX_TOKEN_COLOR
 
     def __init__(self, translator: Translator, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.translator = translator
+        self.translator: Translator = translator
         self.setModal(False)
         self.regex_lint = RegexLint()
-        self.regex_lint_enabled = True
-        self.reduced_error_check_enabled = False
+        self.regex_lint_enabled: bool = True
+        self.reduced_error_check_enabled: bool = False
 
         self.find_text_edit = RegexInputEdit(self)
         self.exclusion_text_edit = RegexInputEdit(self)
@@ -107,7 +107,7 @@ class FindReplaceDialog(QDialog):
 
     def insert_find_text(self, text: str, cursor_offset: int | None = None) -> None:
         """Insert text into the find input field at the current cursor position or selection."""
-        insert_position = (
+        insert_position: int = (
             self.find_text_edit.selectionStart()
             if self.find_text_edit.hasSelectedText()
             else self.find_text_edit.cursorPosition()
@@ -124,12 +124,12 @@ class FindReplaceDialog(QDialog):
 
     def set_regex_lint_enabled(self, enabled: bool) -> None:
         """Enable or disable regex linting and update the linting state."""
-        self.regex_lint_enabled = enabled
+        self.regex_lint_enabled: bool = enabled
         self._update_regex_lint()
 
     def set_reduced_error_check_enabled(self, enabled: bool) -> None:
         """Enable or disable reduced error checking and update the linting state."""
-        self.reduced_error_check_enabled = enabled
+        self.reduced_error_check_enabled: bool = enabled
         self._update_regex_lint()
 
     def set_search_recipe(self, search_text: str, replace_text: str) -> None:

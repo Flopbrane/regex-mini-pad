@@ -3700,3 +3700,31 @@ Canonical propagation and validation:
 - Canonical full pytest: 640 passed. Ruff: All checks passed. Pyright: 0 errors, 0 warnings, 0 informations. Canonical evidence verification: 79 checks passed; resource/dictionary/analysis JSON: 109 files parsed. Node syntax, parser/PHP probes and both git diff checks passed.
 - All 263 transferred files, including the final report and this record, match by SHA-256. Canonical `.gitignore` remains byte-identical to the captured preflight value; the original policy matches its byte-preserving snapshot. Both source trees contain no application/linter/Core changes from this analysis.
 - Actual local WordPress editor recovery/save/reload was performed for the documented cases. EXE rebuild, production-site acceptance, other versions/plugins/permissions, exhaustive block-definition coverage and autosave/revision behavior remain outside this validation.
+
+## Step15-section21 Gutenberg Content-Loss Prevention Lint
+
+Date: 2026-10-24
+
+Request: implement `LINTER_MODIFICATION_POLICY.md` using the existing linter, regression tests and the fixed WordPress 7.1.3 analysis. Prioritize text preservation over matching Gutenberg validity or recovery output.
+
+Implementation:
+
+- Added repair-aware block span metadata (pair/parent IDs, depth, positions, opening/closing lines and self-closing status) to the existing WP stack. Missing/orphan/mismatched closers and invalid known core parent/child relationships are Error; missing closers include conservative affected-line candidates and explicit recovery/save risks in JA/EN.
+- Added core child checks for paragraph, heading, separator, spacer and image. Checked paragraph/heading/list/list-item root shapes and actual HTML repair lines. Nested wp:html remains a portability Warning; RichText newline and br spelling differences alone remain accepted.
+- Added HTML crossing a WP closing boundary as Error, while preserving valid container wrappers. Mask child HTML for parent shape/attribute checks, suppress the equivalent missing-tag diagnostic and repeated-list-item parent cascade, and keep independent parent shape/CSS/JSON issues and separator suppression.
+- Accept multiline block JSON comments and retain structural checks after JSON errors. CSS/JSON validation implementations and reference dictionaries are unchanged.
+- MainWindow change is limited to the grammar-save gate: Info-only findings do not request confirmation; Error/Warning continue using the existing default-cancel confirmation. The linter does not rewrite text.
+- Added seven minimal broken/fixed/control fixture groups and a dedicated risk regression module. Original WordPress recovered/saved/reloaded observations are separate data, never a correct-text reference. Updated the specific old assertions affected by new diagnostic keys, range values and Error priority; removed no tests.
+- Updated both READMEs and added `LINTER_MODIFICATION_REPORT.md`, a preflight hash record, an intended-file manifest and a verification record. Historical analysis data remains intact.
+
+Validation:
+
+- Before modification: full pytest 640 passed, Ruff passed, Pyright 0 errors/warnings/informations, 109 JSON files parsed.
+- Focused HTML/Gutenberg/CSS/reference/translation/MainWindow selection: 369 passed. Full worktree pytest: 682 passed (42 additional cases). Source/reference JSON parsing and diff checks passed.
+- Original analysis evidence verification: 79 checks passed. Existing preview runtime: 2,281 files unchanged by SHA-256. No WordPress Core/Gutenberg/Preview, Find/Replace, Backup, editor rendering, tag insertion, Markdown conversion or build changes.
+- Canonical focused pytest: 369 passed. Canonical full pytest: 679 passed / 3 failed. Ruff passed; Pyright 0 errors/warnings/informations; JSON parsing: 112 files successful.
+- The three full-suite failures are unchanged frame-insertion tests expecting 2px borders while the existing canonical WordPress snippet dictionary uses 3px. Reproduced all three with pre-modification HEAD main/linter modules and the existing dictionary in a read-only comparison. Policy section 48 forbids changing this unrelated tag-insertion/dictionary area, so the failures are reported and not hidden or fixed by overwriting user data. Full canonical-suite success remains unmet.
+- Propagated only the 55-file linter manifest using preflight hashes and atomic writes. Final SHA-256 equality includes the report, record, validation JSON and all fixtures. Preserved canonical .gitignore, the policy original and the existing 3px snippet dictionary. No historical analysis files or unrelated source were transferred.
+- Qt offscreen confirms severity decisions and unchanged text. Physical GUI readability/navigation/file-save acceptance, a rebuilt EXE, production-site saves and exhaustive Gutenberg schemas remain unperformed.
+
+- Final observation detected another update to the out-of-scope snippet dictionary after validation. Preserved that update without overwriting it; recorded both hashes. The reported full-suite result belongs to the tested dictionary version, not the later update.

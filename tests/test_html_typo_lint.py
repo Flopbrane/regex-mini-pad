@@ -361,8 +361,8 @@ def test_nested_containers_do_not_duplicate_the_same_html_diagnostic() -> None:
         '<!-- /wp:html --></section><!-- /wp:group -->'
     )
     assert sum(
-        message.message_key == "html_typo_lint.missing_html_closing_tag"
-        and message.values == {"tag": "div"}
+        message.message_key == "html_typo_lint.html_crosses_wordpress_boundary"
+        and message.values == {"tag": "div", "block": "html", "boundary_line": "3"}
         for message in messages
     ) == 1
 
@@ -778,7 +778,8 @@ def test_list_item_missing_close_points_to_next_item() -> None:
         (message.line_number, message.message_key, message.values)
         for message in messages
     ] == [
-        (4, "html_typo_lint.missing_wordpress_closing_block", {"block": "list-item"}),
+        (4, "html_typo_lint.missing_wordpress_closing_block",
+         {"block": "list-item", "affected_start": "4", "affected_end": "5"}),
     ]
 
 
@@ -914,10 +915,11 @@ def test_lint_reports_test_sample_without_separator_cascade() -> None:
         (
             81,
             "html_typo_lint.missing_wordpress_closing_block",
-            {"block": "list-item"},
+            {"block": "list-item", "affected_start": "81", "affected_end": str(sample_text.count("\n") + 1)},
         ),
         (98, "html_typo_lint.escaped_code_close_fragment", None),
-        (120, "html_typo_lint.missing_html_closing_tag", {"tag": "div"}),
+        (120, "html_typo_lint.html_crosses_wordpress_boundary",
+         {"tag": "div", "block": "html", "boundary_line": "123"}),
         (131, "html_typo_lint.wordpress_separator_contains_code", None),
         (
             148,
@@ -1254,9 +1256,9 @@ def test_lint_reports_unclosed_div_inside_wordpress_html_block() -> None:
     )
 
     assert any(
-        message.message_key == "html_typo_lint.missing_html_closing_tag"
+        message.message_key == "html_typo_lint.html_crosses_wordpress_boundary"
         and message.line_number == 2
-        and message.values == {"tag": "div"}
+        and message.values == {"tag": "div", "block": "html", "boundary_line": "4"}
         for message in messages
     )
 
