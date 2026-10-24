@@ -1,0 +1,510 @@
+<!--
+RegexPad Linter 実動作検証用
+error_tests.wp_html
+
+注意:
+・意図的に壊したテストファイルです。
+・WordPress本番へ投稿しないでください。
+・CASE 00 / CASE 27 は false positive 確認用です。
+・境界破損系は他の解析へ影響しやすいため最後に配置しています。
+-->
+
+
+<!-- =====================================================
+CASE 00 : 正常コントロール
+期待: この部分からErrorが出ない
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>CASE00_NORMAL_PARAGRAPH</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">CASE00_NORMAL_HEADING</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list">
+<!-- wp:list-item -->
+<li>CASE00_NORMAL_LIST_ITEM</li>
+<!-- /wp:list-item -->
+</ul>
+<!-- /wp:list -->
+
+
+<!-- =====================================================
+CASE 01 : heading のHTMLルート不一致
+期待: ERROR
+===================================================== -->
+
+<!-- wp:heading {"level":2} -->
+<div class="wp-block-heading">
+CASE01_WRONG_HEADING_ROOT_TEXT_MUST_NOT_BE_LOST
+</div>
+<!-- /wp:heading -->
+
+
+<!-- =====================================================
+CASE 02 : heading level と hタグ不一致
+期待: Warning
+===================================================== -->
+
+<!-- wp:heading {"level":3} -->
+<h2 class="wp-block-heading">
+CASE02_HEADING_LEVEL_MISMATCH
+</h2>
+<!-- /wp:heading -->
+
+
+<!-- =====================================================
+CASE 03 : paragraph のHTMLルート不一致
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<div>CASE03_PARAGRAPH_WITH_DIV_ROOT</div>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 04 : paragraph 内にcore child
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>CASE04_PARENT_PARAGRAPH</p>
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">
+CASE04_CHILD_HEADING
+</h2>
+<!-- /wp:heading -->
+
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 05 : heading 内にcore child
+期待: ERROR
+===================================================== -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">CASE05_PARENT_HEADING</h2>
+
+<!-- wp:paragraph -->
+<p>CASE05_CHILD_PARAGRAPH</p>
+<!-- /wp:paragraph -->
+
+<!-- /wp:heading -->
+
+
+<!-- =====================================================
+CASE 06 : list-item の親がlistではない
+期待: ERROR
+===================================================== -->
+
+<!-- wp:group -->
+<div class="wp-block-group">
+
+<!-- wp:list-item -->
+<li>CASE06_WRONG_LIST_ITEM_PARENT</li>
+<!-- /wp:list-item -->
+
+</div>
+<!-- /wp:group -->
+
+
+<!-- =====================================================
+CASE 07 : column の親がcolumnsではない
+期待: ERROR
+===================================================== -->
+
+<!-- wp:group -->
+<div class="wp-block-group">
+
+<!-- wp:column -->
+<div class="wp-block-column">
+<p>CASE07_COLUMN_WRONG_PARENT</p>
+</div>
+<!-- /wp:column -->
+
+</div>
+<!-- /wp:group -->
+
+
+<!-- =====================================================
+CASE 08 : wp:list のHTML形状不一致
+期待: ERROR
+===================================================== -->
+
+<!-- wp:list -->
+<div class="wp-block-list">
+
+<!-- wp:list-item -->
+<li>CASE08_LIST_WRONG_ROOT</li>
+<!-- /wp:list-item -->
+
+</div>
+<!-- /wp:list -->
+
+
+<!-- =====================================================
+CASE 09 : wp:list-item のHTML形状不一致
+期待: ERROR
+===================================================== -->
+
+<!-- wp:list -->
+<ul class="wp-block-list">
+
+<!-- wp:list-item -->
+<div>CASE09_LIST_ITEM_WRONG_ROOT</div>
+<!-- /wp:list-item -->
+
+</ul>
+<!-- /wp:list -->
+
+
+<!-- =====================================================
+CASE 10 : WordPress block JSON構文エラー
+期待:
+・JSON診断
+・level mismatch等の派生cascadeを抑制
+===================================================== -->
+
+<!-- wp:heading {"level":3,} -->
+<h3 class="wp-block-heading">
+CASE10_INVALID_JSON
+</h3>
+<!-- /wp:heading -->
+
+
+<!-- =====================================================
+CASE 11 : WordPress属性JSONがobjectではない
+期待: JSON / WordPress属性診断
+===================================================== -->
+
+<!-- wp:paragraph [1,2] -->
+<p>CASE11_JSON_ROOT_NOT_OBJECT</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 12 : 属性型不一致
+期待: Warning
+===================================================== -->
+
+<!-- wp:heading {"level":"3"} -->
+<h3 class="wp-block-heading">
+CASE12_LEVEL_IS_STRING
+</h3>
+<!-- /wp:heading -->
+
+
+<!-- =====================================================
+CASE 13 : paragraph align値不正
+期待: Warning
+===================================================== -->
+
+<!-- wp:paragraph {"align":"centre"} -->
+<p class="has-text-align-centre">
+CASE13_INVALID_ALIGN_VALUE
+</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 14 : strong閉じ忘れ
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>
+CASE14
+<strong>STRONG_NOT_CLOSED
+</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 15 : inline tag 閉じ順不一致
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>
+CASE15
+<strong><span>WRONG_CLOSE_ORDER</strong></span>
+</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 16 : nested paragraph
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>
+CASE16_OUTER
+<p>CASE16_INNER</p>
+</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 17 : nested anchor
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>
+<a href="https://example.com/">
+CASE17_OUTER_LINK
+<a href="https://example.org/">INNER_LINK</a>
+</a>
+</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 18 : p内部へblock element
+期待: ERROR
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>
+CASE18_TEXT
+<div>BLOCK_ELEMENT_INSIDE_P</div>
+</p>
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 19 : HTMLタグtypo
+期待: unknown tag診断
+===================================================== -->
+
+<!-- wp:html -->
+<dvi>CASE19_UNKNOWN_HTML_TAG</dvi>
+<!-- /wp:html -->
+
+
+<!-- =====================================================
+CASE 20 : HTML属性typo
+期待: scrset → srcset候補
+===================================================== -->
+
+<!-- wp:html -->
+<img
+    src="sample.jpg"
+    alt="CASE20"
+    scrset="sample-2x.jpg 2x"
+>
+<!-- /wp:html -->
+
+
+<!-- =====================================================
+CASE 21 : CSS property typo
+期待: Warning
+===================================================== -->
+
+<!-- wp:html -->
+<div style="
+background-color: #ffffff;
+backgroun-color: #ffeecc;
+color: #333333;
+">
+CASE21_CSS_PROPERTY_TYPO
+</div>
+<!-- /wp:html -->
+
+
+<!-- =====================================================
+CASE 22 : CSS unit typo
+期待: Warning
+===================================================== -->
+
+<!-- wp:html -->
+<div style="
+margin: 2en;
+padding: 10px;
+">
+CASE22_CSS_UNIT_TYPO
+</div>
+<!-- /wp:html -->
+
+
+<!-- =====================================================
+CASE 23 : CSS colon欠落
+期待: CSS診断
+===================================================== -->
+
+<!-- wp:html -->
+<div style="
+color #cc0000;
+padding: 10px;
+">
+CASE23_CSS_MISSING_COLON
+</div>
+<!-- /wp:html -->
+
+
+<!-- =====================================================
+CASE 24 : separator 内へcode混入
+期待:
+・separator代表診断
+・code関連cascadeが大量発生しない
+===================================================== -->
+
+<!-- wp:separator -->
+<hr class="wp-block-separator has-alpha-channel-opacity">
+<code><code>
+<!-- /wp:separator -->
+
+
+<!-- =====================================================
+CASE 25 : nested wp:html
+期待:
+・Warning
+・ERRORにはしない
+===================================================== -->
+
+<!-- wp:html -->
+<div>CASE25_OUTER_HTML</div>
+
+<!-- wp:html -->
+<div>CASE25_INNER_HTML</div>
+<!-- /wp:html -->
+
+<!-- /wp:html -->
+
+
+<!-- =====================================================
+CASE 26 : HTMLタグがWP境界を越える
+期待: ERROR
+修正位置: div開始付近
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>CASE26_FIRST_PARAGRAPH</p>
+
+<div class="case26-cross-boundary">
+
+<!-- /wp:paragraph -->
+
+
+<!-- wp:paragraph -->
+<p>CASE26_SECOND_PARAGRAPH</p>
+<!-- /wp:paragraph -->
+
+</div>
+
+
+<!-- =====================================================
+CASE 27 : 正常container wrapper
+期待:
+・このgroup wrapperをHTML境界越えErrorにしない
+===================================================== -->
+
+<!-- wp:group -->
+<div class="wp-block-group">
+
+<!-- wp:paragraph -->
+<p>CASE27_VALID_GROUP_CHILD</p>
+<!-- /wp:paragraph -->
+
+</div>
+<!-- /wp:group -->
+
+
+<!-- =====================================================
+CASE 28 : 不正JSON + 独立CSS typo
+期待:
+・JSON診断
+・JSON由来属性cascadeは抑制
+・colr のCSS診断は残る
+===================================================== -->
+
+<!-- wp:heading {"level":3,} -->
+<h3
+    class="wp-block-heading"
+    style="colr: #ff0000;"
+>
+CASE28_INVALID_JSON_AND_CSS
+</h3>
+<!-- /wp:heading -->
+
+
+<!-- =====================================================
+ここから下はブロック境界破損系
+===================================================== -->
+
+
+<!-- =====================================================
+CASE 29 : 余分な終了コメント
+期待: ERROR
+
+確認:
+Classic / Freeform化の可能性が説明されること
+===================================================== -->
+
+<!-- /wp:paragraph -->
+
+
+<!-- =====================================================
+CASE 30 : 異種終了コメント
+期待: ERROR
+
+確認:
+期待する終了名と実際の終了名が表示されること
+===================================================== -->
+
+<!-- wp:list -->
+<ul class="wp-block-list">
+
+<!-- wp:list-item -->
+<li>CASE30_MISMATCHED_CLOSE</li>
+
+<!-- /wp:list -->
+
+</ul>
+
+<!-- /wp:list-item -->
+
+
+<!-- =====================================================
+CASE 31 : closing order逆転
+期待: ERROR
+===================================================== -->
+
+<!-- wp:columns -->
+<div class="wp-block-columns">
+
+<!-- wp:column -->
+<div class="wp-block-column">
+<p>CASE31_REVERSED_CLOSE_ORDER</p>
+</div>
+
+<!-- /wp:columns -->
+
+</div>
+
+<!-- /wp:column -->
+
+
+<!-- =====================================================
+CASE 32 : 最終ケース
+WordPress終了コメント欠落
+
+期待:
+・ERROR
+・後続巻き込み候補
+・保存/復旧前に修正する旨の説明
+
+このCASEは意図的に最後まで閉じません。
+===================================================== -->
+
+<!-- wp:paragraph -->
+<p>
+CASE32_MISSING_WORDPRESS_CLOSE_FINAL_TEST
+</p>
