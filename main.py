@@ -109,6 +109,7 @@ from fileio.unsaved_backup_manager import (
 from localization.translator import Translator
 from normalise import apply_normalise_operation
 from preview.wordpress_preview import WordPressPreview
+from preview.wordpress_runtime import default_runtime_root
 from search.css_lint import CssLintIssue, lint_stylesheet
 from search.html_typo_lint import HtmlTypoLintMessage, lint_html_typos
 from search.search_engine import SearchEngine, SearchMatch, SearchOptions
@@ -1615,7 +1616,7 @@ class MainWindow(QMainWindow):
         """Send an unchanged snapshot to an isolated, standard local WordPress."""
         if self.wordpress_preview is None:
             preview = WordPressPreview(
-                app_base_dir() / "runtime" / "wordpress-preview",
+                default_runtime_root(),
                 bundled_base_dir() / "resources" / "wordpress_preview" / "bridge.mjs",
                 self,
             )

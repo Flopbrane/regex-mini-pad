@@ -16,6 +16,8 @@ from collections.abc import Callable
 from pathlib import Path
 from urllib.request import urlopen
 
+from portable_runtime import app_base_dir, bundled_base_dir
+
 PLAYGROUND_VERSION = "3.1.60"
 MINIMUM_NODE_VERSION = (24, 18, 0)
 PACKAGES = ("@wp-playground/wordpress", "@php-wasm/node-8-3")
@@ -31,10 +33,10 @@ def _check_cancel(cancel: threading.Event) -> None:
         raise PreparationCancelled()
 
 
-def find_node(runtime_root: Path) -> Path | None:
+def find_node(runtime_root: Path, *, include_installed: bool = True) -> Path | None:
     """Prefer the adjacent portable Node, then an already-installed compatible Node."""
     candidates = list((runtime_root / "node").glob("node-*/node.exe"))
-    installed = shutil.which("node")
+    installed = shutil.which("node") if include_installed else None
     if installed:
         candidates.append(Path(installed))
     for candidate in candidates:
@@ -49,6 +51,14 @@ def find_node(runtime_root: Path) -> Path | None:
         except (OSError, ValueError, subprocess.SubprocessError):
             continue
     return None
+
+
+def default_runtime_root() -> Path:
+    """Use complete bundled data directly; keep first-use downloads beside the EXE."""
+    bundled_root = bundled_base_dir() / "runtime/wordpress-preview"
+    if bundled_base_dir() != app_base_dir() and runtime_ready(bundled_root):
+        return bundled_root
+    return app_base_dir() / "runtime/wordpress-preview"
 
 
 def runtime_ready(runtime_root: Path) -> bool:

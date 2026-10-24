@@ -1,4 +1,6 @@
 # ruff: noqa: F821
+import os
+import sys
 from pathlib import Path
 
 # ======================================================
@@ -13,6 +15,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(SPECPATH)
 PROJECT_DIR = PROJECT_ROOT
+sys.path.insert(0, str(PROJECT_DIR))
+
+from preview.package_runtime import runtime_datas
+
 APP_NAME = "regex-pad"
 DIST_FOLDER_NAME = "regex-pad"
 
@@ -54,6 +60,11 @@ app_datas = [
 ]
 
 DATAS = [*app_datas]
+
+# An onedir distribution carries all preview dependencies under _internal.
+# Direct spec builds require prepared data; build.ps1 prepares it automatically.
+if os.environ.get("REGEXPAD_SKIP_WORDPRESS_RUNTIME") != "1":
+    DATAS.extend(runtime_datas(PROJECT_DIR / "runtime" / "wordpress-preview"))
 
 resources_dir = PROJECT_DIR / "resources"
 if resources_dir.exists():

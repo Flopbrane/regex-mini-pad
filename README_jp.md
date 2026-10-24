@@ -30,6 +30,24 @@
 公式資料：[WordPress Playground](https://developer.wordpress.org/playground/developers/local-development/)、
 [WordPressの本文処理](https://developer.wordpress.org/reference/functions/do_blocks/)。
 
+### WordPress環境を同梱してEXEをビルドする
+
+PowerShellで `./build.ps1` を実行すると、WordPressプレビュー環境を準備して同梱します。
+ビルドするPCにNodeがあっても、配布用のポータブルNodeを別途用意します。
+配布先ではWordPress・PHP・MySQL・Nodeの事前導入や、標準表示のための初回ダウンロードは不要です。
+同梱先は `dist/regex-pad/_internal/runtime/wordpress-preview/` です。
+**EXEだけではなく、`_internal`を含む`dist/regex-pad/`フォルダー全体を配布してください。**
+
+WordPress本体・標準テーマ・PHP実行部品・SQLite・Nodeとライセンスを含め、
+ダウンロード用キャッシュ・準備ログ・NodeのZIP・npmツール本体は除外します。
+ビルド用環境の初回準備にはインターネット接続が必要で、次回からは準備済みデータを再利用します。
+必須ファイルの不足や同梱Nodeの起動失敗は、ビルドエラーとして通知します。
+
+小さい配布物にして従来の初回準備を使う場合は、`./build.ps1 -SkipWordPressRuntime` を指定します。
+`.spec`を直接ビルドする場合は、先に指定Pythonで `-m preview.package_runtime` を実行します。
+`.spec`直接実行で同梱を省略する場合だけ、環境変数 `REGEXPAD_SKIP_WORDPRESS_RUNTIME=1` を指定します。
+環境準備はソース側の `runtime/wordpress-preview/` に行い、Node/npmのグローバル設定は変更しません。
+
 ## 開始タグの属性記述チェック
 
 文法チェックで、`<div>` を閉じた後に `style="..."` などの属性を書いてしまった形を検出します。

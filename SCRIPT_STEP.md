@@ -3644,3 +3644,32 @@ Canonical propagation and validation:
 - Canonical full pytest completed successfully: 635 passed. Ruff: All checks passed. Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. Translation JSON parsing, JavaScript syntax and `git diff --check` passed.
 - Prepared the optional environment directly under canonical `runtime/wordpress-preview`, without copying worktree build output. Real-engine verification passed with WordPress 7.1.3 and Twenty Twenty-Five: dynamic latest-posts rendered, HTTP writes/foreign hosts rejected, original article 11 static findings versus repaired article zero, both HTTP 200 with no runtime warnings. Shutdown made the local URL inaccessible.
 - Final source/canonical SHA-256 equality was verified for all 15 feature files, including this completed record. The canonical `.gitignore` differs only by its intended added rule from its captured version. Source propagation is complete; restart a running source application to load the new View menu actions. EXE rebuilding and physical default-browser acceptance remain unperformed.
+
+## Step15-section19 Bundle WordPress Preview In EXE Distributions
+
+Date: 2026-10-23
+
+User request: update the spec and build script so EXE distributions can include the WordPress preview environment. The existing script is `build.ps1` (the request spelled it `build.sp1`).
+
+Implementation:
+
+- Default `build.ps1` prepares official preview dependencies plus a portable Node, independent of an installed build-machine Node. `-SkipWordPressRuntime` retains first-use setup for smaller distributions. Restore temporary build environment settings afterwards.
+- `regex-pad.spec` explicitly collects the prepared WordPress/standard theme ZIP, SQLite integration, PHP.wasm/module dependencies, portable Node executable and license files under `_internal/runtime/wordpress-preview`. Exclude npm/download caches, logs, Node ZIPs and Node's npm tooling. Direct spec builds fail clearly if runtime preparation is missing; `REGEXPAD_SKIP_WORDPRESS_RUNTIME=1` explicitly opts out.
+- Added `preview/package_runtime.py` for preparation, strict data selection and post-build checks. Node must start and meet the supported version; missing runtime components abort the build.
+- The app prefers complete bundled runtime data via `default_runtime_root`; lightweight builds keep the adjacent writable runtime setup path. Source behavior is unchanged.
+- Build post-checks require the preview bridge and validate the bundled runtime. Resource replacement verifies its target stays under project dist. Removed the old trailing signature comment block when editing the PowerShell script; no signing certificate was used.
+- Updated both READMEs and packaging regressions for bundle contents, missing dependencies, portable Node preparation and frozen-path resolution. Distribute the complete onedir folder, including `_internal`.
+
+Worktree validation:
+
+- Full pytest: 640 passed. Ruff passed. Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. PowerShell AST parsing and `git diff --check` passed.
+- Ran the actual default `build.ps1` through PyInstaller 6.22.2 successfully. Build post-checks validated 234 WordPress runtime files, including executable portable Node. The bundled runtime occupies about 189 MiB; the complete tested onedir distribution is about 303 MiB.
+- Real-engine integration used the distribution's own bridge, WordPress ZIP, SQLite, PHP.wasm modules and Node: WordPress 7.1.3 / Twenty Twenty-Five, dynamic latest-posts rendering, HTTP/Host restrictions, both article regressions and shutdown all passed.
+- Started the packaged EXE offscreen for five seconds; it stayed running and initialized its adjacent runtime/data folders, then the owned smoke process was terminated. Physical GUI/menu/default-browser interaction and acceptance on a separate clean PC remain unperformed. The packaged real-engine check is separate from GUI acceptance.
+
+Canonical propagation and validation:
+
+- Preflight checked all eight existing destination files against captured SHA-256 values and confirmed the new helper path was absent. Propagated only this request's nine source/test/documentation files by verified temporary writes and atomic replacement, preserving unrelated changes.
+- Canonical full pytest: 640 passed. Ruff passed; Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. PowerShell syntax parsing and `git diff --check` passed.
+- Prepared canonical portable Node directly from the official download rather than copying developer runtime/build output. `python -m preview.package_runtime` validated all 234 selected runtime files, making the canonical source ready for the default build and direct spec collection.
+- Final SHA-256 equality was verified for all nine transferred files, including this record. Actual EXE build/startup and packaged-runtime integration were performed in the worktree. The existing canonical dist/EXE was not replaced; running canonical `build.ps1` creates its updated distribution.

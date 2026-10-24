@@ -1,4 +1,8 @@
-﻿$ErrorActionPreference = "Stop"
+param(
+    [switch] $SkipWordPressRuntime
+)
+
+$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PythonExe = "D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe"
@@ -13,6 +17,7 @@ $AppDistName = "regex-pad"
 # PyInstallerのspec側で同梱していない場合でも、ビルド後に確実にコピーします。
 $ResourceSourcePath = Join-Path $ProjectRoot "resources"
 $AssetSourcePath = Join-Path $ProjectRoot "assets"
+$WordPressRuntimePath = Join-Path $ProjectRoot "runtime\wordpress-preview"
 
 function Copy-DirectoryFresh {
     param(
@@ -28,7 +33,12 @@ function Copy-DirectoryFresh {
     }
 
     if (Test-Path -LiteralPath $DestinationPath) {
-        Remove-Item -LiteralPath $DestinationPath -Recurse -Force
+        $ResolvedDestination = (Resolve-Path -LiteralPath $DestinationPath).Path
+        $ExpectedDistRoot = [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot "dist"))
+        if (-not $ResolvedDestination.StartsWith($ExpectedDistRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to replace a directory outside project dist: $ResolvedDestination"
+        }
+        Remove-Item -LiteralPath $ResolvedDestination -Recurse -Force
     }
 
     $DestinationParent = Split-Path -Parent $DestinationPath
@@ -54,10 +64,22 @@ if (-not (Test-Path -LiteralPath $ResourceSourcePath)) {
 Push-Location $ProjectRoot
 try {
     $OriginalPath = $env:Path
+    $OriginalSkipWordPressRuntime = $env:REGEXPAD_SKIP_WORDPRESS_RUNTIME
     $env:Path = (($OriginalPath -split ";") | Where-Object {
             $_ -notmatch "\\\.cache\\codex-runtimes" -and
             $_ -notmatch "\\\.codex\\tmp"
         }) -join ";"
+
+    if ($SkipWordPressRuntime) {
+        $env:REGEXPAD_SKIP_WORDPRESS_RUNTIME = "1"
+    }
+    else {
+        $env:REGEXPAD_SKIP_WORDPRESS_RUNTIME = "0"
+        & $PythonExe -m preview.package_runtime --runtime-root $WordPressRuntimePath
+        if ($LASTEXITCODE -ne 0) {
+            throw "WordPress runtime preparation failed with exit code $LASTEXITCODE"
+        }
+    }
 
     & $PythonExe -m PyInstaller --noconfirm --clean $SpecPath
     if ($LASTEXITCODE -ne 0) {
@@ -92,6 +114,19 @@ try {
         throw "Required resource was not copied: $RequiredTextFile"
     }
 
+    $RequiredBridge = Join-Path $InternalPath "resources\wordpress_preview\bridge.mjs"
+    if (-not (Test-Path -LiteralPath $RequiredBridge)) {
+        throw "Required WordPress preview bridge was not copied: $RequiredBridge"
+    }
+    if (-not $SkipWordPressRuntime) {
+        $BundledRuntimePath = Join-Path $InternalPath "runtime\wordpress-preview"
+        & $PythonExe -m preview.package_runtime --verify --runtime-root $BundledRuntimePath
+        if ($LASTEXITCODE -ne 0) {
+            throw "Bundled WordPress verification failed with exit code $LASTEXITCODE"
+        }
+        Write-Host "WordPress preview runtime bundled at: $BundledRuntimePath"
+    }
+
     Write-Host "Build completed."
     Write-Host "Copied resources to: $(Join-Path $InternalPath 'resources')"
 
@@ -108,39 +143,6 @@ finally {
     if ($null -ne $OriginalPath) {
         $env:Path = $OriginalPath
     }
+    $env:REGEXPAD_SKIP_WORDPRESS_RUNTIME = $OriginalSkipWordPressRuntime
     Pop-Location
 }
-
-# SIG # Begin signature block
-# MIIFqgYJKoZIhvcNAQcCoIIFmzCCBZcCAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB3XdeknTKKinRJ
-# zMlAy1no/tyt3L65qvRSQGkURLyrWqCCAxgwggMUMIIB/KADAgECAhBYeqtQhdAz
-# iUeOfLlIHo4qMA0GCSqGSIb3DQEBCwUAMCIxIDAeBgNVBAMMF0YuS3Vyb2thd2Eg
-# Q29kZSBTaWduaW5nMB4XDTI2MTAxNDAwNDgyOVoXDTI3MTAxNDAxMDgyOVowIjEg
-# MB4GA1UEAwwXRi5LdXJva2F3YSBDb2RlIFNpZ25pbmcwggEiMA0GCSqGSIb3DQEB
-# AQUAA4IBDwAwggEKAoIBAQC4PuGXD3IFJNFtRPomKqKw+GWVqYgNsq7/FYrIbBeM
-# 1w4btBz0zk8rmMdZ+EuUBktYLz5zxRv9/TiZLmTsQ3m/LHrCjEaU9Tp5KgVM39Dc
-# CQfvsxMMt08PnifB/lmg+pFerdPV9QASN7LUmFOOGi1JpAkhIAU5FfP79CgqXfDc
-# uIl8A35VayCgTic4FzXoOGe4X6Jj9/gn6qxU6dUOp/fGA9K/UwusykSxVqLqLfp1
-# aP9SKDON5NtHIG0eE8lq0FYzHI2FiLlnTw5R/ypPxDTzKIO2kb+KRHZ0qzGE+anf
-# pWrCTTqMAlCUuJF7nzi1/pSJHSzJQDCv3dRw/iypekxhAgMBAAGjRjBEMA4GA1Ud
-# DwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAzAdBgNVHQ4EFgQUxvSZOq0F
-# J0bpRGlZk5C3YimMnugwDQYJKoZIhvcNAQELBQADggEBAKq06mYu4ePY+ENoSJaj
-# 7lud+Z6Sw3+t+Jq7qFFYBZYaoW8WNzuhdxvh6WEH4v+wJT7aY/Sw7otvdkqQQrgL
-# M7TdJZ/epWtmlAL3KRKJE7W2ZkJCeNrpZRpomnRzlkpGiMykR0vh9IIZEJH0Fbgc
-# 79GYhIhVORvC5ke/8Nc6zbXQuRvdmX1wY3+fjJPAuATnct1M/Q7IxzGQOifeT26A
-# xdAjoGphQyCO1+/pTfIDFkl7WT6tZ88r0n4q+vhx81Pj36/ZRKa6Z+6DqfhHEVNK
-# /QN+RNSnk2H4bJNdJrG5wRb1o/tm4a6+W38vzbbD5zkNgrNmEAc0IqT6vf0Te3Ac
-# NFcxggHoMIIB5AIBATA2MCIxIDAeBgNVBAMMF0YuS3Vyb2thd2EgQ29kZSBTaWdu
-# aW5nAhBYeqtQhdAziUeOfLlIHo4qMA0GCWCGSAFlAwQCAQUAoIGEMBgGCisGAQQB
-# gjcCAQwxCjAIoAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYK
-# KwYBBAGCNwIBCzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIEHqJAmn
-# zTC/p3SYeMZYavDE2bRTWSSgjMlWPSorQNkJMA0GCSqGSIb3DQEBAQUABIIBAGlm
-# qnYXAlBIXwI02DqVjpI9qAeY1UyiI4GlievxgpHJFYrU7WA93LHzJIWXpf4DzUdp
-# DlI7/tS6+Vyc1vqPxsos4ol0yodl5ZoZGkJNT9TSppd9JeWSUjmgKAzsXyHgDYnP
-# biDi+H9oZ3DAc7ctZ1Ho8e0WR+Zimlob4LBl5U/JDUqo3+6Gt5gB7ooLYEBnrYJZ
-# OfJ3AQouCaIgyFBOXaBYsqWPKZMFNex65d2z9kmgYDiuUTk7rPRvAz0Yo2zkV6ju
-# PuIur45KqPjYt2++imH9AXrA01Byt0SYeeKl5D0Nc9AiW2UhGj5/zU2FLiNyNpSC
-# FsG6zSl5nPHP1TYk414=
-# SIG # End signature block

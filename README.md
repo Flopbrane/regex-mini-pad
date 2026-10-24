@@ -62,6 +62,28 @@ in the dialog for the current session and are not saved across restarts.
 Official references: [WordPress Playground](https://developer.wordpress.org/playground/developers/local-development/),
 [WordPress rendering](https://developer.wordpress.org/reference/functions/do_blocks/).
 
+### Building with the WordPress environment
+
+Run `./build.ps1` in PowerShell. The default build prepares the preview environment
+and a portable Node even if the build machine already has Node, then includes them
+under `dist/regex-pad/_internal/runtime/wordpress-preview/`. The EXE uses this
+bundled environment directly, so recipients do not need WordPress, PHP, MySQL,
+Node, or first-use downloads for standard local rendering. Distribute the entire
+`dist/regex-pad/` folder, including `_internal`, rather than the EXE alone.
+
+The bundle contains WordPress with its standard theme, PHP.wasm dependencies,
+SQLite integration, Node, and their license files. Download caches, setup logs,
+Node ZIP archives and Node's npm tooling are excluded. First build preparation
+needs internet access; subsequent builds reuse the prepared files. Build failure
+is reported if required runtime data is missing or the bundled Node cannot run.
+
+For a smaller distribution retaining first-use setup, run
+`./build.ps1 -SkipWordPressRuntime`. A direct `.spec` build requires a prepared
+runtime; use `python -m preview.package_runtime` with the specified interpreter
+first. For direct `.spec` lightweight builds only, set
+`REGEXPAD_SKIP_WORDPRESS_RUNTIME=1`. Build-time preparation uses the normal source
+`runtime/wordpress-preview/` folder and does not change global Node/npm settings.
+
 ## Goals
 
 - Portable folder-based execution.
