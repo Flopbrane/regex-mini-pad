@@ -132,6 +132,12 @@ first. For direct `.spec` lightweight builds only, set
 
 ## CSS / HTML / WordPress Grammar Check
 
+HTML tag highlighting supports opening tags and quoted attribute values that
+span multiple lines, including multiline `style` attributes. A quoted `>` does
+not end the tag; ordinary text after the real closing `>` keeps its normal color.
+WordPress block comments keep their separate configured color. This display
+feature does not rewrite text or change lint validation.
+
 Grammar Check is a lightweight paste-safety linter. It is not a full browser or
 WordPress parser, but it is designed to catch common document-breaking mistakes
 before pasting or saving article HTML.

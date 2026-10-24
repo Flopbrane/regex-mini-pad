@@ -3728,3 +3728,29 @@ Validation:
 - Qt offscreen confirms severity decisions and unchanged text. Physical GUI readability/navigation/file-save acceptance, a rebuilt EXE, production-site saves and exhaustive Gutenberg schemas remain unperformed.
 
 - Final observation detected another update to the out-of-scope snippet dictionary after validation. Preserved that update without overwriting it; recorded both hashes. The reported full-suite result belongs to the tested dictionary version, not the later update.
+
+## Step15-section22 Multiline HTML Tag Highlighting
+
+Date: 2026-10-25
+
+Request: color complete multiline HTML opening tags, including multiline style attributes, without changing the linter or modifying document text.
+
+Implementation:
+
+- Changed only HtmlSyntaxHighlighter in editor/text_editor.py. Carry unclosed tag, single/double-quoted attribute and comment states between QTextBlocks using previousBlockState/setCurrentBlockState. End a tag only at an unquoted > and restore ordinary body formatting immediately afterwards.
+- Preserve the configured HTML tag and WordPress comment colors, and keep comment/escaped-display content from starting tag runs. Convert Python character positions to Qt UTF-16 offsets so leading non-BMP text does not shift highlights.
+- Added tests/test_html_syntax_highlighter.py: 13 new cases covering the supplied div/img layouts, quoted >, empty continuation lines, ordinary and WordPress comments, single-line neighboring tags, color settings, incremental quote edits, disable/enable, unchanged text/modification flags and emoji offsets.
+- Updated both READMEs. No linter/parser/CSS/JSON implementation, application settings, WordPress runtime or build configuration changes.
+
+Worktree validation:
+
+- Highlighter plus existing whitespace/display tests: 22 passed. Full pytest: 695 passed (13 added tests).
+- Rendered a separate Qt offscreen editor with multiline div/img examples; supplied Windows font files only to that test process. The rendered colors and actual QTextLayout format ranges were inspected; no user window/settings were changed.
+- Canonical transfer and validation results are appended after final verification. EXE rebuilding and physical GUI acceptance remain separate and were not performed.
+
+Canonical validation:
+
+- Focused highlighter/display pytest: 22 passed. Full canonical pytest: 692 passed / 3 failed. The same three out-of-scope frame insertion tests disagree with the current snippet dictionary border/color/font-weight settings; do not overwrite those settings to make this highlighting task pass.
+- Ruff passed; Pyright reported 0 errors, 0 warnings, 0 informations. Worktree full pytest: 695 passed. After merging parallel canonical documentation/type annotations, the focused 22 tests, Ruff and Pyright passed again; rendering logic was compared with annotations/docstrings excluded.
+- Preserved concurrent Pylint comments, docstrings and type annotations in the canonical editor file. Transferred only editor/text_editor.py, tests/test_html_syntax_highlighter.py, README.md, README_jp.md and this appended record; unrelated sample data remains intact.
+- Final SHA-256 equality was checked for the five intended files. No HTML/CSS/JSON/multilanguage linter changes were made in this task. The source application must be restarted to load the fix; no packaged EXE was rebuilt and physical GUI acceptance remains unperformed.

@@ -1,9 +1,15 @@
+# pylint: disable=E0611,W0611,C0301,C0103
+"""メインのテキストエディタウィジェットを提供するモジュール"""
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-from PySide6.QtCore import QRect, QSize, Qt
+from PySide6.QtCore import (
+    QRect,
+    QSize,
+    Qt,
+)
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -28,11 +34,22 @@ from search.search_engine import SearchMatch
 
 @dataclass(frozen=True)
 class VisibleWhitespaceMark:
+    """スペースの可視化マークの位置とマーク文字を表すデータクラス"""
     text_position: int
     marker: str
 
 
 class HtmlSyntaxHighlighter(QSyntaxHighlighter):
+    """HTMLの構文を強調表示するためのQSyntaxHighlighterのサブクラス"""
+    NORMAL = 0
+    TAG = 1
+    SINGLE_QUOTED_ATTRIBUTE = 2
+    DOUBLE_QUOTED_ATTRIBUTE = 3
+    COMMENT = 4
+    WORDPRESS_COMMENT = 5
+    TAG_START: re.Pattern[str] = re.compile(r"</?[A-Za-z][A-Za-z0-9:-]*(?=[\s/>]|$)")
+    WORDPRESS_COMMENT_START: re.Pattern[str] = re.compile(r"<!--\s*/?wp:")
+
     def __init__(self, document: QTextDocument) -> None:
         super().__init__(document)
         self.enabled = True
@@ -42,11 +59,13 @@ class HtmlSyntaxHighlighter(QSyntaxHighlighter):
         self.comment_format.setForeground(QColor("#667085"))
 
     def set_tag_color(self, color_code: str) -> None:
+        """HTMLタグの色を設定するメソッド"""
         color = QColor(color_code)
         self.tag_format.setForeground(color if color.isValid() else QColor("#0b5cad"))
         self.rehighlight()
 
     def set_core_block_color(self, color_code: str) -> None:
+        """WordPressのコアブロックコメントの色を設定するメソッド"""
         color = QColor(color_code)
         self.comment_format.setForeground(
             color if color.isValid() else QColor("#667085")
@@ -54,19 +73,71 @@ class HtmlSyntaxHighlighter(QSyntaxHighlighter):
         self.rehighlight()
 
     def set_enabled(self, enabled: bool) -> None:
-        self.enabled = enabled
+        """構文強調表示の有効/無効を設定するメソッド"""
+        self.enabled: bool = enabled
         self.rehighlight()
 
-    def highlightBlock(self, text: str) -> None:
+    def highlightBlock(self, text: str) -> None:  # pylint: disable=invalid-name
+        """テキストブロックを強調表示するメソッド"""
+        self.setCurrentBlockState(self.NORMAL)
         if not self.enabled:
             return
-        for match in re.finditer(r"<!--\s*/?wp:[^>]*-->", text):
-            self.setFormat(match.start(), match.end() - match.start(), self.comment_format)
-        for match in re.finditer(r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s[^<>]*)?/?>", text):
-            self.setFormat(match.start(), match.end() - match.start(), self.tag_format)
+        state: int = max(self.previousBlockState(), self.NORMAL)
+        # QTextLayout indexes UTF-16 code units, unlike Python string indexes.
+        offsets: list[int] = [0]
+        for character in text:
+            offsets.append(offsets[-1] + (2 if ord(character) > 0xFFFF else 1))
+        position: int = 0
+        while position < len(text):
+            if state in {self.TAG, self.SINGLE_QUOTED_ATTRIBUTE, self.DOUBLE_QUOTED_ATTRIBUTE}:
+                end, state = self._tag_end(text, position, state)
+                self.setFormat(offsets[position], offsets[end] - offsets[position], self.tag_format)
+                position = end
+                continue
+            if state in {self.COMMENT, self.WORDPRESS_COMMENT}:
+                closing: int = text.find("-->", position)
+                end: int = closing + 3 if closing >= 0 else len(text)
+                if state == self.WORDPRESS_COMMENT:
+                    self.setFormat(offsets[position], offsets[end] - offsets[position], self.comment_format)
+                position = end
+                if closing >= 0:
+                    state = self.NORMAL
+                continue
+            position: int = text.find("<", position)
+            if position < 0:
+                break
+            if text.startswith("<!--", position):
+                state = (
+                    self.WORDPRESS_COMMENT if self.WORDPRESS_COMMENT_START.match(text, position)
+                    else self.COMMENT
+                )
+            elif self.TAG_START.match(text, position):
+                state = self.TAG
+            else:
+                position += 1
+        self.setCurrentBlockState(state)
+
+    def _tag_end(self, text: str, start: int, state: int) -> tuple[int, int]:
+        """固有タグの終了位置を見つけるためのヘルパーメソッド"""
+        for position in range(start, len(text)):
+            character: str = text[position]
+            if state == self.SINGLE_QUOTED_ATTRIBUTE:
+                if character == "'":
+                    state = self.TAG
+            elif state == self.DOUBLE_QUOTED_ATTRIBUTE:
+                if character == '"':
+                    state = self.TAG
+            elif character == "'":
+                state = self.SINGLE_QUOTED_ATTRIBUTE
+            elif character == '"':
+                state = self.DOUBLE_QUOTED_ATTRIBUTE
+            elif character == ">":
+                return position + 1, self.NORMAL
+        return len(text), state
 
 
 class TextEditor(QPlainTextEdit):
+    """テキストエディタウィジェットを提供するクラス"""
     line_head_selection_width = 8
 
     def __init__(self) -> None:
@@ -104,12 +175,14 @@ class TextEditor(QPlainTextEdit):
         self.update_editor_margins()
 
     def set_word_wrap_enabled(self, enabled: bool) -> None:
-        self.word_wrap_enabled = enabled
+        """ワードラップの有効/無効を設定するメソッド"""
+        self.word_wrap_enabled: bool = enabled
         self._apply_line_wrap_mode()
 
     def set_fixed_column_wrap_options(self, *, enabled: bool, column: int) -> None:
-        self.fixed_column_wrap_enabled = enabled
-        self.fixed_column_wrap_column = max(1, column)
+        """固定カラムラップの有効/無効とカラム数を設定するメソッド"""
+        self.fixed_column_wrap_enabled: bool = enabled
+        self.fixed_column_wrap_column: int = max(1, column)
         self._apply_line_wrap_mode()
         self.update_editor_margins()
         self.viewport().update()
@@ -122,13 +195,14 @@ class TextEditor(QPlainTextEdit):
         html_tag_color: str,
         wordpress_core_block_color: str = "#667085",
     ) -> None:
-        self.editor_background_color = _valid_color_or_default(
+        """エディタの色を設定するメソッド"""
+        self.editor_background_color: str = _valid_color_or_default(
             background_color,
             "#ffffff",
         )
-        self.editor_text_color = _valid_color_or_default(text_color, "#202124")
-        self.html_tag_color = _valid_color_or_default(html_tag_color, "#0b5cad")
-        self.wordpress_core_block_color = _valid_color_or_default(
+        self.editor_text_color: str = _valid_color_or_default(text_color, "#202124")
+        self.html_tag_color: str = _valid_color_or_default(html_tag_color, "#0b5cad")
+        self.wordpress_core_block_color: str = _valid_color_or_default(
             wordpress_core_block_color,
             "#667085",
         )
@@ -137,6 +211,7 @@ class TextEditor(QPlainTextEdit):
         self.html_highlighter.set_core_block_color(self.wordpress_core_block_color)
 
     def _apply_editor_colors(self) -> None:
+        """エディタの背景色とテキスト色を適用するヘルパーメソッド"""
         self.setStyleSheet(
             "QPlainTextEdit {"
             f" background-color: {self.editor_background_color};"
@@ -145,8 +220,9 @@ class TextEditor(QPlainTextEdit):
         )
 
     def _apply_line_wrap_mode(self) -> None:
-        enabled = self.word_wrap_enabled or self.fixed_column_wrap_enabled
-        wrap_mode = (
+        """行ラップモードを適用するヘルパーメソッド"""
+        enabled: bool = self.word_wrap_enabled or self.fixed_column_wrap_enabled
+        wrap_mode: QPlainTextEdit.LineWrapMode = (
             QPlainTextEdit.LineWrapMode.WidgetWidth
             if enabled
             else QPlainTextEdit.LineWrapMode.NoWrap
@@ -159,30 +235,36 @@ class TextEditor(QPlainTextEdit):
         )
 
     def set_line_numbers_enabled(self, enabled: bool) -> None:
-        self.line_numbers_enabled = enabled
+        """行番号の有効/無効を設定するメソッド"""
+        self.line_numbers_enabled: bool = enabled
         self.line_number_area.setVisible(enabled)
         self.update_line_number_area_width()
 
     def line_number_area_size_hint(self) -> QSize:
+        """行番号エリアのサイズヒントを返すメソッド"""
         return QSize(self.line_number_area_width(), 0)
 
     def line_number_area_width(self) -> int:
+        """行番号エリアの幅を返すメソッド"""
         if not self.line_numbers_enabled:
             return 0
 
-        digits = len(str(max(1, self.blockCount())))
-        space_width = self.fontMetrics().horizontalAdvance("9") * digits
+        digits: int = len(str(max(1, self.blockCount())))
+        space_width: int = self.fontMetrics().horizontalAdvance("9") * digits
         return 12 + space_width
 
     def search_marker_area_width(self) -> int:
+        """検索マーカーエリアの幅を返すメソッド"""
         return 10
 
     def update_line_number_area_width(self) -> None:
+        """行番号エリアの幅を更新するメソッド"""
         self.update_editor_margins()
 
     def update_editor_margins(self) -> None:
-        left_margin = self.line_number_area_width()
-        right_margin = self.search_marker_area_width() + self._fixed_wrap_extra_margin()
+        """エディタのマージンを更新するメソッド"""
+        left_margin: int = self.line_number_area_width()
+        right_margin: int = self.search_marker_area_width() + self._fixed_wrap_extra_margin()
         self.setViewportMargins(
             left_margin,
             0,
@@ -191,34 +273,38 @@ class TextEditor(QPlainTextEdit):
         )
 
     def _fixed_wrap_extra_margin(self) -> int:
+        """固定カラムラップのための追加マージンを計算するヘルパーメソッド"""
         if not self.fixed_column_wrap_enabled:
             return 0
 
-        content_width = self.contentsRect().width()
-        available_text_width = max(
+        content_width: int = self.contentsRect().width()
+        available_text_width: int = max(
             0,
             content_width - self.line_number_area_width() - self.search_marker_area_width(),
         )
-        target_text_width = self.fixed_column_wrap_pixel_width()
+        target_text_width: int = self.fixed_column_wrap_pixel_width()
         return max(0, available_text_width - target_text_width)
 
     def fixed_column_wrap_pixel_width(self) -> int:
+        """固定カラムラップのピクセル幅を計算するヘルパーメソッド"""
         return max(
             1,
             self.fontMetrics().horizontalAdvance("0") * self.fixed_column_wrap_column,
         )
 
     def fixed_column_wrap_line_x(self) -> int | None:
+        """固定カラムラップのガイドラインのX座標を計算するヘルパーメソッド"""
         if not self.fixed_column_wrap_enabled:
             return None
 
-        horizontal_offset = self.horizontalScrollBar().value()
-        x_position = self.fixed_column_wrap_pixel_width() - horizontal_offset
+        horizontal_offset: int = self.horizontalScrollBar().value()
+        x_position: int = self.fixed_column_wrap_pixel_width() - horizontal_offset
         if x_position < 0 or x_position > self.viewport().width():
             return None
         return min(x_position, max(0, self.viewport().width() - 1))
 
     def update_line_number_area(self, rect: QRect, vertical_delta: int) -> None:
+        """行番号エリアを更新するメソッド"""
         if vertical_delta:
             self.line_number_area.scroll(0, vertical_delta)
         else:
@@ -234,8 +320,9 @@ class TextEditor(QPlainTextEdit):
         self.search_marker_area.update()
 
     def resizeEvent(self, event: QResizeEvent) -> None:
+        """リサイズイベントを処理するメソッド"""
         super().resizeEvent(event)
-        content_rect = self.contentsRect()
+        content_rect: QRect = self.contentsRect()
         self.line_number_area.setGeometry(
             QRect(
                 content_rect.left(),
@@ -244,7 +331,7 @@ class TextEditor(QPlainTextEdit):
                 content_rect.height(),
             )
         )
-        marker_width = self.search_marker_area_width()
+        marker_width: int = self.search_marker_area_width()
         self.search_marker_area.setGeometry(
             QRect(
                 content_rect.right() - marker_width + 1,
@@ -255,11 +342,13 @@ class TextEditor(QPlainTextEdit):
         )
 
     def paintEvent(self, event: QPaintEvent) -> None:
+        """ペイントイベントを処理するメソッド"""
         super().paintEvent(event)
         self._paint_fixed_column_wrap_guide(event)
         self._paint_visible_whitespace(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        """マウスプレスイベントを処理するメソッド"""
         if (
             not self.line_numbers_enabled
             and event.button() == Qt.MouseButton.LeftButton
@@ -271,7 +360,8 @@ class TextEditor(QPlainTextEdit):
         super().mousePressEvent(event)
 
     def select_line_at_view_y(self, y_position: int) -> None:
-        block = self._visible_block_at_y(y_position)
+        """指定されたY座標にある行を選択するメソッド"""
+        block: QTextBlock = self._visible_block_at_y(y_position)
         if not block.isValid():
             return
 
@@ -281,13 +371,14 @@ class TextEditor(QPlainTextEdit):
         self.setFocus()
 
     def _visible_block_at_y(self, y_position: int) -> QTextBlock:
-        block = self.firstVisibleBlock()
-        top = round(
+        """指定されたY座標にある可視ブロックを取得するヘルパーメソッド"""
+        block: QTextBlock = self.firstVisibleBlock()
+        top: int = round(
             self.blockBoundingGeometry(block)
             .translated(self.contentOffset())
             .top()
         )
-        bottom = top + round(self.blockBoundingRect(block).height())
+        bottom: int = top + round(self.blockBoundingRect(block).height())
 
         while block.isValid():
             if block.isVisible() and top <= y_position < bottom:
@@ -298,6 +389,7 @@ class TextEditor(QPlainTextEdit):
         return block
 
     def _paint_fixed_column_wrap_guide(self, event: QPaintEvent) -> None:
+        """固定カラムラップのガイドラインを描画するヘルパーメソッド"""
         line_x = self.fixed_column_wrap_line_x()
         if line_x is None:
             return
@@ -307,11 +399,13 @@ class TextEditor(QPlainTextEdit):
         painter.drawLine(line_x, event.rect().top(), line_x, event.rect().bottom())
 
     def set_search_matches(self, matches: list[SearchMatch]) -> None:
+        """検索マッチのリストを設定するメソッド"""
         self.search_matches = matches
         self._apply_extra_selections()
         self.search_marker_area.update()
 
     def clear_search_matches(self) -> None:
+        """検索マッチをクリアするメソッド"""
         self.set_search_matches([])
 
     def set_search_marker_colors(
@@ -319,18 +413,21 @@ class TextEditor(QPlainTextEdit):
         search_marker_color: str,
         current_match_marker_color: str,
     ) -> None:
-        self.search_marker_color = search_marker_color
-        self.current_match_marker_color = current_match_marker_color
+        """検索マーカーの色を設定するメソッド"""
+        self.search_marker_color: str = search_marker_color
+        self.current_match_marker_color: str = current_match_marker_color
         self._apply_extra_selections()
         self.search_marker_area.update()
 
     def set_grammar_issue_lines(self, line_numbers: list[int]) -> None:
+        """文法エラーの行番号リストを設定するメソッド"""
         self.grammar_issue_lines = sorted(
             {line_number for line_number in line_numbers if line_number > 0}
         )
         self._apply_extra_selections()
 
     def clear_grammar_issue_lines(self) -> None:
+        """文法エラーの行番号リストをクリアするメソッド"""
         if not self.grammar_issue_lines:
             return
         self.grammar_issue_lines = []
@@ -343,9 +440,10 @@ class TextEditor(QPlainTextEdit):
         tabs_enabled: bool,
         newlines_enabled: bool,
     ) -> None:
-        self.visible_spaces_enabled = spaces_enabled
-        self.visible_tabs_enabled = tabs_enabled
-        self.visible_newlines_enabled = newlines_enabled
+        """可視化する空白文字のオプションを設定するメソッド"""
+        self.visible_spaces_enabled: bool = spaces_enabled
+        self.visible_tabs_enabled: bool = tabs_enabled
+        self.visible_newlines_enabled: bool = newlines_enabled
         self.viewport().update()
 
     def set_visible_whitespace_marker_colors(
@@ -355,13 +453,15 @@ class TextEditor(QPlainTextEdit):
         tab_color: str,
         newline_color: str,
     ) -> None:
-        self.visible_space_marker_color = space_color
-        self.visible_tab_marker_color = tab_color
-        self.visible_newline_marker_color = newline_color
+        """可視化する空白文字のマーカー色を設定するメソッド"""
+        self.visible_space_marker_color: str = space_color
+        self.visible_tab_marker_color: str = tab_color
+        self.visible_newline_marker_color: str = newline_color
         self.viewport().update()
 
     def visible_whitespace_marks(self) -> list[VisibleWhitespaceMark]:
-        source_text = self.toPlainText()
+        """可視化する空白文字の位置とマーカーを取得するメソッド"""
+        source_text: str = self.toPlainText()
         marks: list[VisibleWhitespaceMark] = []
         for text_position, character in enumerate(source_text):
             marker = self._visible_whitespace_marker(character)
@@ -370,9 +470,10 @@ class TextEditor(QPlainTextEdit):
         return marks
 
     def _visible_whitespace_marker(self, character: str) -> str | None:
+        """指定された文字に対応する可視化マーカーを取得するヘルパーメソッド"""
         if self.visible_spaces_enabled:
             if character == " ":
-                return "␣"
+                return "·"
             if character == "\u3000":
                 return "□"
         if self.visible_tabs_enabled and character == "\t":
@@ -382,6 +483,7 @@ class TextEditor(QPlainTextEdit):
         return None
 
     def _paint_visible_whitespace(self, event: QPaintEvent) -> None:
+        """可視化する空白文字を描画するヘルパーメソッド"""
         if not (
             self.visible_spaces_enabled
             or self.visible_tabs_enabled
@@ -389,16 +491,17 @@ class TextEditor(QPlainTextEdit):
         ):
             return
 
-        source_text = self.toPlainText()
+        source_text: str = self.toPlainText()
         painter = QPainter(self.viewport())
+        painter.setFont(self.font())
 
-        block = self.firstVisibleBlock()
-        top = round(
+        block: QTextBlock = self.firstVisibleBlock()
+        top: int = round(
             self.blockBoundingGeometry(block)
             .translated(self.contentOffset())
             .top()
         )
-        bottom = top + round(self.blockBoundingRect(block).height())
+        bottom: int = top + round(self.blockBoundingRect(block).height())
 
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
@@ -422,6 +525,7 @@ class TextEditor(QPlainTextEdit):
         block_position: int,
         block_text: str,
     ) -> None:
+        """指定されたブロック内の可視化する空白文字を描画するヘルパーメソッド"""
         for character_index, character in enumerate(block_text):
             marker = self._visible_whitespace_marker(character)
             if marker is not None:
@@ -456,28 +560,75 @@ class TextEditor(QPlainTextEdit):
         marker: str,
         character: str,
     ) -> None:
+        """指定された位置に可視化する空白文字のマーカーを描画するヘルパーメソッド"""
         cursor = QTextCursor(self.document())
-        cursor.setPosition(self.text_position_to_cursor_position(text_position))
-        marker_rect = self.cursorRect(cursor)
-        if not marker_rect.intersects(event_rect.adjusted(-20, -20, 20, 20)):
+        cursor.setPosition(
+            self.text_position_to_cursor_position(text_position)
+            )
+        marker_rect: QRect = self.cursorRect(cursor)
+
+        if not marker_rect.intersects(
+            event_rect.adjusted(-20, -20, 20, 20)
+            ):
             return
 
-        painter.setPen(QColor(self._visible_whitespace_marker_color(character)))
-
-        if character == "\t":
-            marker_rect.setWidth(
-                max(marker_rect.width(), round(self.tabStopDistance()))
+        painter.setFont(self.font())
+        painter.setPen(
+            QColor(
+                self._visible_whitespace_marker_color(character)
+                )
             )
-            alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-        elif character == "\n":
+
+        if character != "\n":
+            next_cursor = QTextCursor(self.document())
+            next_cursor.setPosition(
+                self.text_position_to_cursor_position(
+                    text_position + 1
+                )
+            )
+            next_rect: QRect = self.cursorRect(next_cursor)
+
+            # 同じ表示行なら、現在位置～次文字位置を
+            # 実際の1文字分の描画領域として使用する。
+            if next_rect.top() == marker_rect.top():
+                width: int = next_rect.left() - marker_rect.left()
+
+                if width > 0:
+                    marker_rect.setWidth(width)
+
+        if character == "\n":
             marker_rect.translate(2, 0)
-            marker_rect.setWidth(max(marker_rect.width(), self.fontMetrics().height()))
-            alignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            marker_rect.setWidth(
+                max(
+                    marker_rect.width(),
+                    self.fontMetrics().height(),
+                )
+            )
+            alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+
+        elif character == "\t":
+            # 上で取得できなかった場合だけfallback
+            if marker_rect.width() <= 1:
+                marker_rect.setWidth(round(self.tabStopDistance()))
+
+            alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+
         else:
-            alignment = Qt.AlignmentFlag.AlignCenter
+            # 半角・全角スペース
+            if marker_rect.width() <= 1:
+                marker_rect.setWidth(
+                    max(
+                        1,
+                        self.fontMetrics().horizontalAdvance(character),
+                    )
+                )
+
+            alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignCenter
+
         painter.drawText(marker_rect, alignment, marker)
 
     def _visible_whitespace_marker_color(self, character: str) -> str:
+        """指定された文字に対応する可視化マーカーの色を取得するヘルパーメソッド"""
         if character == "\t":
             return self.visible_tab_marker_color
         if character == "\n":
@@ -485,50 +636,54 @@ class TextEditor(QPlainTextEdit):
         return self.visible_space_marker_color
 
     def _apply_search_highlights(self) -> None:
+        """検索マッチのハイライトを適用するヘルパーメソッド"""
         self._apply_extra_selections()
 
     def _apply_extra_selections(self) -> None:
-        selections = self._grammar_issue_selections()
+        """文法エラーと検索マッチのハイライトを適用するヘルパーメソッド"""
+        selections: list[QTextEdit.ExtraSelection] = self._grammar_issue_selections()
         selections.extend(self._search_match_selections())
         self.setExtraSelections(selections)
 
     def _grammar_issue_selections(self) -> list[QTextEdit.ExtraSelection]:
+        """文法エラーの行に対するハイライトを適用するヘルパーメソッド"""
         issue_format = QTextCharFormat()
         issue_format.setBackground(QColor(self.grammar_issue_background_color))
         issue_format.setProperty(QTextFormat.Property.FullWidthSelection, True)
 
         selections: list[QTextEdit.ExtraSelection] = []
         for line_number in self.grammar_issue_lines:
-            block = self.document().findBlockByNumber(line_number - 1)
+            block: QTextBlock = self.document().findBlockByNumber(line_number - 1)
             if not block.isValid():
                 continue
-            cursor = QTextCursor(block)
-            selection = QTextEdit.ExtraSelection()
+            cursor: QTextCursor = QTextCursor(block)
+            selection: QTextEdit.ExtraSelection = QTextEdit.ExtraSelection()
             selection.format = issue_format
             selection.cursor = cursor
             selections.append(selection)
         return selections
 
     def _search_match_selections(self) -> list[QTextEdit.ExtraSelection]:
-        highlight_format = QTextCharFormat()
+        """検索マッチに対するハイライトを適用するヘルパーメソッド"""
+        highlight_format: QTextCharFormat = QTextCharFormat()
         highlight_format.setBackground(QColor(self.search_marker_color))
-        current_highlight_format = QTextCharFormat()
+        current_highlight_format: QTextCharFormat = QTextCharFormat()
         current_highlight_format.setBackground(QColor(self.current_match_marker_color))
 
         selections: list[QTextEdit.ExtraSelection] = []
-        cursor = self.textCursor()
-        selection_start = self.cursor_position_to_text_position(cursor.selectionStart())
-        selection_end = self.cursor_position_to_text_position(cursor.selectionEnd())
+        cursor: QTextCursor = self.textCursor()
+        selection_start: int = self.cursor_position_to_text_position(cursor.selectionStart())
+        selection_end: int = self.cursor_position_to_text_position(cursor.selectionEnd())
         for match in self.search_matches[:1000]:
             if match.start == match.end:
                 continue
-            selection = QTextEdit.ExtraSelection()
+            selection: QTextEdit.ExtraSelection = QTextEdit.ExtraSelection()
             selection.format = (
                 current_highlight_format
                 if match.start == selection_start and match.end == selection_end
                 else highlight_format
             )
-            match_cursor = QTextCursor(self.document())
+            match_cursor: QTextCursor = QTextCursor(self.document())
             match_cursor.setPosition(self.text_position_to_cursor_position(match.start))
             match_cursor.setPosition(
                 self.text_position_to_cursor_position(match.end),
@@ -539,14 +694,16 @@ class TextEditor(QPlainTextEdit):
         return selections
 
     def text_position_to_cursor_position(self, text_position: int) -> int:
-        source_text = self.toPlainText()
-        bounded_position = min(max(text_position, 0), len(source_text))
+        """テキスト位置をカーソル位置に変換するメソッド"""
+        source_text: str = self.toPlainText()
+        bounded_position: int = min(max(text_position, 0), len(source_text))
         return len(source_text[:bounded_position].encode("utf-16-le")) // 2
 
     def cursor_position_to_text_position(self, cursor_position: int) -> int:
-        source_text = self.toPlainText()
-        bounded_position = max(cursor_position, 0)
-        utf16_position = 0
+        """カーソル位置をテキスト位置に変換するメソッド"""
+        source_text: str = self.toPlainText()
+        bounded_position: int = max(cursor_position, 0)
+        utf16_position: int = 0
         for text_position, character in enumerate(source_text):
             character_width = 2 if ord(character) > 0xFFFF else 1
             if utf16_position + character_width > bounded_position:
@@ -555,21 +712,22 @@ class TextEditor(QPlainTextEdit):
         return len(source_text)
 
     def paint_line_number_area(self, event: QPaintEvent) -> None:
+        """行番号エリアを描画するメソッド"""
         painter = QPainter(self.line_number_area)
         painter.fillRect(event.rect(), QColor("#f3f3f3"))
 
-        block = self.firstVisibleBlock()
-        block_number = block.blockNumber()
-        top = round(
+        block: QTextBlock = self.firstVisibleBlock()
+        block_number: int = block.blockNumber()
+        top: int = round(
             self.blockBoundingGeometry(block)
             .translated(self.contentOffset())
             .top()
         )
-        bottom = top + round(self.blockBoundingRect(block).height())
+        bottom: int = top + round(self.blockBoundingRect(block).height())
 
         while block.isValid() and top <= event.rect().bottom():
             if block.isVisible() and bottom >= event.rect().top():
-                number = str(block_number + 1)
+                number: str = str(block_number + 1)
                 painter.setPen(QColor("#606060"))
                 painter.drawText(
                     0,
@@ -586,6 +744,7 @@ class TextEditor(QPlainTextEdit):
             block_number += 1
 
     def paint_search_marker_area(self, event: QPaintEvent) -> None:
+        """検索マーカーエリアを描画するメソッド"""
         painter = QPainter(self.search_marker_area)
         painter.fillRect(event.rect(), QColor("#f7f7f7"))
         if not self.search_matches:
@@ -593,20 +752,21 @@ class TextEditor(QPlainTextEdit):
 
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(self.search_marker_color))
-        area_width = self.search_marker_area.width()
-        area_height = max(1, self.search_marker_area.height())
-        block_count = max(1, self.blockCount())
+        area_width: int = self.search_marker_area.width()
+        area_height: int = max(1, self.search_marker_area.height())
+        block_count: int = max(1, self.blockCount())
         marked_lines = {
             self.document().findBlock(match.start).blockNumber()
             for match in self.search_matches
             if match.start != match.end
         }
         for line_number in marked_lines:
-            marker_y = round((line_number / block_count) * area_height)
+            marker_y: int = round((line_number / block_count) * area_height)
             painter.drawRect(2, marker_y, area_width - 4, 3)
 
 
 def _valid_color_or_default(color_code: str, default: str) -> str:
+    """指定された色コードが有効かどうかを確認し、有効であればその色コードを返し、無効であればデフォルトの色コードを返すヘルパーメソッド"""
     color = QColor(color_code)
     if color.isValid():
         return color.name()
