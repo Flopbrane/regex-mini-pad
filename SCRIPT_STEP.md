@@ -3673,3 +3673,30 @@ Canonical propagation and validation:
 - Canonical full pytest: 640 passed. Ruff passed; Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. PowerShell syntax parsing and `git diff --check` passed.
 - Prepared canonical portable Node directly from the official download rather than copying developer runtime/build output. `python -m preview.package_runtime` validated all 234 selected runtime files, making the canonical source ready for the default build and direct spec collection.
 - Final SHA-256 equality was verified for all nine transferred files, including this record. Actual EXE build/startup and packaged-runtime integration were performed in the worktree. The existing canonical dist/EXE was not replaced; running canonical `build.ps1` creates its updated distribution.
+
+## Step15-section20 Read-only Gutenberg Recovery And Save Analysis
+
+Date: 2026-10-24
+
+Request: follow the canonical `CODE_ANALYSIS_POLICY.md`, investigate visual-editor validation, Attempt recovery, Resolve/HTML conversion, disappearing ordinary text, whitespace/br changes and effects on later blocks. Never modify WordPress Core, Gutenberg, the existing preview runtime, or RegexPad application code for analysis.
+
+Deliverables:
+
+- Added `GUTENBERG_BEHAVIOR_REPORT.md` and the explicit `analysis_cases/` artifact manifest: nine synthetic before/manual-fixed/after cases, database snapshots, editor block trees, phase diffs, case notes, screenshots, source references and reproducible external probes.
+- Used the existing WordPress 7.1.3 / PHP 8.3 / Twenty Twenty-Five archives in a separate memory-only installation. Actual Chrome WordPress UI operations and Save draft were observed. No production site was accessed or changed, no Gutenberg plugin or theme update was performed.
+- Confirmed wrong heading roots can produce empty extracted content and erase ordinary text on recovery; missing block closers absorb later paragraph/heading blocks whose content is then omitted by paragraph save; stray closers turn the remainder into Classic content and invoke autop; editing RichText can collapse source newlines to spaces while untouched custom HTML remains unchanged.
+- Distinguished PHP read-side Block Hooks transformations from database values and client-side serialization. Confirmed that normal recovery with correct boundaries preserves the tested later siblings. Existing nested core/html is valid in this fixed version; automatic double-wrapping from ordinary HTML conversion was not reproduced.
+- No linter rules were changed. Recorded existing findings and manual fixes, including the fact that a recovered output can have zero lint findings after text has already disappeared. Full real-site/plugin/version/permission coverage is not claimed.
+
+Worktree validation:
+
+- Nine actual editor cases; 79 saved-evidence/source-reference checks passed. Five assertions against the unmodified JS delimiter parser and six independent PHP read-pipeline assertions passed.
+- Full pytest: 640 passed. Ruff passed; Pyright with the specified interpreter: 0 errors, 0 warnings, 0 informations. Resource/dictionary/analysis JSON parsing and Node syntax checks passed.
+- All 29 extracted reference files match their ZIP originals byte-for-byte. Existing preview runtime: all 2,281 files unchanged by SHA-256. Owned analysis server stopped and its origin was confirmed unreachable.
+
+Canonical propagation and validation:
+
+- Preflight confirmed canonical SCRIPT_STEP.md matched the worktree base after newline normalization and all new destination paths were absent. Transferred only the 263-file manifest using verified temporary writes and atomic replacement: report, this record and dedicated analysis artifacts. No `.git`, settings, build output or existing runtime content was copied.
+- Canonical full pytest: 640 passed. Ruff: All checks passed. Pyright: 0 errors, 0 warnings, 0 informations. Canonical evidence verification: 79 checks passed; resource/dictionary/analysis JSON: 109 files parsed. Node syntax, parser/PHP probes and both git diff checks passed.
+- All 263 transferred files, including the final report and this record, match by SHA-256. Canonical `.gitignore` remains byte-identical to the captured preflight value; the original policy matches its byte-preserving snapshot. Both source trees contain no application/linter/Core changes from this analysis.
+- Actual local WordPress editor recovery/save/reload was performed for the documented cases. EXE rebuild, production-site acceptance, other versions/plugins/permissions, exhaustive block-definition coverage and autosave/revision behavior remain outside this validation.

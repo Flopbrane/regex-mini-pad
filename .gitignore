@@ -21,7 +21,8 @@ sample/
 autosave/
 _internal/
 diagnose_regex_input.py
-
+CODE_ANALYSIS_POLICY.md
+analysis_cases/
 # Build outputs
 build/
 dist/
@@ -44,7 +45,7 @@ config.json
 test_sample/
 # Logs
 *.log
-
+*.zip
 # OS / editor
 .DS_Store
 Thumbs.db
