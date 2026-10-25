@@ -50,6 +50,62 @@ function Copy-DirectoryFresh {
     Copy-Item -LiteralPath $SourcePath -Destination $DestinationPath -Recurse -Force
 }
 
+function Copy-ReleaseDocumentation {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $SourceRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string] $DestinationRoot
+    )
+
+    $DocumentFiles = @(
+        "readme.txt", "readme_jp.txt", "LICENSE", "LICENSE.txt", "SOURCE_CODE.md",
+        "README.md", "README_jp.md", "SCRIPT_STEP.md", "THIRD_PARTY_NOTICES.md"
+    )
+    $DocumentFolders = @("docs", "docs_jp", "LICENSES")
+
+    $RequiredLicenseFiles = @(
+        "qt-for-python\LGPL-3.0-only.txt", "qt-for-python\GPL-3.0-only.txt",
+        "qt-for-python\GPL-2.0-only.txt", "qt-for-python\LicenseRef-Qt-Commercial.txt",
+        "qt-for-python\SOURCES.md", "qt-virtual-keyboard\OpenWnn-NOTICE.txt",
+        "qt-virtual-keyboard\PinyinIME-NOTICE.txt", "qt-virtual-keyboard\TCIME-COPYING.txt",
+        "qt-virtual-keyboard\SOURCES.md"
+    )
+
+    # Validate the complete set before copying; the license notice is not generated.
+    foreach ($Name in $DocumentFiles) {
+        $SourcePath = Join-Path $SourceRoot $Name
+        if (-not (Test-Path -LiteralPath $SourcePath -PathType Leaf)) {
+            throw "Required release document was not found: $SourcePath"
+        }
+    }
+    foreach ($Name in $DocumentFolders) {
+        $SourcePath = Join-Path $SourceRoot $Name
+        if (-not (Test-Path -LiteralPath $SourcePath -PathType Container)) {
+            throw "Required release documentation folder was not found: $SourcePath"
+        }
+    }
+
+    foreach ($Name in $RequiredLicenseFiles) {
+        $SourcePath = Join-Path (Join-Path $SourceRoot "LICENSES") $Name
+        if (-not (Test-Path -LiteralPath $SourcePath -PathType Leaf)) {
+            throw "Required upstream license document was not found: $SourcePath"
+        }
+    }
+    foreach ($Name in $DocumentFiles) {
+        Copy-Item -LiteralPath (Join-Path $SourceRoot $Name) `
+            -Destination (Join-Path $DestinationRoot $Name) -Force
+    }
+    foreach ($Name in $DocumentFolders) {
+        $DestinationFolder = Join-Path $DestinationRoot $Name
+        New-Item -ItemType Directory -Path $DestinationFolder -Force | Out-Null
+        Get-ChildItem -LiteralPath (Join-Path $SourceRoot $Name) -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $DestinationFolder -Recurse -Force
+        }
+    }
+}
+
 if (-not (Test-Path -LiteralPath $PythonExe)) {
     throw "Python interpreter was not found: $PythonExe"
 }
@@ -129,8 +185,11 @@ try {
         Write-Host "WordPress preview runtime bundled at: $BundledRuntimePath"
     }
 
+    Copy-ReleaseDocumentation -SourceRoot $ProjectRoot -DestinationRoot $DistAppPath
+
     Write-Host "Build completed."
     Write-Host "Copied resources to: $(Join-Path $InternalPath 'resources')"
+    Write-Host "Copied release documentation beside regex-pad.exe: $DistAppPath"
 
     if (Test-Path -LiteralPath $PyInstallerCachePath) {
         $LocalAppDataPath = (Resolve-Path -LiteralPath $env:LOCALAPPDATA).Path

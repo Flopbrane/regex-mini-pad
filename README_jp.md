@@ -32,6 +32,21 @@ ZIP内から直接起動せず、EXEだけを取り出さないでください�
 完全同梱版はローカル環境を使いますが、記事内の外部画像・外部CSSなどは
 参照先へ接続できる必要があります。
 
+## ライセンスとQtについて
+
+RegexPad本体の独自コードは、**GNU GPL バージョン3のみ（`GPL-3.0-only`）**で提供します。
+GPLの条件に従い、利用・改変・再配布ができ、有償での配布も可能です。
+全文の[LICENSE](LICENSE)、[ライセンス通知](LICENSE.txt)、
+[第三者部品の通知](THIRD_PARTY_NOTICES.md)をご確認ください。
+第三者部品や資料に個別の条件・著作権表示がある場合は、それを維持します。
+
+[公開ソース](https://github.com/Flopbrane/regex-mini-pad)と
+[ソース・リリースの対応手順](SOURCE_CODE.md)から、EXEに対応する版を確認する方針です。
+`v1.0.0`は予定するタグ名で、作成済み・既存EXEと対応済みと断定しません。
+Qt Virtual Keyboardを含む場合はGPLv3経路で扱い、
+[LICENSES内の原文](LICENSES/qt-virtual-keyboard/SOURCES.md)と帰属表示を同梱します。
+商用契約の取得や、Qt等の対応ソース提供まで完了したという意味ではありません。
+
 ## 主な機能
 
 | 分野 | 利用できる機能 |
@@ -124,6 +139,12 @@ JSONの記録も保存します。共有される可能性のある参照先は�
 最初の資材取得にはインターネット接続が必要です。
 直接specを使う場合や実エンジン検証については、
 [開発と配布](docs_jp/HOW_TO_USE_jp.md#開発と配布)をご覧ください。
+
+ビルド時に`readme.txt`・`readme_jp.txt`と既存の`LICENSE.txt`も、
+`regex-pad.exe`の横へコピーします。画像・リンクを保持するため、Markdown版README、
+`docs/`・`docs_jp/`・`SCRIPT_STEP.md`も同じ配布フォルダーへ含めます。
+`LICENSE`・`SOURCE_CODE.md`・`THIRD_PARTY_NOTICES.md`と`LICENSES/`も同梱します。
+ビルド処理はZIPを作成しないため、出力を確認してからフォルダー全体をZIP化してください。
 
 ソースは`editor/`、`dialogs/`、`search/`、`fileio/`、
 `settings/`、`preview/`に分離しています。

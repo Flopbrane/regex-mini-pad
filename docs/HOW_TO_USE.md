@@ -426,6 +426,22 @@ shortcuts are also available in the editor.
 | Lint hover text does not appear | Editor lint markers have no hover explanations; open `F7` and click a finding |
 | Cleaner cannot delete a path | Close owning processes and consult `cleaner_report.json` and `DELET_ITEMS_LIST.md` |
 
+## Licensing information
+
+RegexPad's original application code is **GPL-3.0-only**. Read the full
+[LICENSE](../LICENSE), [license notice](../LICENSE.txt), and
+[third-party notices](../THIRD_PARTY_NOTICES.md). GPL terms allow modification
+and redistribution, including distribution for a fee; separate dependency and
+material notices remain in force.
+
+The [public repository](https://github.com/Flopbrane/regex-mini-pad) is the
+source entry point. [SOURCE_CODE.md](../SOURCE_CODE.md) describes matching an
+EXE to its actual source commit/tag and providing build/dependency source
+information. The planned `v1.0.0` tag and a matching binary have not been
+published by this documentation task. Qt Virtual Keyboard is handled under
+the GPLv3 route when included, with [upstream texts and notices](../LICENSES/qt-virtual-keyboard/SOURCES.md).
+Do not treat a Public repository alone as proof of complete source delivery.
+
 ## Development and packaging
 
 The maintained source environment is Python 3.12/PySide6. From the project
@@ -444,6 +460,15 @@ bundle. The default build includes a portable Node even when the build machine
 already has Node; recipients need no global Node installation. Initial
 preparation needs network access. Runtime/component license files accompany
 the bundle. Keep the complete onedir folder when distributing it.
+
+The build places `readme.txt`, `readme_jp.txt`, and the supplied `LICENSE.txt`
+at the same level as `regex-pad.exe`. It also copies both Markdown READMEs,
+`docs/` (including images), `docs_jp/`, and `SCRIPT_STEP.md`, preserving relative
+links. Missing required release documents fail the copy step. Existing license
+text is copied from the maintained notice without changing upstream terms.
+`LICENSE`, `SOURCE_CODE.md`, `THIRD_PARTY_NOTICES.md`, and `LICENSES/` are also copied; missing required
+Qt/PySide license texts fail the copy step. ZIP creation is separate from the
+build, and document inclusion alone does not close the listed licensing items.
 
 For direct spec builds, first run `-m preview.package_runtime` with the same
 interpreter. A direct lightweight spec build can set

@@ -30,6 +30,22 @@ environment needs internet access when Preview is first requested. A complete
 bundle uses its local environment; article images or styles hosted on external
 websites still need network access.
 
+## Licensing and Qt
+
+RegexPad's original application code is licensed under **GNU GPL version 3 only
+(`GPL-3.0-only`)**. Use, modification and redistribution, including distribution
+for a fee, are permitted under its terms. Read the full [LICENSE](LICENSE),
+[license notice](LICENSE.txt), and [third-party notices](THIRD_PARTY_NOTICES.md).
+Separate third-party terms and copyright notices remain applicable.
+
+[Public source](https://github.com/Flopbrane/regex-mini-pad) and
+[release/source correspondence](SOURCE_CODE.md) explain how to identify the
+source for a distributed EXE. `v1.0.0` is a planned release tag, not a claim
+that an existing EXE was built from a published tag. Qt Virtual Keyboard is
+handled under the GPLv3 open-source route when included; its upstream and
+third-party notices are in [LICENSES/](LICENSES/qt-virtual-keyboard/SOURCES.md).
+No commercial Qt entitlement or completed dependency-source delivery is assumed.
+
 ## Main features
 
 | Area | Available tools |
@@ -122,6 +138,13 @@ Run checks with the same environment:
 on demand. First preparation requires internet access. See
 [Development and packaging](docs/HOW_TO_USE.md#development-and-packaging)
 for direct-spec builds and optional real-engine checks.
+
+The build also copies `readme.txt`, `readme_jp.txt`, and the existing
+`LICENSE.txt` beside `regex-pad.exe`. Markdown READMEs, `docs/`, `docs_jp/`,
+`SCRIPT_STEP.md`, `THIRD_PARTY_NOTICES.md`, and `LICENSES/` are included there
+to keep guides and licensing information together.
+The build does not create a ZIP; archive the complete output folder after
+checking it.
 
 The source is split across `editor/`, `dialogs/`, `search/`, `fileio/`,
 `settings/`, and `preview/`. Dictionaries and UI resources live in

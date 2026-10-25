@@ -425,6 +425,22 @@ EXE起動時に、`_internal/DELET_ITEMS_LIST.md`と
 | エラーマーカーにホバー説明が出ない | 本文マーカーのホバー説明は未対応です。`F7`の結果から該当行へ移動します |
 | cleanerで削除できない | 使用中のプロセスを閉じ、`cleaner_report.json`と`DELET_ITEMS_LIST.md`を参照します |
 
+## ライセンス資料
+
+RegexPad本体の独自コードは**GPL-3.0-only**です。
+全文の[LICENSE](../LICENSE)、[ライセンス通知](../LICENSE.txt)、
+[第三者部品の通知](../THIRD_PARTY_NOTICES.md)を確認してください。
+GPLの条件に従い、改変・再配布・有償での配布が可能です。
+別の条件を持つ第三者部品や資料の権利・表示も維持します。
+
+[公開リポジトリ](https://github.com/Flopbrane/regex-mini-pad)がソースの入口です。
+[SOURCE_CODE.md](../SOURCE_CODE.md)に、EXEと実際のソースのコミット・タグを対応させ、
+ビルド手順や依存部品の対応ソースを提供するための手順をまとめています。
+`v1.0.0`は予定名で、この文書更新でタグや対応EXEを公開したものではありません。
+Qt Virtual Keyboardを含む場合はGPLv3経路で扱い、
+[上流の原文と帰属表示](../LICENSES/qt-virtual-keyboard/SOURCES.md)を同梱します。
+Publicであることだけで、すべてのソース提供義務を満たしたとは扱いません。
+
 ## 開発と配布
 
 ソースの保守環境はPython 3.12・PySide6です。
@@ -443,6 +459,14 @@ EXE起動時に、`_internal/DELET_ITEMS_LIST.md`と
 標準ビルドは、作成PCにNodeがあっても配布用Nodeを含めるため、利用者のグローバル導入は不要です。
 初回の資材取得にはネット接続が必要です。各実行部品のライセンスファイルも同梱します。
 配布する際は、onedirフォルダー全体を保持してください。
+
+ビルド時に`readme.txt`・`readme_jp.txt`・既存の`LICENSE.txt`を、
+`regex-pad.exe`と同じ階層へコピーします。
+Markdown版READMEの両言語版、画像を含む`docs/`、`docs_jp/`、`SCRIPT_STEP.md`もコピーし、
+文書間の相対リンクを保持します。必要な配布文書がなければ、コピー処理はエラーにします。
+管理している通知と原文をコピーし、上流のライセンス条件は書き換えません。
+`LICENSE`・`SOURCE_CODE.md`・`THIRD_PARTY_NOTICES.md`と`LICENSES/`もコピーし、必要なQt・PySideの原文がなければエラーにします。
+ZIP化は別途行い、文書同梱だけで通知内のライセンス確認事項が解決したとは扱いません。
 
 specを直接使う場合は、同じPythonで先に`-m preview.package_runtime`を実行します。
 spec直接実行で軽量版を作る場合は、`REGEXPAD_SKIP_WORDPRESS_RUNTIME=1`を指定できます。

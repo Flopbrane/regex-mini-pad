@@ -1,9 +1,64 @@
-regex-pad license notice
-========================
+﻿RegexPad - license and source-code notice
+========================================
+Release: 1.0.0 (Stable)
+SPDX-License-Identifier: GPL-3.0-only
+Updated: 2026-10-25
 
-This package is prepared for office/internal use by the project owner unless a separate license is provided.
+REGEXPAD APPLICATION
+RegexPad's original application source code is free software distributed
+under the GNU General Public License, version 3 only (GPL-3.0-only).
+You may use, study, modify and redistribute it under that license.
+Commercial use and distribution for a fee are permitted under its terms.
 
-Third-party Python modules remain under their own licenses.
-Before redistribution, review the licenses of all bundled dependencies and generated artifacts.
+The former office/internal-use restriction no longer applies to the original
+RegexPad code covered by this notice. This grant does not override separate
+notices on third-party code, dependencies, data, artwork or other materials.
 
-No warranty is provided. Use at your own risk.
+Read the complete, unmodified GPL version 3 text in LICENSE beside this file.
+The English GPL text controls; this document is explanatory and adds no
+restrictions to the rights granted by that license.
+
+RegexPad is distributed without warranty to the extent permitted by law.
+See GPL version 3 for the complete warranty and liability provisions.
+
+SOURCE CODE
+Public repository:
+https://github.com/Flopbrane/regex-mini-pad
+
+Read SOURCE_CODE.md for the release/source correspondence procedure.
+The proposed 1.0.0 release tag is v1.0.0. This document does not assert that the
+tag is already published or that an existing EXE was built from it.
+A binary release must identify the actual source commit/tag and make its
+Corresponding Source, including needed build instructions, available in the
+manner required by the GPL.
+
+PYSIDE6, SHIBOKEN6, QT AND OTHER COMPONENTS
+The selected policy for RegexPad is the GPLv3 open-source route, not a claim
+that a commercial Qt contract has been obtained.
+Qt Virtual Keyboard is documented as GPLv3 or commercial; when included here,
+its applicable open-source terms and third-party notices must be preserved.
+
+PySide6, Shiboken6, Qt, Python, WordPress, Node, PHP.wasm and other third-party
+components retain their own applicable license/copyright notices. This project
+notice does not unilaterally relicense them.
+See THIRD_PARTY_NOTICES.md and LICENSES/ for original notices and license texts.
+
+A public RegexPad repository alone is not proof that corresponding Qt/library
+sources or every redistribution obligation have been supplied. SOURCE_CODE.md
+records release work still required. No unverified source-supply written offer
+or commercial-license entitlement is created by this notice.
+
+JAPANESE SUMMARY / 日本語での説明
+RegexPad本体の独自コードは、GNU GPL バージョン3のみ（GPL-3.0-only）で提供します。
+同ライセンスの条件に従い、利用・調査・改変・再配布ができ、有償での配布も可能です。
+従来の「社内・内部利用」に限定する記述は、本書の対象となる独自コードには適用しません。
+
+全文は同じ階層のLICENSEです。日本語の説明は原文に条件を追加するものではありません。
+第三者のコード・部品・データ・画像などに別の表示がある場合、その権利と条件を維持します。
+Qt Virtual Keyboardを含め、QtのGPL経路で必要な表示・対応ソースを確認します。
+商用契約を取得したという意味ではありません。
+
+公開ソースは上記GitHubです。EXEと対応するコミット・タグの確定方法はSOURCE_CODE.mdに記載します。
+v1.0.0は予定するタグ名で、作成済み・公開済み、既存EXEと一致すると断定しません。
+必要なビルド手順やQt等の対応ソースも含め、実際の配布物に対応した提供が必要です。
+今回の文書更新だけで、それらの準備やGitHub公開が完了したとは扱いません。
