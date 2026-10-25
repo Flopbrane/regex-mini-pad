@@ -61,6 +61,7 @@ NEXT_STEPS.md
 .depricate/
 
 # Temporary files
+/Temp/WordPressPreview/
 *.tmp
 *.bak
 .markdownlint.yaml

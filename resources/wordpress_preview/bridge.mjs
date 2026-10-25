@@ -5,8 +5,14 @@ import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { pathToFileURL } from 'node:url';
+import { installNeutralTheme, NEUTRAL_THEME } from './theme.mjs';
+import { createBootCache, DB_PATH } from './boot-cache.mjs';
 
 const root = resolve(process.argv[2]);
+// Optional backend-only selector keeps standard-theme comparison possible.
+// The editor uses Neutral Preview unless a future UI explicitly selects a theme.
+const previewTheme = process.argv[3] ?? NEUTRAL_THEME;
+const cacheRoot = resolve(process.argv[4] ?? join(root, 'preview-cache'));
 const require = createRequire(join(root, 'package.json'));
 const load = (name) => import(pathToFileURL(require.resolve(name).replace(/\.cjs$/, '.js')).href);
 const { bootWordPressAndRequestHandler } = await load('@wp-playground/wordpress');
@@ -56,31 +62,44 @@ async function stop() {
 }
 
 try {
+    if (![NEUTRAL_THEME, 'twentytwentyfive'].includes(previewTheme)) {
+        throw new Error(`Unsupported preview theme: ${previewTheme}`);
+    }
     await new Promise((done, reject) => {
         server.once('error', reject);
         server.listen(0, '127.0.0.1', done);
     });
     const siteUrl = `http://127.0.0.1:${server.address().port}`;
+    const bootCache = await createBootCache(root, cacheRoot);
     send({ event: 'progress', stage: 'boot' });
     handler = await bootWordPressAndRequestHandler({
         siteUrl, documentRoot: '/wordpress', maxPhpInstances: 1,
         createPhpRuntime: async () => loadPHPRuntime(await getPHPLoaderModule()),
         phpVersion: '8.3', cookieStore: false,
+        wordpressInstallMode: 'install-from-existing-files-if-needed',
+        hooks: { beforeDatabaseSetup: (php) => bootCache.restore(php) },
         wordPressZip: new File([await readFile(join(root, 'wordpress.zip'))], 'wordpress.zip'),
         sqliteIntegrationPluginZip: new File([await readFile(join(root, 'sqlite.zip'))], 'sqlite.zip'),
         constants: {
+            DB_PATH,
             WP_ENVIRONMENT_TYPE: 'local', WP_HTTP_BLOCK_EXTERNAL: true,
             AUTOMATIC_UPDATER_DISABLED: true, DISABLE_WP_CRON: true,
         },
     });
     const php = await handler.getPrimaryPhp();
+    await bootCache.save(php);
+    await installNeutralTheme(php);
     const info = await php.run({ code: `<?php require '/wordpress/wp-load.php';
+        $theme = wp_get_theme('${previewTheme}');
+        if ($theme->errors()) throw new Exception($theme->errors()->get_error_message());
+        switch_theme('${previewTheme}');
+        if (get_stylesheet() !== '${previewTheme}') throw new Exception('Preview theme activation failed');
         update_option('blogname', 'RegexPad WordPress Preview');
         update_option('blogdescription', 'normal / local preview');
         update_option('blog_public', 0);
         echo json_encode(['version' => get_bloginfo('version'), 'theme' => get_stylesheet()]);` });
     if (info.exitCode !== 0) throw new Error(info.errors || 'WordPress initialization failed');
-    send({ event: 'ready', ...JSON.parse(info.text), origin: siteUrl });
+    send({ event: 'ready', ...JSON.parse(info.text), origin: siteUrl, bootCache: bootCache.restored });
 
     for await (const line of createInterface({ input: process.stdin, crlfDelay: Infinity })) {
         const command = JSON.parse(line);
@@ -111,11 +130,13 @@ try {
                 if (url.origin !== siteUrl) throw new Error('Unexpected preview origin');
                 url.searchParams.set('regexpad_revision', String(command.id));
                 // Exercise the real front-end request, including dynamic blocks
-                // and the standard theme. Rendering success is not HTML validity.
+                // and the selected preview theme. Rendering success is not HTML validity.
                 const page = await handler.request({ url: url.pathname + url.search });
                 send({ event: 'feedback', id: command.id, status: page.httpStatusCode, warnings: page.errors });
                 if (page.httpStatusCode >= 400) throw new Error(page.errors || `WordPress HTTP ${page.httpStatusCode}`);
-                send({ event: 'rendered', id: command.id, url: url.href });
+                send({ event: 'rendered', id: command.id, url: url.href,
+                    ...(command.snapshot ? { html: Buffer.from(page.bytes).toString('base64') } : {}),
+                });
             });
         } catch (error) {
             send({ event: 'error', id: command.id, message: String(error.message ?? error) });

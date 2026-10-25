@@ -3781,3 +3781,72 @@ Canonical validation:
 - Ruff passed; Pyright with --pythonpath pointing to the required interpreter: 0 errors, 0 warnings, 0 informations. git diff --check passed.
 - Transferred only main.py, dialogs/tag_insert_dialog.py, tests/test_hover_hints.py, README.md, README_jp.md and SCRIPT_STEP.md after comparing the canonical destinations to their preflight SHA-256 values. Final six-file SHA-256 equality checked. No editor/highlighter, linter, settings files, dictionary or WordPress core modifications in this task.
 - Source repair is available in D:\PC\Python\regex_pad_project. EXE not rebuilt; physical mouse/tool-tip acceptance unperformed. Qt signal connections and settings propagation were tested offscreen with isolated temporary configuration files.
+
+
+## Step15-section24 Neutral WordPress Preview Theme
+
+Date: 2026-10-25
+
+Request: remove Twenty Twenty-Five page styling/chrome from article preview without editing WordPress core, Gutenberg, Twenty Twenty-Five or the existing downloaded runtime.
+
+Implementation:
+
+- Added resources/wordpress_preview/themes/regexpad-preview with only a style.css theme header, theme.json v3 (contentSize/wideSize 100%, blockGap 0; no typography/body padding), and templates/index.html containing only the default-layout post-content block.
+- Added a resource-relative theme.mjs installer. The bridge copies these new theme assets into the disposable PHP virtual filesystem and activates the theme with WordPress switch_theme. Existing runtime archives/packages and standard themes stay untouched; missing assets/activation failures report an error rather than silently using the old theme.
+- The editor defaults to regexpad-preview. The backend/verifier accepts only regexpad-preview or twentytwentyfive so future theme comparison is possible; no theme-selector UI is added. Neither article text nor editor settings are rewritten. Existing loopback/read-only HTTP/stdin-update/shutdown behavior remains intact.
+- Retained WordPress core block CSS and inline article styles. No CSS dequeueing, !important override layer, or font/body-padding injection. Only theme-added page elements are absent; an explicitly authored dynamic block still renders normally.
+- Theme assets remain under resources, already included by both the spec and build.ps1. Neither build configuration nor runtime preparation/version dependencies are changed. Added Node built-in tests for theme-only writes, article-only template/configuration, relocated packaged resources, and missing-resource failure before writes.
+- Extended the opt-in real-engine verifier to assert selected theme, served core block CSS, inline colors/spacer height, absence of standard-theme chrome/fonts/width, existing runtime SHA-256 equality, and the existing real-article/loopback/shutdown checks. Updated both READMEs, including restart/stop requirements and future comparison scope.
+
+Worktree validation:
+
+- Node theme/resource tests: 2 passed, including the missing-asset failure case. Real WordPress 7.1.3 / PHP 8.3 neutral and unmodified Twenty Twenty-Five verification succeeded; dynamic latest-posts rendering, spacer/latest-posts CSS, inline styles, HTTP write/foreign-host rejection and shutdown checks passed. Real broken/fixed article cases remain 11/0 static findings and both render HTTP 200 without PHP warnings.
+- Existing runtime assets: 234 SHA-256 comparisons unchanged, including wordpress.zip eb58a90ed55147f90f7bd55d0d3334960a69b7e8a4cc142c8ddfea8965218227. The verifier log is diagnostic output and is excluded from the runtime asset inventory.
+- Full worktree pytest reported 698 passed. Canonical validation, final lint/type checks and transfer verification follow. EXE rebuild, physical default-browser acceptance, production-site appearance and Gutenberg save() acceptance are separate and unperformed.
+
+Canonical validation:
+
+- Real neutral WordPress preview verification passed from the canonical resources: WordPress 7.1.3, regexpad-preview theme, core spacer/latest-posts CSS served, inline article styles preserved, HTTP 200/no PHP warnings for both qualification fixtures, 11/0 existing static findings, loopback/write restrictions and shutdown passed. Existing runtime assets: 234/234 SHA-256 comparisons unchanged. Saved analysis_cases/neutral_preview_verification.json.
+- Node built-in theme/resource tests: 2 passed. Ruff passed. Pyright using the required --pythonpath: 0 errors, 0 warnings, 0 informations. Full canonical pytest: 693 passed / 5 existing unrelated failures (three frame dictionary/style expectations, two U+2423 vs U+00B7 whitespace-marker expectations). These settings/source/test differences were preserved.
+- Worktree full pytest: 698 passed with exit code 0; Ruff and explicit-interpreter Pyright passed. git diff --check passed for this task's intended files. A whole-canonical diff check additionally reports pre-existing trailing whitespace at lines 34/319 of the user-edited tests/linter_check_tests_fixed.wp_html; preserved that file.
+- Final intended manifest: bridge.mjs, theme.mjs, three regexpad-preview theme files, preview/verify_wordpress_preview.py, tests/wordpress_preview_theme.test.mjs, both READMEs, SCRIPT_STEP.md and the neutral verification JSON. Eleven files SHA-256-matched between worktree and D:\PC\Python\regex_pad_project. No unrelated source/settings/dictionaries/build/runtime files copied.
+- Source changes are available in the canonical project. Stop a preview process already running before this update, then invoke the normal preview action again to load Neutral Preview. No EXE rebuild or physical-browser/production-site/Gutenberg-save acceptance was performed. No new third-party dependency.
+
+
+## Step15-section25 Simple Export and Live Theme Preview
+
+Date: 2026-10-25
+
+Request: faster WordPress-backed preview with two visible modes. Simple mode should export a basic page and automatically stop WordPress; Twenty Twenty-Five mode should remain available until the user exits WordPress. User explicitly rejected reuse of previously rendered article HTML because edits must always be reflected.
+
+Implementation:
+
+- View menu: simple / auto-stop (Ctrl+Alt+P), Twenty Twenty-Five / live (Ctrl+Alt+Shift+P), and Exit WordPress. Separate controllers and source snapshots prevent simple completion from stopping the live preview or mixing feedback across documents/modes. Editor close stops both owned processes.
+- Every action sends the current unsaved editor text through WordPress again, including an unchanged source. No article HTML cache lookup/reuse. Simple exports use a unique filename each time; reloading an older exported page retains that historical view and is not an editor refresh.
+- Added a WordPress-initialization cache using the supported beforeDatabaseSetup hook, DB_PATH constant and install-from-existing-files-if-needed mode. Save only the fresh demo database before installing the preview theme or submitting any article. Runtime archive/SQLite/package-lock fingerprints and stored data SHA-256 invalidate missing, corrupt or outdated data. Existing WordPress/package/theme files remain untouched. No dependencies added.
+- Simple mode embeds local CSS, nested CSS imports, fonts/images/srcset/inline CSS URLs into an HTML file under the portable Temp/WordPressPreview directory. External resources remain external. Remove executable scripts/event handlers for display-only use; preserve native HTML details. Asset retrieval stays on the owned loopback origin, blocks foreign redirects, respects size limits/cancellation, and runs outside the GUI thread. Stop PHP/WordPress before opening the file. Export errors and stop requests release the simple backend.
+- Live mode retains real Twenty Twenty-Five assets and the existing read-only local HTTP server until explicit Exit WordPress/editor close. Subsequent live previews update the existing process. Production plugin/form/AJAX write behavior remains outside this read-only environment.
+- Added static-export regression tests, controller/menu/lifecycle/current-source tests, Node bootstrap cache tests, and an opt-in real WordPress + Qt lifecycle/timing verifier. Updated both language resources and READMEs. Preserved canonical .gitignore rules and added only the generated preview-output exclusion.
+
+Worktree validation:
+
+- Original bridge: about 12.907 seconds to ready, 0.469 seconds to render (one local measurement). With initial demo DB cache, measured backend readiness 12.945 seconds cold / 1.772 seconds restored. End-to-end simple export measured 16.609 seconds first initialization, 2.420 / 2.446 seconds for edited / unchanged re-render, live start 2.443 seconds and live update 0.511 seconds. First-use downloads are not included, timings are machine/load dependent.
+- Real engine/Qt verification passed: current edits reflected, unchanged article also re-rendered, unique output files, local display images embedded, simple process already stopped before opening file, live process remained available during another simple export, explicit stop closed HTTP, old snapshots remained readable. Initial-cache article-text exclusion is additionally checked in the final verifier run. Physical browser opening was suppressed.
+- Full worktree pytest 704 passed. Ruff passed. Explicit-interpreter Pyright 0 errors/0 warnings/0 informations. Node theme/bootstrap tests 4 passed. Related snapshot/preview tests 19 passed. Canonical propagation/final validation follow.
+
+- Packaging follow-up: exclude generated Temp JSON from regex-pad.spec collection so bootstrap/export metadata is not bundled. An isolated collector smoke check confirmed Temp exclusion and ordinary resource inclusion; no EXE build was performed.
+
+Delayed prestart follow-up requested during implementation:
+
+- Added one-shot 10,000 ms warm-up timer after editor initialization. It starts only an already-prepared runtime, sends no article, downloads nothing, and keeps simple WordPress ready until use/exit. Background progress/errors do not interrupt editing. An earlier explicit preview/exit cancels the timer; selecting live mode stops an unused simple standby. Normal offscreen pytest suppresses automatic optional-runtime startup.
+- Cached-only preparation also checks for a compatible existing Node without calling normal installation. A manual request arriving during warm-up uses its current text; preparation completion handles the missing-Node/manual-request race. Simple mode still stops WordPress after export and does not rewarm automatically.
+- Added tests for timer/signal wiring, no background downloads, quiet failure, latest-source submission after warm-up and the live handoff. Real WordPress verification measured prestarted simple render/export/stop in 0.660 seconds. New full worktree pytest: 707 passed; related preview/snapshot tests: 22 passed. No previously rendered article is reused.
+
+Final live-mode clarification and canonical validation:
+
+- User clarified that live preview should normally end together with RegexPad, rather than requiring manual Exit WordPress after each preview. The live controller already retains its process; changed EN/JA status text and READMEs to make early manual exit optional. Added actual process-ID equality checks across live re-renders, plus a MainWindow close regression that stops its retained live controller.
+- Final canonical real-engine/Qt run passed. Measured simple cold export 17.404 seconds, subsequent edited/unchanged exports 2.682/2.617 seconds, theme start 2.586 seconds, theme update 0.548 seconds, prestarted simple export 0.660 seconds. Every invocation re-rendered current text; unchanged-source execution also submitted to WordPress. The initial DB cache contained none of the article test tokens. Prestart submitted no article/opened no browser, and stopped after simple export. Live process ID remained the same across previews, including while separate simple exports completed. Manual early stop and normal editor-close wiring were checked.
+- Canonical full pytest: 702 passed / 5 known unrelated failures (three frame dictionary border/style expectations, two whitespace U+2423 vs U+00B7 expectations). Related preview/export tests: 22 passed. Worktree full pytest: 707 passed. Ruff and explicit-interpreter Pyright passed in both trees. Node theme/bootstrap tests: 4 passed. Isolated packaging collection check excluded Temp metadata while retaining resource JSON.
+- Existing runtime inventory remained unchanged: 234 SHA-256 checks, including original WordPress ZIP eb58a90ed55147f90f7bd55d0d3334960a69b7e8a4cc142c8ddfea8965218227. No WordPress core, downloaded packages, Twenty Twenty-Five or linter changes in this task. Generated initialization cache and export files live outside bundled dependencies.
+- Intended manifest: .gitignore; regex-pad.spec; main.py; preview/wordpress_preview.py, static_snapshot.py, verify_preview_modes.py; resources/app_text_en.json and app_text_ja.json; resources/wordpress_preview/bridge.mjs and boot-cache.mjs; tests/test_wordpress_preview.py, test_static_snapshot.py and wordpress_preview_boot_cache.test.mjs; both READMEs; SCRIPT_STEP.md; analysis_cases/preview_modes_worktree_verification.json and preview_modes_canonical_verification.json. Eighteen files SHA-256-matched with D:\PC\Python\regex_pad_project after final propagation. Preserved unrelated canonical ignore rules, dictionary/editor differences and the edited linter_check_tests_fixed.wp_html sample.
+- Source available in the canonical project; restart RegexPad to load both actions and the delayed timer. No EXE rebuild, physical browser interaction, production-site/plugin or Gutenberg save() acceptance was performed. Tests suppressed external browser opening.

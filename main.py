@@ -259,7 +259,13 @@ class MainWindow(QMainWindow):
         self.schema_reference_dialog: SchemaReferenceDialog | None = None
         self.options_dialog: OptionsDialog | None = None
         self.wordpress_preview: WordPressPreview | None = None
+        self.wordpress_theme_preview: WordPressPreview | None = None
         self.wordpress_preview_snapshot: tuple[TextEditor, str] | None = None
+        self.wordpress_theme_preview_snapshot: tuple[TextEditor, str] | None = None
+        self.wordpress_warmup_timer = QTimer(self)
+        self.wordpress_warmup_timer.setSingleShot(True)
+        self.wordpress_warmup_timer.setInterval(10000)
+        self.wordpress_warmup_timer.timeout.connect(self._warm_wordpress_preview)
         self.search_scope: tuple[int, int] | None = None
         self.wordpress_mode_label_key = settings.wordpress_mode_label_key
         self.hover_hints_enabled = settings.hover_hints_enabled
@@ -339,6 +345,9 @@ class MainWindow(QMainWindow):
             self._restore_unsaved_backup_if_available()
         if self.unsaved_backup_enabled:
             self.auto_save_timer.start()
+        # Normal pytest/offscreen runs must not start an optional WordPress runtime.
+        if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+            self.wordpress_warmup_timer.start()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name
         """Handle the close event for the main window."""
@@ -548,6 +557,9 @@ class MainWindow(QMainWindow):
         self.wordpress_preview_action = QAction(self)
         self.wordpress_preview_action.setShortcut("Ctrl+Alt+P")
         self.wordpress_preview_action.triggered.connect(self.show_wordpress_preview)
+        self.wordpress_theme_preview_action = QAction(self)
+        self.wordpress_theme_preview_action.setShortcut("Ctrl+Alt+Shift+P")
+        self.wordpress_theme_preview_action.triggered.connect(self.show_wordpress_theme_preview)
         self.stop_wordpress_preview_action = QAction(self)
         self.stop_wordpress_preview_action.setEnabled(False)
         self.stop_wordpress_preview_action.triggered.connect(self.stop_wordpress_preview)
@@ -636,6 +648,7 @@ class MainWindow(QMainWindow):
         self.view_menu.addAction(self.ruler_action)
         self.view_menu.addSeparator()
         self.view_menu.addAction(self.wordpress_preview_action)
+        self.view_menu.addAction(self.wordpress_theme_preview_action)
         self.view_menu.addAction(self.stop_wordpress_preview_action)
         menu_bar.addMenu(self.view_menu)
 
@@ -1174,6 +1187,7 @@ class MainWindow(QMainWindow):
         self.find_action.setText(self.translator.text("action.find_replace"))
         self.grammar_check_action.setText(self.translator.text("action.grammar_check"))
         self.wordpress_preview_action.setText(self.translator.text("action.wordpress_preview"))
+        self.wordpress_theme_preview_action.setText(self.translator.text("action.wordpress_theme_preview"))
         self.stop_wordpress_preview_action.setText(self.translator.text("action.stop_wordpress_preview"))
         self.word_wrap_action.setText(self.translator.text("action.word_wrap"))
         self.line_numbers_action.setText(self.translator.text("action.line_numbers"))
@@ -1614,18 +1628,10 @@ class MainWindow(QMainWindow):
             )
 
     def show_wordpress_preview(self) -> None:
-        """Send an unchanged snapshot to an isolated, standard local WordPress."""
-        if self.wordpress_preview is None:
-            preview = WordPressPreview(
-                default_runtime_root(),
-                bundled_base_dir() / "resources" / "wordpress_preview" / "bridge.mjs",
-                self,
-            )
-            preview.progress.connect(self._wordpress_preview_progress)
-            preview.failed.connect(self._wordpress_preview_failed)
-            preview.feedback.connect(self._wordpress_preview_feedback)
-            preview.rendered.connect(self._wordpress_preview_rendered)
-            self.wordpress_preview = preview
+        """Render the current source, export a neutral page, then stop WordPress."""
+        self.wordpress_warmup_timer.stop()
+        self._ensure_simple_wordpress_preview()
+        assert self.wordpress_preview is not None
         source_text = self.editor.toPlainText()
         self.wordpress_preview_snapshot = (self.editor, self._source_hash(source_text))
         title = (
@@ -1634,6 +1640,57 @@ class MainWindow(QMainWindow):
         )
         self.stop_wordpress_preview_action.setEnabled(True)
         self.wordpress_preview.show_preview(title, source_text)
+
+    def _warm_wordpress_preview(self) -> None:
+        if any(preview is not None and preview.sequence > 0 for preview in (self.wordpress_preview, self.wordpress_theme_preview)):
+            return
+        self._ensure_simple_wordpress_preview()
+        assert self.wordpress_preview is not None
+        self.wordpress_preview.warm_up()
+
+    def _ensure_simple_wordpress_preview(self) -> None:
+        if self.wordpress_preview is None:
+            preview = WordPressPreview(
+                default_runtime_root(),
+                bundled_base_dir() / "resources" / "wordpress_preview" / "bridge.mjs",
+                self,
+                mode="simple",
+            )
+            preview.progress.connect(self._wordpress_preview_progress)
+            preview.failed.connect(self._wordpress_preview_failed)
+            preview.feedback.connect(self._wordpress_preview_feedback)
+            preview.rendered.connect(self._wordpress_preview_rendered)
+            preview.running_changed.connect(self._update_wordpress_stop_action)
+            self.wordpress_preview = preview
+
+    def show_wordpress_theme_preview(self) -> None:
+        """Keep a Twenty Twenty-Five preview alive until explicitly stopped."""
+        self.wordpress_warmup_timer.stop()
+        if self.wordpress_preview is not None and self.wordpress_preview.warming_up:
+            self.wordpress_preview.stop()
+        if self.wordpress_theme_preview is None:
+            preview = WordPressPreview(
+                default_runtime_root(),
+                bundled_base_dir() / "resources/wordpress_preview/bridge.mjs",
+                self, mode="theme",
+            )
+            preview.progress.connect(self._wordpress_preview_progress)
+            preview.failed.connect(self._wordpress_preview_failed)
+            preview.feedback.connect(self._wordpress_theme_preview_feedback)
+            preview.rendered.connect(self._wordpress_theme_preview_rendered)
+            preview.running_changed.connect(self._update_wordpress_stop_action)
+            self.wordpress_theme_preview = preview
+        source_text = self.editor.toPlainText()
+        self.wordpress_theme_preview_snapshot = (self.editor, self._source_hash(source_text))
+        title = self.current_save_file_path.stem if self.current_save_file_path else self.translator.text("wordpress_preview.title")
+        self.stop_wordpress_preview_action.setEnabled(True)
+        self.wordpress_theme_preview.show_preview(title, source_text)
+
+    def _update_wordpress_stop_action(self, _running: bool) -> None:
+        self.stop_wordpress_preview_action.setEnabled(any(
+            preview is not None and preview.running
+            for preview in (self.wordpress_preview, self.wordpress_theme_preview)
+        ))
 
     def _wordpress_preview_progress(self, stage: str) -> None:
         self.statusBar().showMessage(self.translator.text(f"wordpress_preview.stage.{stage}"))
@@ -1645,8 +1702,16 @@ class MainWindow(QMainWindow):
     def _wordpress_preview_rendered(self, version: str, _url: str) -> None:
         self.statusBar().showMessage(self.translator.text("wordpress_preview.rendered", version=version))
 
+    def _wordpress_theme_preview_rendered(self, version: str, _url: str) -> None:
+        self.statusBar().showMessage(self.translator.text("wordpress_preview.theme_rendered", version=version))
+
     def _wordpress_preview_feedback(self, _request_id: int, status: int, warnings: str) -> None:
-        snapshot = self.wordpress_preview_snapshot
+        self._apply_wordpress_preview_feedback(self.wordpress_preview_snapshot, status, warnings)
+
+    def _wordpress_theme_preview_feedback(self, _request_id: int, status: int, warnings: str) -> None:
+        self._apply_wordpress_preview_feedback(self.wordpress_theme_preview_snapshot, status, warnings)
+
+    def _apply_wordpress_preview_feedback(self, snapshot: tuple[TextEditor, str] | None, status: int, warnings: str) -> None:
         if snapshot is None or snapshot[0] is not self.editor:
             return
         if snapshot[1] != self._source_hash(self.editor.toPlainText()):
@@ -1662,9 +1727,13 @@ class MainWindow(QMainWindow):
         self.grammar_check_dialog.set_runtime_feedback(text)
 
     def stop_wordpress_preview(self) -> None:
+        self.wordpress_warmup_timer.stop()
         if self.wordpress_preview is not None:
             self.wordpress_preview.stop()
+        if self.wordpress_theme_preview is not None:
+            self.wordpress_theme_preview.stop()
         self.wordpress_preview_snapshot = None
+        self.wordpress_theme_preview_snapshot = None
         self.stop_wordpress_preview_action.setEnabled(False)
 
     def run_grammar_check(self) -> None:

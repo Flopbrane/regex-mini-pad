@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "settings": {
+    "layout": {
+      "contentSize": "100%",
+      "wideSize": "100%"
+    }
+  },
+  "styles": {
+    "spacing": {
+      "blockGap": "0"
+    }
+  }
+}

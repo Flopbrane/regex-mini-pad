@@ -21,12 +21,50 @@ lines; zero-width exclusion matches protect no characters. For selected/visible
 searches, exclusion patterns are evaluated inside that search scope. Inputs stay
 in the dialog for the current session and are not saved across restarts.
 
-## WordPress Preview (normal)
+## WordPress Preview: simple and live theme modes
 
-- Choose **View > WordPress Preview (normal)** or press **Ctrl+Alt+P**. The current
-  unsaved editor contents are rendered by real WordPress and its standard theme,
-  then opened in the default browser. Run the action again after editing to update
-  the preview. Source files and editor text are not rewritten.
+- Choose **View > WordPress Preview (simple / auto stop)** or press **Ctrl+Alt+P**. The current
+  unsaved editor contents are rendered by real WordPress and RegexPad's minimal
+  **Neutral Preview** theme,
+  then exported to standalone HTML with local display assets embedded. WordPress
+  stops automatically before the page opens in the default browser. Run the action
+  again after editing: every invocation sends the current unsaved text to WordPress,
+  even if unchanged. Article HTML is never reused. Reloading an older exported page
+  still shows that older snapshot. Source files and editor text are not rewritten.
+- Choose **View > WordPress Preview (Twenty Twenty-Five / live)** or press
+  **Ctrl+Alt+Shift+P** for the full standard-theme page and its frontend assets.
+  WordPress stays running and subsequent previews reuse that running process.
+  Normally WordPress stops together with RegexPad. **View > Exit WordPress** is
+  an optional early stop, not a required action after preview. Simple export does
+  not stop a live theme preview.
+- Simple pages are saved under `Temp/WordPressPreview/` beside the application
+  and remain viewable after WordPress exits. Local CSS, CSS imports, fonts and
+  display images are embedded; external images/styles remain external.
+  Scripts and event handlers are omitted from this display-only export. Native
+  HTML `details` controls remain available. Use live theme mode for JavaScript
+  buttons/accordions; production plugins are not installed.
+- Startup reuses only a freshly installed demo database saved before article
+  input. Its checksum and runtime archive/package fingerprint are checked;
+  missing, corrupt or outdated data is rebuilt. This avoids repeated installation,
+  not article rendering. First initialization still takes time.
+- About 10 seconds after the editor starts, an already-prepared runtime is
+  prestarted quietly in the background without article input or downloads.
+  It waits for simple preview, which still renders the current text and stops
+  WordPress after export. A manual preview/exit cancels the delayed timer; choosing
+  live theme mode stops an unused simple standby. Background-only failures do not
+  open a warning dialog. Normal offscreen tests do not start this optional runtime.
+- Neutral Preview displays only `post-content`, with 100% content/wide sizes and
+  zero theme block gap. It adds no font, body padding, header, author/category
+  metadata, post navigation, More Posts or footer. WordPress core block CSS and
+  article inline styles remain active; this is not CSS-free HTML rendering.
+  A block explicitly included in the article (for example Latest Posts) still
+  renders its normal content. Production themes/plugins and their custom classes
+  are outside this neutral view.
+- The new theme lives in `resources/wordpress_preview/themes/regexpad-preview/`
+  and is installed/activated only inside the disposable preview filesystem.
+  WordPress core, Twenty Twenty-Five and downloaded runtime packages are not edited.
+  Existing resource packaging also includes these theme assets in `_internal`.
+  Stop an already-running preview once after updating RegexPad to load the new modes.
 - First use prepares an optional environment under `runtime/wordpress-preview/`.
   It downloads official WordPress core and WordPress Playground PHP.wasm packages
   (Playground 3.1.60 / PHP 8.3). A preinstalled WordPress, PHP server or MySQL is
@@ -41,8 +79,9 @@ in the dialog for the current session and are not saved across restarts.
   Git tracking and PyInstaller JSON collection.
 - The local server binds only to `127.0.0.1` and rejects HTTP writes. Article
   updates reach it through the editor's private process input. The preview post
-  and SQLite database exist only in the process's virtual filesystem; nothing is
-  published to a real site. The preview uses standard WordPress demo data, not a
+  and working SQLite database stay in the virtual filesystem; only the pristine
+  demo database is saved under `Temp/WordPressPreview/boot/` before article input.
+  Nothing is published to a real site. The preview uses standard WordPress demo data, not a
   production site's theme, plugins or database.
   External API/oEmbed processing on the PHP side is outside this first offline
   baseline; browser-loaded remote images need connectivity.
@@ -51,13 +90,20 @@ in the dialog for the current session and are not saved across restarts.
   renders with HTTP 200 and no PHP warnings on both sides, while the existing
   structural linter still correctly identifies 11 problems on the broken side.
   This does not run Gutenberg editor `save()` validation.
-- **View > Stop WordPress Preview** stops the local environment. Closing the editor
-  also stops its own preview process. A browser tab left open after stopping will
-  no longer refresh. Startup/preparation runs in the background.
+- **View > Exit WordPress** stops the local environments. Closing the editor also
+  stops its own processes. A live browser tab left open after stopping will no
+  longer refresh; exported simple pages remain available. Startup runs in the background.
 - Optional real-engine verification (may prepare the runtime):
   `D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe -m preview.verify_wordpress_preview`.
   This checks dynamic block rendering, real-article feedback, loopback restrictions
-  and shutdown; ordinary pytest does not download WordPress.
+  and shutdown, plus neutral template output, core block CSS, inline styles and
+  SHA-256 equality of existing runtime data; ordinary pytest does not download WordPress.
+  For developer comparison, `--theme twentytwentyfive` selects the unmodified
+  standard theme in this verifier. Lifecycle/timing checks use
+  `python -m preview.verify_preview_modes`; these run Qt offscreen and suppress
+  browser opening, rather than proving physical browser behavior.
+  Theme installation/packaged resource tests use Node's built-in runner:
+  `node --test tests/wordpress_preview_theme.test.mjs tests/wordpress_preview_boot_cache.test.mjs`.
 
 Official references: [WordPress Playground](https://developer.wordpress.org/playground/developers/local-development/),
 [WordPress rendering](https://developer.wordpress.org/reference/functions/do_blocks/).
