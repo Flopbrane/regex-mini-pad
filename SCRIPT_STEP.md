@@ -3754,3 +3754,30 @@ Canonical validation:
 - Ruff passed; Pyright reported 0 errors, 0 warnings, 0 informations. Worktree full pytest: 695 passed. After merging parallel canonical documentation/type annotations, the focused 22 tests, Ruff and Pyright passed again; rendering logic was compared with annotations/docstrings excluded.
 - Preserved concurrent Pylint comments, docstrings and type annotations in the canonical editor file. Transferred only editor/text_editor.py, tests/test_html_syntax_highlighter.py, README.md, README_jp.md and this appended record; unrelated sample data remains intact.
 - Final SHA-256 equality was checked for the five intended files. No HTML/CSS/JSON/multilanguage linter changes were made in this task. The source application must be restarted to load the fix; no packaged EXE was rebuilt and physical GUI acceptance remains unperformed.
+
+
+## Step15-section23 Hover Hint Wiring Audit
+
+Date: 2026-10-25
+
+Request: verify hover-hint connections after the multiline HTML highlighting fix.
+
+Findings and narrow repair:
+
+- Tag menu QAction.hovered signals reach the status bar, and menu/context-menu tooltips are enabled by the saved hover-hint option. The options checkbox, settings save/load and menu rebuild were already connected.
+- TagInsertDialog received no hover-hint option and always enabled candidate tooltips/itemEntered explanations. Added set_hover_hints_enabled and apply it every time MainWindow opens the cached dialog; suppress hover hints while disabled, including filtered candidates, and retain keyboard/selection explanations.
+- Editor source tags and lint highlights currently have no hover-explanation provider/event handler. No new editor hover feature, linter behavior, document modification or WordPress core change is introduced by this audit.
+- Added tests/test_hover_hints.py for real Qt action/list signals, context-menu wiring, disabled/reenabled picker hints, filtered candidates, selected-candidate explanations and options-to-cached-dialog/settings propagation. Updated both READMEs.
+
+Validation:
+
+- Before repair: new wiring tests 1 passed / 2 failed. After repair: related tag/options/settings tests 74 passed, excluding four unrelated frame-template cases.
+- Worktree full pytest: 698 passed. Ruff passed. Pyright with the required interpreter explicitly selected (--pythonpath D:\Dev\venvs\venv_txt_edit312\Scripts\python.exe): 0 errors, 0 warnings, 0 informations. Bare Pyright initially could not resolve installed Qt/pytest; explicit interpreter selection resolved its environment lookup without source/config changes.
+- Canonical propagation and verification follow. Tests use Qt offscreen and isolated settings; physical pointer acceptance and packaged EXE rebuild are unperformed.
+
+Canonical validation:
+
+- Related tag/options/settings pytest: 74 passed / 4 unrelated frame tests deselected. Full pytest: 693 passed / 5 failed. Three failures are the existing frame dictionary border/color/font-weight expectations; two are existing whitespace marker tests expecting U+2423 while the canonical editor now returns U+00B7 (canonical HEAD 7afd934, fixed space visualize font). Those unrelated source/dictionary/test changes were preserved.
+- Ruff passed; Pyright with --pythonpath pointing to the required interpreter: 0 errors, 0 warnings, 0 informations. git diff --check passed.
+- Transferred only main.py, dialogs/tag_insert_dialog.py, tests/test_hover_hints.py, README.md, README_jp.md and SCRIPT_STEP.md after comparing the canonical destinations to their preflight SHA-256 values. Final six-file SHA-256 equality checked. No editor/highlighter, linter, settings files, dictionary or WordPress core modifications in this task.
+- Source repair is available in D:\PC\Python\regex_pad_project. EXE not rebuilt; physical mouse/tool-tip acceptance unperformed. Qt signal connections and settings propagation were tested offscreen with isolated temporary configuration files.

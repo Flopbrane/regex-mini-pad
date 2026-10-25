@@ -41,6 +41,7 @@ class TagInsertDialog(QDialog):
         self.translator = translator
         self.choices: list[TagSnippetChoice] = []
         self.selected_snippet: TagSnippet | None = None
+        self.hover_hints_enabled = True
 
         self.search_label = QLabel(self)
         self.search_edit = QLineEdit(self)
@@ -86,6 +87,14 @@ class TagInsertDialog(QDialog):
 
     def selected_choice(self) -> TagSnippet | None:
         return self.selected_snippet
+
+    def set_hover_hints_enabled(self, enabled: bool) -> None:
+        self.hover_hints_enabled = enabled
+        for index in range(self.snippet_list.count()):
+            item = self.snippet_list.item(index)
+            choice = item.data(Qt.ItemDataRole.UserRole)
+            if isinstance(choice, TagSnippetChoice):
+                item.setToolTip(escape(choice.hint, quote=False) if enabled else "")
 
     def _create_layout(self) -> None:
         search_layout = QHBoxLayout()
@@ -150,7 +159,8 @@ class TagInsertDialog(QDialog):
             if filter_text and filter_text not in choice.search_text:
                 continue
             item = QListWidgetItem(choice.label)
-            item.setToolTip(escape(choice.hint, quote=False))
+            if self.hover_hints_enabled:
+                item.setToolTip(escape(choice.hint, quote=False))
             item.setData(Qt.ItemDataRole.UserRole, choice)
             self.snippet_list.addItem(item)
 
@@ -167,7 +177,8 @@ class TagInsertDialog(QDialog):
         self._show_item_hint(current)
 
     def _handle_hovered_item(self, item: QListWidgetItem) -> None:
-        self._show_item_hint(item)
+        if self.hover_hints_enabled:
+            self._show_item_hint(item)
 
     def _show_item_hint(self, item: QListWidgetItem | None) -> None:
         """Show the hint for the selected or hovered snippet list item."""

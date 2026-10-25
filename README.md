@@ -211,6 +211,10 @@ before pasting or saving article HTML.
 
 ## Tag Snippets
 
+- The hover-hint option controls tag menu tooltips and hover hints in the tag
+  insertion dialog, including when reopening the dialog after changing the
+  option. The selected candidate's explanation remains available when hover
+  hints are off. Editor text and lint markers do not currently have hover hints.
 - Tag candidates are managed separately in `dictionaries/html_dict.json`,
   `dictionaries/markdown_dict.json`, and
   `dictionaries/wordpress_html_dict.json`.

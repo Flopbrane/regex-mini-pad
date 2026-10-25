@@ -1347,6 +1347,7 @@ class MainWindow(QMainWindow):
         if self.tag_insert_dialog is None:
             self.tag_insert_dialog = TagInsertDialog(self.translator, self)
 
+        self.tag_insert_dialog.set_hover_hints_enabled(self.hover_hints_enabled)
         self.tag_insert_dialog.set_snippet_groups(
             ordered_tag_snippet_groups(
                 self.current_save_file_path,
