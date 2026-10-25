@@ -755,7 +755,7 @@ class TextEditor(QPlainTextEdit):
         area_width: int = self.search_marker_area.width()
         area_height: int = max(1, self.search_marker_area.height())
         block_count: int = max(1, self.blockCount())
-        marked_lines = {
+        marked_lines: set[int] = {
             self.document().findBlock(match.start).blockNumber()
             for match in self.search_matches
             if match.start != match.end

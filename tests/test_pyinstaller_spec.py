@@ -74,6 +74,7 @@ def test_spec_bundles_runtime_dependencies_but_not_setup_cache(tmp_path: Path, m
     root = tmp_path / "runtime/wordpress-preview"
     _prepared_runtime(root, monkeypatch)
     (tmp_path / "config.json").write_text("{}")
+    (tmp_path / "DELET_ITEMS_LIST.md").write_text("inventory template")
     monkeypatch.delenv("REGEXPAD_SKIP_WORDPRESS_RUNTIME", raising=False)
     prefix = Path("regex-pad.spec").read_text(encoding="utf-8").split("a = Analysis", maxsplit=1)[0]
     namespace: dict[str, object] = {"SPECPATH": str(tmp_path)}

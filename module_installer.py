@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from cleanup_inventory import record_inventory_safely
+
 APP_NAME = "regex-pad"
 SCHEMA_VERSION = "1.0"
 REQUIREMENT_CANDIDATES = (
@@ -196,11 +198,14 @@ def install_requirements(app_root: Path, requirements_path: Path) -> None:
     python_path = venv_python_path(paths["venv"])
     env = os.environ.copy()
     env["PIP_CACHE_DIR"] = str(paths["cache_pip"])
-    completed_process = subprocess.run(
-        [str(python_path), "-m", "pip", "install", "-r", str(requirements_path)],
-        env=env,
-        check=False,
-    )
+    try:
+        completed_process = subprocess.run(
+            [str(python_path), "-m", "pip", "install", "-r", str(requirements_path)],
+            env=env,
+            check=False,
+        )
+    finally:
+        record_inventory_safely(app_root)
     if completed_process.returncode != 0:
         raise RuntimeError(f"pip install failed: {requirements_path}")
 
@@ -236,6 +241,7 @@ def main() -> int:
             save_json(records / "install_diff.json", build_diff(load_json(before_path), load_json(after_path), app_root))
 
     print(f"Prepared portable folders: {app_root}")
+    record_inventory_safely(app_root)
     return 0
 
 

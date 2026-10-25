@@ -348,6 +348,7 @@ class MainWindow(QMainWindow):
         # Normal pytest/offscreen runs must not start an optional WordPress runtime.
         if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
             self.wordpress_warmup_timer.start()
+        self._update_wordpress_status_label()
 
     def closeEvent(self, event: QCloseEvent) -> None:  # pylint: disable=invalid-name
         """Handle the close event for the main window."""
@@ -362,6 +363,10 @@ class MainWindow(QMainWindow):
         self._save_settings()
         self._clear_grammar_lint_results_on_window_close()
         self.stop_wordpress_preview()
+        if getattr(sys, "frozen", False):
+            from cleanup_inventory import record_inventory_safely
+
+            record_inventory_safely(app_base_dir(), bundled_base_dir())
         event.accept()
 
     def _create_actions(self) -> None:
@@ -669,6 +674,10 @@ class MainWindow(QMainWindow):
     def _create_status_bar(self) -> None:
         """Create the status bar for the main window."""
         self.setStatusBar(QStatusBar(self))
+        self.wordpress_status_label = QLabel(self)
+        self.wordpress_status_label.setTextFormat(Qt.TextFormat.PlainText)
+        self.wordpress_status_label.setContentsMargins(8, 0, 4, 0)
+        self.statusBar().addPermanentWidget(self.wordpress_status_label)
 
     def _create_editor_tab(
         self,
@@ -1215,6 +1224,7 @@ class MainWindow(QMainWindow):
         if self.options_dialog is not None:
             self.options_dialog.apply_language()
         self._update_status_bar()
+        self._update_wordpress_status_label()
         self._update_window_title()
 
     def _rebuild_insert_tag_menu(self) -> None:
@@ -1661,6 +1671,7 @@ class MainWindow(QMainWindow):
             preview.feedback.connect(self._wordpress_preview_feedback)
             preview.rendered.connect(self._wordpress_preview_rendered)
             preview.running_changed.connect(self._update_wordpress_stop_action)
+            preview.state_changed.connect(self._update_wordpress_status_label)
             self.wordpress_preview = preview
 
     def show_wordpress_theme_preview(self) -> None:
@@ -1679,6 +1690,7 @@ class MainWindow(QMainWindow):
             preview.feedback.connect(self._wordpress_theme_preview_feedback)
             preview.rendered.connect(self._wordpress_theme_preview_rendered)
             preview.running_changed.connect(self._update_wordpress_stop_action)
+            preview.state_changed.connect(self._update_wordpress_status_label)
             self.wordpress_theme_preview = preview
         source_text = self.editor.toPlainText()
         self.wordpress_theme_preview_snapshot = (self.editor, self._source_hash(source_text))
@@ -1691,6 +1703,27 @@ class MainWindow(QMainWindow):
             preview is not None and preview.running
             for preview in (self.wordpress_preview, self.wordpress_theme_preview)
         ))
+
+    def _update_wordpress_status_label(self, _state: str = "") -> None:
+        entries: list[str] = []
+        details: list[str] = []
+        for preview in (self.wordpress_preview, self.wordpress_theme_preview):
+            if preview is None or preview.state == "stopped":
+                continue
+            mode = self.translator.text(f"wordpress_preview.mode.{preview.mode}")
+            state = self.translator.text(f"wordpress_preview.status.{preview.state}")
+            entries.append(self.translator.text("wordpress_preview.status.entry", mode=mode, state=state))
+            if preview.state == "failed" and preview.last_error:
+                details.append(f"{mode}: {preview.last_error}")
+        if not entries:
+            state = "waiting" if self.wordpress_warmup_timer.isActive() else "stopped"
+            entries.append(self.translator.text(f"wordpress_preview.status.{state}"))
+        self.wordpress_status_label.setText(
+            self.translator.text("wordpress_preview.status.label", details=" / ".join(entries))
+        )
+        details.insert(0, self.translator.text("wordpress_preview.status.help"))
+        tooltip = escape("\n".join(details), quote=False).replace("\n", "<br>")
+        self.wordpress_status_label.setToolTip(f"<qt>{tooltip}</qt>")
 
     def _wordpress_preview_progress(self, stage: str) -> None:
         self.statusBar().showMessage(self.translator.text(f"wordpress_preview.stage.{stage}"))
@@ -1735,6 +1768,7 @@ class MainWindow(QMainWindow):
         self.wordpress_preview_snapshot = None
         self.wordpress_theme_preview_snapshot = None
         self.stop_wordpress_preview_action.setEnabled(False)
+        self._update_wordpress_status_label()
 
     def run_grammar_check(self) -> None:
         """Run the CSS or HTML / WordPress grammar check for the current document."""

@@ -8,7 +8,11 @@
   },
   "styles": {
     "spacing": {
-      "blockGap": "0"
+      "blockGap": "0",
+      "padding": {
+        "left": "2em",
+        "right": "2em"
+      }
     }
   }
 }

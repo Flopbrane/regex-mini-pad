@@ -33,7 +33,7 @@ def _ensure_default_config() -> None:
 
 def _project_json_datas():
     _ensure_default_config()
-    ignored_parts = {"build", "dist", "_internal", ".git", ".vscode", "runtime", "Temp"}
+    ignored_parts = {"build", "dist", "_internal", ".git", ".vscode", "runtime", "Temp", "install_records", "logs", "cache", "modules", "data"}
     ignored_names = {"pyrightconfig.json"}
     datas = []
     for json_path in PROJECT_ROOT.rglob("*.json"):
@@ -60,6 +60,10 @@ app_datas = [
 ]
 
 DATAS = [*app_datas]
+deletion_list = PROJECT_DIR / "DELET_ITEMS_LIST.md"
+if not deletion_list.is_file():
+    raise RuntimeError("DELET_ITEMS_LIST.md is required for the packaged cleanup inventory.")
+DATAS.append((str(deletion_list), "."))
 
 # An onedir distribution carries all preview dependencies under _internal.
 # Direct spec builds require prepared data; build.ps1 prepares it automatically.

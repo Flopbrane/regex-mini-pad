@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+import sys
 import threading
 import uuid
 from pathlib import Path
@@ -11,7 +12,7 @@ from typing import Literal
 from PySide6.QtCore import QObject, QProcess, QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 
-from portable_runtime import app_base_dir
+from portable_runtime import app_base_dir, bundled_base_dir
 from preview.static_snapshot import SnapshotCancelled, write_snapshot
 from preview.wordpress_runtime import (
     PreparationCancelled,
@@ -21,6 +22,13 @@ from preview.wordpress_runtime import (
 )
 
 PROTOCOL_PREFIX = b"REGEXPAD_PREVIEW "
+
+
+def _update_cleanup_inventory(runtime_root: Path | None = None, selected_node: Path | None = None) -> None:
+    if getattr(sys, "frozen", False):
+        from cleanup_inventory import record_inventory_safely
+
+        record_inventory_safely(app_base_dir(), bundled_base_dir(), runtime_root=runtime_root, selected_node=selected_node)
 
 
 class RuntimePreparation(QThread):
@@ -35,6 +43,7 @@ class RuntimePreparation(QThread):
         self.cached_only = cached_only
 
     def run(self) -> None:
+        node = None
         try:
             if self.cached_only:
                 node = find_node(self.runtime_root) if runtime_ready(self.runtime_root) else None
@@ -48,6 +57,8 @@ class RuntimePreparation(QThread):
             pass
         except Exception as error:  # noqa: BLE001 - report all failures at the QThread boundary.
             self.failed.emit(str(error))
+        finally:
+            _update_cleanup_inventory(self.runtime_root, node)
 
 
 class SnapshotExport(QThread):
@@ -67,6 +78,8 @@ class SnapshotExport(QThread):
             pass
         except Exception as error:  # noqa: BLE001 - report errors across the Qt thread boundary.
             self.error = str(error)
+        finally:
+            _update_cleanup_inventory()
 
 
 class WordPressPreview(QObject):
@@ -76,6 +89,7 @@ class WordPressPreview(QObject):
     active_changed = Signal(bool)
     feedback = Signal(int, int, str)
     running_changed = Signal(bool)
+    state_changed = Signal(str)
 
     def __init__(
         self, runtime_root: Path, bridge_path: Path, parent: QObject | None = None,
@@ -85,6 +99,8 @@ class WordPressPreview(QObject):
         self.mode = mode
         self.output_root = (output_root or app_base_dir() / "Temp/WordPressPreview").resolve()
         self.running = False
+        self.state = "stopped"
+        self.last_error = ""
         self.warming_up = False
         self.exporter: SnapshotExport | None = None
         self.export_sequence = 0
@@ -112,6 +128,7 @@ class WordPressPreview(QObject):
         self.closing = False
         self.warming_up = False
         self.reported_failure = False
+        self.last_error = ""
         self.sequence += 1
         self.pending = (self.sequence, title, source_text)
         self.active_changed.emit(True)
@@ -121,18 +138,28 @@ class WordPressPreview(QObject):
 
     def warm_up(self) -> None:
         """Start cached WordPress without submitting any article or downloading."""
-        if self.running or not runtime_ready(self.runtime_root):
+        if self.running:
+            return
+        if not runtime_ready(self.runtime_root):
+            self._set_state("not_prepared")
             return
         self.closing = False
         self.reported_failure = False
+        self.last_error = ""
         self.warming_up = True
         self.running = True
         self.running_changed.emit(True)
         self._ensure_started()
 
     def _report_progress(self, stage: str) -> None:
+        self._set_state(stage if stage in {"prepare", "node", "packages", "wordpress", "download", "boot", "render", "export"} else "prepare")
         if not self.warming_up:
             self.progress.emit(stage)
+
+    def _set_state(self, state: str) -> None:
+        if self.state != state:
+            self.state = state
+            self.state_changed.emit(state)
 
     def _ensure_started(self) -> None:
         if self.ready:
@@ -160,6 +187,7 @@ class WordPressPreview(QObject):
             self.running = False
             self.warming_up = False
             self.running_changed.emit(False)
+            self._set_state("not_prepared")
 
     def _start_bridge(self, node_path: str) -> None:
         if self.closing:
@@ -176,7 +204,7 @@ class WordPressPreview(QObject):
             return
         request_id, title, content = self.pending
         self.pending = None
-        self.progress.emit("render")
+        self._report_progress("render")
         command = {"command": "render", "id": request_id, "title": title, "content": content}
         if self.mode == "simple":
             command["snapshot"] = True
@@ -206,6 +234,8 @@ class WordPressPreview(QObject):
             self.version = str(message.get("version", ""))
             self.boot_cache = bool(message.get("bootCache", False))
             self.ready = True
+            _update_cleanup_inventory(self.runtime_root)
+            self._set_state("ready")
             self._send_pending()
         elif event == "rendered" and message.get("id") == self.sequence:
             url = QUrl(str(message.get("url", "")))
@@ -222,7 +252,7 @@ class WordPressPreview(QObject):
                 except ValueError as error:
                     self._fail(str(error))
                     return
-                self.progress.emit("export")
+                self._report_progress("export")
                 save_file_path = self.output_root / f"snapshot-{uuid.uuid4().hex}.html"
                 exporter = SnapshotExport(html, url.toString(), save_file_path, {"wordpress": self.version}, self)
                 self.exporter = exporter
@@ -234,6 +264,7 @@ class WordPressPreview(QObject):
                 self._fail("The default browser could not be opened.")
                 return
             self.active_changed.emit(False)
+            self._set_state("ready")
             self.rendered.emit(self.version, url.toString())
         elif event == "error" and message.get("id", self.sequence) == self.sequence:
             self._fail(str(message.get("message", "WordPress preview failed.")))
@@ -258,10 +289,12 @@ class WordPressPreview(QObject):
         version = self.version
         url = QUrl.fromLocalFile(str(exporter.save_file_path))
         self.stop()  # Release PHP/WordPress before opening the standalone snapshot.
+        if not error and not QDesktopServices.openUrl(url):
+            error = "The default browser could not be opened."
         if error:
+            self.last_error = error
+            self._set_state("failed")
             self.failed.emit(error)
-        elif not QDesktopServices.openUrl(url):
-            self.failed.emit("The default browser could not be opened.")
         else:
             self.rendered.emit(version, url.toString())
 
@@ -285,11 +318,14 @@ class WordPressPreview(QObject):
         if self.closing or self.reported_failure:
             return
         self.reported_failure = True
+        self.last_error = message
+        was_warming_up = self.warming_up
         self.active_changed.emit(False)
-        if not self.warming_up:
-            self.failed.emit(message)
         if self.mode == "simple":
             self.stop()
+        self._set_state("failed")
+        if not was_warming_up:
+            self.failed.emit(message)
 
     def stop(self) -> None:
         """Stop only this editor's preview; leave any unrelated server untouched."""
@@ -312,3 +348,4 @@ class WordPressPreview(QObject):
         self.active_changed.emit(False)
         self.running = False
         self.running_changed.emit(False)
+        self._set_state("stopped")

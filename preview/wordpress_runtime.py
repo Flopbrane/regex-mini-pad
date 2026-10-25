@@ -197,6 +197,7 @@ def prepare_runtime(
         (runtime_root / "sqlite.zip").write_bytes(sqlite.read())
     progress("wordpress")
     if not (runtime_root / "wordpress.zip").exists():
+        progress("download")
         _download("https://wordpress.org/latest.zip", runtime_root / "wordpress.zip", cancel)
     with zipfile.ZipFile(runtime_root / "wordpress.zip") as archive:
         version_source = archive.read("wordpress/wp-includes/version.php").decode("utf-8")

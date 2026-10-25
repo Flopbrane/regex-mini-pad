@@ -24,7 +24,7 @@ test('theme installer writes only the new theme inside disposable WordPress', as
     const theme = JSON.parse(php.files.get(prefix + 'theme.json'));
     assert.equal(theme.version, 3);
     assert.deepEqual(theme.settings, { layout: { contentSize: '100%', wideSize: '100%' } });
-    assert.deepEqual(theme.styles, { spacing: { blockGap: '0' } });
+    assert.deepEqual(theme.styles, { spacing: { blockGap: '0', padding: { left: '2em', right: '2em' } } });
     assert.equal(php.files.get(prefix + 'templates/index.html').trim(),
         '<!-- wp:post-content {"layout":{"type":"default"}} /-->');
 });

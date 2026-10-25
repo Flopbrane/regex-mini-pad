@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from datetime import datetime
@@ -10,6 +11,11 @@ from pathlib import Path
 from typing import Any
 
 APP_NAME = "regex-pad"
+WORDPRESS_DATA_DIRS = (
+    Path("runtime/wordpress-preview"),
+    Path("_internal/runtime/wordpress-preview"),
+    Path("Temp/WordPressPreview"),
+)
 
 
 def default_app_root() -> Path:
@@ -38,30 +44,76 @@ def load_install_diff(app_root: Path) -> dict[str, Any]:
 
 def is_inside(child_path: Path, parent_path: Path) -> bool:
     try:
-        child_path.resolve().relative_to(parent_path.resolve())
-    except ValueError:
+        resolved_child = child_path.resolve()
+        resolved_parent = parent_path.resolve()
+        resolved_child.relative_to(resolved_parent)
+    except (ValueError, OSError, RuntimeError):
         return False
-    return True
+    return resolved_child != resolved_parent
+
+
+def validate_delete_target(candidate: Path, app_root: Path) -> None:
+    """Reject the application root, escapes and reparse-point traversal."""
+    if not is_inside(candidate, app_root):
+        raise ValueError(f"Refusing cleanup outside the app folder: {candidate}")
+    for path in (candidate, *candidate.parents):
+        if path == app_root:
+            break
+        if path.is_symlink() or path.is_junction():
+            raise ValueError(f"Refusing cleanup through a link/junction: {path}")
+    if candidate.is_dir():
+        for current, directories, files in os.walk(candidate, followlinks=False):
+            for name in (*directories, *files):
+                path = Path(current) / name
+                if path.is_symlink() or path.is_junction():
+                    raise ValueError(f"Refusing cleanup containing a link/junction: {path}")
 
 
 def delete_candidates(app_root: Path) -> list[Path]:
+    app_root = app_root.resolve()
     candidates: list[Path] = []
     for item in load_install_diff(app_root).get("added_files", []):
-        if not item.get("owned_by_this_app", False) or not item.get("delete_candidate", False):
+        if not isinstance(item, dict) or item.get("owned_by_this_app") is not True or item.get("delete_candidate") is not True:
             continue
-        candidate_path = Path(item.get("path", ""))
+        value = item.get("path")
+        if not isinstance(value, str) or not value:
+            continue
+        candidate_path = Path(value)
+        if not candidate_path.is_absolute():
+            candidate_path = app_root / candidate_path
+        candidate_path = Path(os.path.abspath(candidate_path))
         if candidate_path.exists() and is_inside(candidate_path, app_root):
             candidates.append(candidate_path)
-    return candidates
+    # These app-owned namespaces also cover cached/bundled/partial downloads
+    # that were never recorded by the optional Python module installer.
+    for relative in WORDPRESS_DATA_DIRS:
+        path = app_root / relative
+        if path.is_dir() or path.is_symlink() or path.is_junction():
+            candidates.append(path)
+    selected: list[Path] = []
+    for path in sorted(set(candidates), key=lambda value: (len(value.parts), str(value).casefold())):
+        if any(path.is_relative_to(parent) for parent in selected):
+            continue
+        validate_delete_target(path, app_root)
+        selected.append(path)
+    return selected
 
 
-def write_report(app_root: Path, mode: str, candidates: list[Path]) -> None:
+def write_report(
+    app_root: Path, mode: str, candidates: list[Path], *,
+    deleted: list[Path] | None = None, errors: list[str] | None = None,
+) -> None:
     report = {
         "app_name": APP_NAME,
         "mode": mode,
         "created_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "app_root": str(app_root),
         "candidates": [str(path) for path in candidates],
+        "deleted": [str(path) for path in (deleted or [])],
+        "errors": errors or [],
+        "persistent_environment_variables": [],
+        "registry_keys": [],
+        "settings_note": "RegexPad uses process-local environment variables and creates no persistent environment or registry settings.",
     }
     report_path = records_dir(app_root) / "cleaner_report.json"
     report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,12 +134,14 @@ def dry_run(app_root: Path) -> int:
     candidates = delete_candidates(app_root)
     write_report(app_root, "dry-run", candidates)
     print("Dry-run only. No files were deleted.")
+    print("No persistent environment variables or registry keys are created by RegexPad.")
     for candidate in candidates:
         print(candidate)
     return 0
 
 
 def clean(app_root: Path, yes: bool) -> int:
+    app_root = app_root.resolve()
     candidates = delete_candidates(app_root)
     write_report(app_root, "clean", candidates)
     if not candidates:
@@ -95,21 +149,37 @@ def clean(app_root: Path, yes: bool) -> int:
         return 0
     for candidate in candidates:
         print(candidate)
+    print("Close RegexPad and its WordPress previews before cleaning.")
     if not yes and input("Type DELETE to continue: ") != "DELETE":
         print("Cancelled.")
         return 1
+    # Revalidate the entire plan after confirmation, before deleting anything.
     for candidate in candidates:
-        if candidate.is_dir():
-            shutil.rmtree(candidate)
-        elif candidate.exists():
-            candidate.unlink()
-        append_log(app_root, f"deleted: {candidate}")
+        validate_delete_target(candidate, app_root)
+    deleted: list[Path] = []
+    errors: list[str] = []
+    for candidate in candidates:
+        try:
+            validate_delete_target(candidate, app_root)
+            if candidate.is_dir():
+                shutil.rmtree(candidate)
+            elif candidate.exists():
+                candidate.unlink()
+            deleted.append(candidate)
+            append_log(app_root, f"deleted: {candidate}")
+        except OSError as error:
+            errors.append(f"{candidate}: {error}")
+            append_log(app_root, f"failed: {candidate}: {error}")
+    write_report(app_root, "clean", candidates, deleted=deleted, errors=errors)
+    if errors:
+        print("Clean incomplete. Close the app/previews, check cleaner_report.json, and retry.")
+        return 2
     print("Clean completed. You may delete the app folder manually after closing this cleaner.")
     return 0
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Clean only files recorded as added by this app.")
+    parser = argparse.ArgumentParser(description="Review/remove recorded app additions and local WordPress preview data.")
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--scan", action="store_true")
     mode.add_argument("--dry-run", action="store_true")
@@ -119,11 +189,15 @@ def main() -> int:
     args = parser.parse_args()
 
     app_root = Path(args.app_root).resolve()
-    if args.scan:
-        return scan(app_root)
-    if args.dry_run:
-        return dry_run(app_root)
-    return clean(app_root, args.yes)
+    try:
+        if args.scan:
+            return scan(app_root)
+        if args.dry_run:
+            return dry_run(app_root)
+        return clean(app_root, args.yes)
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"Cleanup refused: {error}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

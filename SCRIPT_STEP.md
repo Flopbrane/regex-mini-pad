@@ -3850,3 +3850,86 @@ Final live-mode clarification and canonical validation:
 - Existing runtime inventory remained unchanged: 234 SHA-256 checks, including original WordPress ZIP eb58a90ed55147f90f7bd55d0d3334960a69b7e8a4cc142c8ddfea8965218227. No WordPress core, downloaded packages, Twenty Twenty-Five or linter changes in this task. Generated initialization cache and export files live outside bundled dependencies.
 - Intended manifest: .gitignore; regex-pad.spec; main.py; preview/wordpress_preview.py, static_snapshot.py, verify_preview_modes.py; resources/app_text_en.json and app_text_ja.json; resources/wordpress_preview/bridge.mjs and boot-cache.mjs; tests/test_wordpress_preview.py, test_static_snapshot.py and wordpress_preview_boot_cache.test.mjs; both READMEs; SCRIPT_STEP.md; analysis_cases/preview_modes_worktree_verification.json and preview_modes_canonical_verification.json. Eighteen files SHA-256-matched with D:\PC\Python\regex_pad_project after final propagation. Preserved unrelated canonical ignore rules, dictionary/editor differences and the edited linter_check_tests_fixed.wp_html sample.
 - Source available in the canonical project; restart RegexPad to load both actions and the delayed timer. No EXE rebuild, physical browser interaction, production-site/plugin or Gutenberg save() acceptance was performed. Tests suppressed external browser opening.
+
+
+## Step15-section26 Simple Preview Side Padding
+
+Date: 2026-10-25
+
+Request: the supplied simple-preview PDF starts too close to the left edge; reserve about two full-width characters of space.
+
+- Added styles.spacing.padding.left/right = 2em to the regexpad-preview theme.json only. Keep 100% content/wide sizes, zero block gap and existing article font/inline styles. Twenty Twenty-Five, WordPress core, user article sources and the supplied PDF are unchanged.
+- Updated the existing Node theme contract and both READMEs. No new runtime code/dependency or automatic article correction.
+- Read-only PDF inspection: rendered the first supplied PDF page using Poppler and inspected its positioning. Rendered the existing fixed qualification-article fixture through real WordPress into a new standalone snapshot. In an isolated headless Edge, measured body font 16px and left/right padding 32px at viewport widths 800px and 375px; content rectangles were [32,768] and [32,343]. Inspected the resulting screenshot. External network resources were blocked during that layout check; image availability was not assessed.
+- Worktree Node theme/bootstrap tests: 4 passed. Related pytest: 22 passed. Canonical transfer/verification follow. No PDF authoring or EXE build.
+
+Canonical validation:
+
+- Node theme/bootstrap tests 4 passed; related preview/export pytest 22 passed. Ruff passed; Pyright with the required --pythonpath reported 0 errors/0 warnings/0 informations. Task-scoped diff check passed. Full pytest was not repeated for this theme-padding-only change.
+- Five intended files SHA-256-matched between worktree and D:\PC\Python\regex_pad_project: neutral theme.json, existing Node theme test, both READMEs and this record. No unrelated files copied. Existing real-article layout was checked at two viewport widths using real WordPress output and headless Edge; physical GUI and EXE rebuild remain unperformed.
+- If an older preview process is already prestarted, Exit WordPress once and request a new simple preview to load the updated theme resources. Existing exported HTML/PDF files remain unchanged.
+
+
+## Step15-section27 Persistent WordPress Core Status
+
+Date: 2026-10-25
+
+Request: show WordPress readiness/preparation state permanently on the right of the status bar; ten seconds is a deferred start time, not guaranteed readiness.
+
+- Added a permanent WP QLabel and per-controller state_changed notifications. Right-side text tracks simple and live modes independently: waiting, not prepared, preparing, runtime/core download, component/core preparation, starting, ready, rendering/exporting, stopped and failed. Ordinary status/cursor/count updates no longer obscure WordPress state. Language switching refreshes the indicator; hover help explains deferred prestart/manual first setup and escapes failure details.
+- Ready is set only after validating the backend ready event. Warm-up state updates remain visible on the right without producing transient messages/dialogs. Missing cached runtime/Node is not prepared, not ready; background failures remain visible as failed. Simple automatic stop and explicit cancellation show stopped while retaining the live process's readiness if it remains active.
+- Added a core-download progress event only inside the actual missing-archive download branch. Existing archive validation uses core preparation, avoiding a false downloading label. Preparation/download policy is unchanged: automatic prestart uses prepared data only, and first-time acquisition begins on an explicit Preview action. Article text, WordPress core, installed packages, themes and preview lifecycle semantics are unchanged.
+- Updated both language resources, both READMEs and five state/wiring regressions. Tests cover ready acknowledgment, quiet prestart, missing data, downloads versus existing ZIP, failures/cancellation, persistent label during editing/language changes and independent simple/live status.
+- Worktree related pytest: 27 passed; full pytest: 712 passed. Ruff/Pyright and canonical results follow. Ran an isolated offscreen MainWindow against actual WordPress: observed prepare -> boot -> ready -> render -> export -> stopped with matching right-label text. Inspected a Qt status-bar screenshot showing normal editing information at left and WP readiness at right. No physical desktop interaction or external browser was performed.
+
+Canonical validation:
+
+- Full canonical pytest: 707 passed / 5 known unrelated failures (three frame dictionary border/style expectations, two whitespace U+2423 vs U+00B7 expectations). Full worktree pytest: 712 passed; related status/preview/export pytest: 27 passed. Ruff and explicit-interpreter Pyright passed in both trees. Task-scoped diff check passed.
+- Propagated only main.py, preview/wordpress_preview.py, preview/wordpress_runtime.py, both app-text resources, tests/test_wordpress_status.py, both READMEs and SCRIPT_STEP.md. Final nine-file SHA-256 equality checked with D:\PC\Python\regex_pad_project; preserved prior padding changes and unrelated canonical files.
+- Actual WordPress startup/render/export signals were checked in an isolated offscreen MainWindow, including right-label visibility while normal editing messages remained at left. New unit tests also checked the missing-archive download event and absence of that event when the archive already exists, without network access.
+- Restart the source application to load the permanent status widget. No EXE rebuild, physical GUI/default-browser or production-site acceptance was performed. No article rewriting, core/package/theme modification or automatic-download policy change.
+
+
+## Step15-section28 WordPress Runtime Cleanup
+
+Date: 2026-10-25
+
+Request: include downloaded WordPress core/related files and any app-created environment/registry settings in module_cleaner.exe cleanup targets.
+
+- Added three app-owned namespaces independent of module-install records: runtime/wordpress-preview, _internal/runtime/wordpress-preview and Temp/WordPressPreview. These include core/SQLite/PHP.wasm, portable Node, npm/setup/partial-download files, initialized demo DBs and exported simple HTML/metadata. Existing app resources, other runtime/venv folders and article folders are not added automatically.
+- Preserve recorded additions while handling relative paths and consolidating parent/child duplicates. Reject the app root, outside targets, symbolic links/junctions and nested links before deletion; revalidate after confirmation and immediately before recursive deletion. Keep scan/dry-run and DELETE confirmation. Locked-file failures produce a nonzero exit status and explicit deleted/error lists in cleaner_report.json.
+- Audited runtime preparation, portable_runtime.py, installer and build scripts. Runtime installation is prefix/cache-local, no registry APIs or persistent environment writes are used. Environment overrides are process-local; build-script overrides are restored. Reports record empty persistent environment/registry cleanup lists. Do not delete shared Node/Python, global PATH or user-defined registry/settings.
+- Added tests/test_module_cleaner.py. Nine tests passed, including actual Windows directory junction fixtures, no-record/partial/bundled downloads, deduplication/scoping, dry-run, cancellation, revalidation after confirmation, preserved article/venv/resources and locked-file reporting. Read-only discovery on real source and dist folders recognized their existing WordPress namespaces without deleting their contents.
+- Full worktree pytest: 721 passed. Ruff/Pyright and canonical validation follow. Rebuild only module_cleaner.exe, verify the packaged binary on disposable fixtures, and retain the existing GUI EXE/runtime files. Do not run destructive cleanup against actual installed/downloaded data.
+
+Canonical/source and packaged validation:
+
+- Full worktree pytest: 721 passed. Full canonical pytest: 716 passed / 5 existing unrelated failures (three frame dictionary/style expectations and two whitespace U+2423 vs U+00B7 expectations). Cleaner regressions: 9 passed, including Windows junction cases. Ruff and explicit-interpreter Pyright passed in both trees. Intended source changes matched by SHA-256 for module_cleaner.py, tests/test_module_cleaner.py, both READMEs and SCRIPT_STEP.md.
+- Rebuilt only the cleaner using required Python 3.12.10 / PyInstaller 6.22.2 as a standalone console onefile EXE. Build work/spec/cache/output are confined to build/cleaner-update; temporary PYINSTALLER_CONFIG_DIR override was restored. The main regex-pad GUI EXE was not rebuilt or replaced.
+- Tested the built executable in a disposable Japanese-named portable folder: default-root --dry-run listed all three namespaces without deletion; --clean --yes removed only synthetic WordPress fixtures and preserved article/venv/non-WordPress resources; --scan then reported no candidates. All exited 0. Actual payload cleanup was confined to temporary fixtures.
+- Updated D:\PC\Python\regex_pad_project\dist\regex-pad\module_cleaner.exe. Size 8,347,009 bytes; SHA-256 d003df1a6810fb3399a49c16e45e8d596dacfd2980be6d46b391a64ac580796e. Previous helper retained under build/cleaner-update/previous/module_cleaner-<old hash>.exe. Binary update is separate from the five-file source propagation; no build output was copied into the worktree.
+- Ran the deployed cleaner with --dry-run only against its actual adjacent app folder. It recognized _internal/runtime/wordpress-preview, wrote cleaner_report.json and deleted nothing. Confirmed source WordPress ZIP, bundled WordPress ZIP and the existing GUI EXE retained their pre-check SHA-256 values. No real downloaded/runtime/cache/article data or system environment/registry settings were removed.
+- Normal use: exit RegexPad/WordPress first, inspect --dry-run, then --clean with DELETE confirmation. Use --app-root for source or another portable folder. Source is available in the canonical project and the cleaner binary is updated; physical double-click/interactive-console acceptance remains unperformed.
+
+
+## Step15-section29 First-Run Manual Cleanup Inventory
+
+Date: 2026-10-25
+
+Request: bundle user-created DELET_ITEMS_LIST.md under _internal and generate actual module/WordPress/configuration locations on first ZIP-extracted EXE startup, so leftover resources can be located manually. User additionally requested shared/high-risk references in a separate final warning section.
+
+- Filled the initially empty document as a template with generated-section markers and a persistent manual-notes section. Added cleanup_inventory.py: atomic UTF-8 Markdown copies at _internal/DELET_ITEMS_LIST.md and install_records/DELET_ITEMS_LIST.md, with install_records/deletion_inventory.json history. Preserve manual text outside markers, original creation time and previously seen paths with refreshed existence status; reset location-specific history if the portable folder is relocated.
+- Inventory covers app-scoped Python environments/module metadata, npm lock metadata and presence, actual WordPress runtime/output locations, host-side plugin folders when present, INI/config paths without contents, selected Node and only the five relevant process-environment overrides. It does not scan arbitrary drives or the registry, collect unrelated environment variables/secrets, or delete/change permissions on any listed resource.
+- Added the exact final warning headings requested by the user. External paths, shared selected Node, inherited environment references and external module locations appear only there, separately from normal app-local entries; these are reference-only and not added to cleaner automatic targets. Persistent environment/registry sections explicitly state none created by RegexPad. Virtual WordPress core/plugins are released on process exit.
+- Frozen startup initializes the list after portable paths/env are configured; preparation completion/failure, backend readiness, simple export and normal editor close refresh it. The Python module installer also refreshes on success/failure. Inventory errors are logged without breaking startup/download; a writable companion list survives a locked _internal copy. Directory access failures are visible as notes, and uncertain existence is not reported as absent.
+- Spec/build.ps1 include the template under _internal. JSON collection excludes generated install records, logs, cache, data and module folders to avoid packaging developer-specific inventory. Source document remains a template, not a machine-specific report. No dependency added.
+- Related inventory/packaging/portable/preview pytest: 38 passed; Ruff/Pyright passed. Earlier full worktree pytest: 728 passed before final close/access-error additions; final source/canonical checks and actual ZIP first-run validation follow.
+
+Canonical/source and packaged validation:
+
+- Final full worktree pytest: 730 passed. Full canonical pytest: 725 passed / 5 existing unrelated failures (three frame dictionary/style expectations and two whitespace U+2423 vs U+00B7 expectations). Related inventory/packaging/portable/preview pytest: 38 passed. Ruff and explicit-interpreter Pyright passed in both trees; build.ps1 PowerShell syntax and task-scoped diff checks passed.
+- Propagated only the 13 intended source/document/test files: DELET_ITEMS_LIST.md, cleanup_inventory.py, portable_runtime.py, module_installer.py, preview/wordpress_preview.py, regex-pad.spec, build.ps1, tests/test_cleanup_inventory.py, tests/test_pyinstaller_spec.py, README.md, README_jp.md, SCRIPT_STEP.md and main.py. Final SHA-256 equality with D:\PC\Python\regex_pad_project verified; preserved unrelated canonical changes.
+- Built the full GUI/helper onedir distribution from canonical sources into build/inventory-release/dist/regex-pad using the required interpreter. Verified the bundled WordPress runtime (234 files), template inclusion and exclusion of generated install_records. Existing dist/regex-pad GUI/helper and original WordPress archives were not replaced or modified.
+- Created dist/regex-pad-inventory.zip, 162,850,927 bytes, SHA-256 6967b1b4f37a819da71be54d17854e4f0694861796963b984f2d2bc20e1cdbb0. ZIP integrity and required _internal template passed. Distribute/extract the entire regex-pad directory including _internal.
+- Extracted that actual ZIP into an isolated temporary folder and launched its EXE with Qt offscreen. First startup generated both Markdown copies and JSON with the extracted app paths (about 1.7 seconds). Second startup (about 1.2 seconds) refreshed a synthetic Python package/version, INI and plugin paths; preserved manual notes/creation time; put inherited external cache paths only in the final shared-warning section; excluded unrelated environment and INI secret values. Test-owned processes were terminated after assertions. Evidence: build/inventory-release/first-run-verification.json. This is packaged offscreen startup verification, not physical GUI acceptance.
+- Created current-source review copies at _internal/DELET_ITEMS_LIST.md and install_records/DELET_ITEMS_LIST.md plus the JSON record; the root DELET_ITEMS_LIST.md remains the reusable template. No real download/install, runtime deletion, permissions change, registry write or persistent environment change was performed. Actual WordPress archives and the existing normal-distribution GUI retained their pre-check hashes.

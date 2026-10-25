@@ -53,8 +53,16 @@ in the dialog for the current session and are not saved across restarts.
   WordPress after export. A manual preview/exit cancels the delayed timer; choosing
   live theme mode stops an unused simple standby. Background-only failures do not
   open a warning dialog. Normal offscreen tests do not start this optional runtime.
+- A permanent **WP** indicator on the right of the status bar shows waiting,
+  not prepared, preparation/download, starting, ready, rendering/exporting,
+  stopped or failed. It tracks simple and live theme processes separately and
+  remains visible while editing. Ready is shown only after WordPress acknowledges
+  startup, not when the 10-second timer expires. Missing runtime data is prepared
+  by an explicit Preview action; automatic prestart still never downloads.
+  Hover over the indicator for timing guidance and the most recent failure details.
 - Neutral Preview displays only `post-content`, with 100% content/wide sizes and
-  zero theme block gap. It adds no font, body padding, header, author/category
+  zero theme block gap and 2em left/right body padding (about two full-width
+  characters). It adds no font, header, author/category
   metadata, post navigation, More Posts or footer. WordPress core block CSS and
   article inline styles remain active; this is not CSS-free HTML rendering.
   A block explicitly included in the article (for example Latest Posts) still
@@ -129,6 +137,52 @@ runtime; use `python -m preview.package_runtime` with the specified interpreter
 first. For direct `.spec` lightweight builds only, set
 `REGEXPAD_SKIP_WORDPRESS_RUNTIME=1`. Build-time preparation uses the normal source
 `runtime/wordpress-preview/` folder and does not change global Node/npm settings.
+
+## Cleaning WordPress preview data
+
+The EXE includes a `DELET_ITEMS_LIST.md` template under `_internal`. On first
+launch it writes actual cleanup paths there and also under `install_records/`,
+with structured history in `install_records/deletion_inventory.json`. WordPress
+preparation/export and the Python module installer refresh the inventory,
+including incomplete preparation. Only paths and package metadata are recorded;
+configuration contents and unrelated environment values are not collected.
+
+The list includes existing Python/npm package names and versions, scoped plugin
+folders, INI/config paths and process-local environment overrides. External or
+inherited/shared references appear in the final Japanese warning section,
+separately from app-local data. They are descriptive references, not automatic
+cleanup targets. Verify other applications' use before deciding on manual removal.
+There are no persistent app-created environment variables or registry keys.
+Manual notes outside the generated markers survive refreshes. Keep a copy of the
+list before uninstalling; old/missing recorded paths remain visible for reference.
+Builds include the template, never the developer's generated installation records.
+
+Close RegexPad and its previews, then run the cleaner beside `regex-pad.exe`:
+
+```powershell
+.\module_cleaner.exe --dry-run
+.\module_cleaner.exe --clean
+```
+
+The first command only lists candidates. The second requires typing `DELETE`.
+In addition to recorded module-install additions, the cleaner includes these
+app-owned folders even without an installation record:
+
+- `runtime/wordpress-preview/`: downloaded core/SQLite archives, PHP.wasm packages,
+  portable Node, npm cache, partial downloads and setup logs.
+- `_internal/runtime/wordpress-preview/`: the bundled WordPress environment.
+- `Temp/WordPressPreview/`: initialization databases and exported simple pages.
+
+Use `--app-root <folder>` for another portable folder or the source checkout.
+The cleaner rejects the app root itself, outside paths and links/junctions;
+overlapping file/folder candidates are consolidated. Locked-file failures return
+a nonzero exit code and are recorded in `install_records/cleaner_report.json`.
+Existing exported simple pages in the listed folder are also removed.
+
+RegexPad creates no persistent environment variables or registry entries.
+Its environment overrides are process-local, so no global PATH, shared Node/Python
+installation or registry cleanup is performed. Application resources and article
+folders outside the listed namespaces are not added as automatic candidates.
 
 ## Goals
 

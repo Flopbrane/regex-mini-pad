@@ -18,6 +18,7 @@ $AppDistName = "regex-pad"
 $ResourceSourcePath = Join-Path $ProjectRoot "resources"
 $AssetSourcePath = Join-Path $ProjectRoot "assets"
 $WordPressRuntimePath = Join-Path $ProjectRoot "runtime\wordpress-preview"
+$DeletionListSourcePath = Join-Path $ProjectRoot "DELET_ITEMS_LIST.md"
 
 function Copy-DirectoryFresh {
     param(
@@ -95,6 +96,7 @@ try {
     if (-not (Test-Path -LiteralPath $InternalPath)) {
         throw "PyInstaller _internal directory was not found: $InternalPath"
     }
+    Copy-Item -LiteralPath $DeletionListSourcePath -Destination (Join-Path $InternalPath "DELET_ITEMS_LIST.md") -Force
 
     # Translator が実行時に読む JSON を _internal\resources に配置します。
     Copy-DirectoryFresh `

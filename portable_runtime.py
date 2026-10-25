@@ -53,10 +53,21 @@ def configure_portable_runtime() -> Path:
     _add_site_dir(venv_dir / "Lib" / "site-packages")
     _add_site_dir(venv_dir / "lib" / f"python{sys.version_info.major}.{sys.version_info.minor}" / "site-packages")
 
-    os.environ.setdefault("PIP_CACHE_DIR", str(cache_dir / "pip"))
-    os.environ.setdefault("MPLCONFIGDIR", str(cache_dir / "matplotlib"))
-    os.environ.setdefault("XDG_CACHE_HOME", str(cache_dir / "xdg"))
-    os.environ.setdefault("MYAPP_BASE_DIR", str(base_dir))
-    os.environ.setdefault("MYAPP_MODULES_DIR", str(modules_dir / "site-packages"))
+    overrides = {
+        "PIP_CACHE_DIR": str(cache_dir / "pip"),
+        "MPLCONFIGDIR": str(cache_dir / "matplotlib"),
+        "XDG_CACHE_HOME": str(cache_dir / "xdg"),
+        "MYAPP_BASE_DIR": str(base_dir),
+        "MYAPP_MODULES_DIR": str(modules_dir / "site-packages"),
+    }
+    environment = {}
+    for name, value in overrides.items():
+        set_by_app = name not in os.environ
+        os.environ.setdefault(name, value)
+        environment[name] = {"value": os.environ[name], "set_by_app": set_by_app}
+    if getattr(sys, "frozen", False):
+        from cleanup_inventory import record_inventory_safely
+
+        record_inventory_safely(base_dir, bundled_base_dir(), environment=environment)
 
     return base_dir
